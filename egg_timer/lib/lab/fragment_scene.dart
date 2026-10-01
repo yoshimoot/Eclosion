@@ -1,6 +1,24 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+
+import 'fragment_surface_probe.dart';
+export 'fragment_surface_probe.dart' show FragmentSurfaceColors;
+
+// Boolean operations produce non-overlapping contours, potentially with holes.
+// CanvasKit can reset Skia's even-odd result to the FIRST operand's winding
+// rule. Explicit parity preserves those holes independently of contour winding:
+// shell = egg - aperture; occluded = behind intersect shell; visible = !occluded.
+// The injectable operation lets native tests exercise that Web backend contract.
+@visibleForTesting
+Path combineFragmentOcclusionPaths(
+  PathOperation operation,
+  Path a,
+  Path b, {
+  Path Function(PathOperation, Path, Path)? combine,
+}) =>
+    (combine ?? Path.combine)(operation, a, b)..fillType = PathFillType.evenOdd;
 
 double _part(double t, double start, double end) =>
     ((t - start) / (end - start)).clamp(0.0, 1.0);
@@ -37,7 +55,10 @@ class _LiftPush {
 
 class _ShellAttachment {
   const _ShellAttachment(
-    this.vertex, this.releaseStart, this.releaseEnd, this.scarEnd,
+    this.vertex,
+    this.releaseStart,
+    this.releaseEnd,
+    this.scarEnd,
   );
   final int vertex;
   final double releaseStart, releaseEnd;
@@ -83,6 +104,8 @@ class _V {
     );
   }
 
+  static _V lerp(_V a, _V b, double t) =>
+      _V(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t);
   Offset get xy => Offset(x, y);
 }
 
@@ -127,53 +150,363 @@ double _diffuse(List<_V> vertices) {
 Path _polygon(Iterable<Offset> points) =>
     Path()..addPolygon(points.toList(), true);
 
-class _CrackOpening {
-  const _CrackOpening(this.gap, this.lightLip, this.shadedLip);
-  final Path gap, lightLip, shadedLip;
+/// Numeric view of the exact geometry used by the painter (egg-local units).
+@visibleForTesting
+class FragmentGeometrySnapshot {
+  const FragmentGeometrySnapshot(
+    this.material,
+    this.positions,
+    this.retention,
+    this.holds,
+    this.rigid,
+    this.minimumAreaRatio,
+    this.innerPositions,
+  );
+  final List<(double, double, double)> material, positions, rigid;
+  final List<double> retention, holds;
+  final double minimumAreaRatio;
+  final List<(double, double, double)> innerPositions;
 }
 
-_CrackOpening _gapRibbon(
-  List<Offset> edge,
-  double growth,
-  double Function(Offset) widthAt,
-) {
-  var total = 0.0;
-  for (var i = 1; i < edge.length; i++) {
-    total += (edge[i] - edge[i - 1]).distance;
+/// Captured from paint itself, so browser diagnostics describe the displayed
+/// frame rather than a separately reconstructed timeline or opening.
+class FragmentPaintDiagnostics {
+  FragmentPaintDiagnostics(
+    this.progress,
+    Path opening,
+    Path footprint,
+    this.lift,
+    this.maxBorderGap,
+    this.holds,
+    this.size,
+  ) : opening = Path.from(opening),
+      footprint = Path.from(footprint);
+  final double progress, lift, maxBorderGap;
+  final Path opening, footprint;
+  final List<double> holds;
+  final Size size;
+  final List<Path> occludingFaces = [];
+  Path? fragmentVisibility;
+  final Map<String, double> surfaces = {};
+  final fixedLipFaces = <List<(double, double, double)>>[];
+  Map<String, double> Function()? meshSummary;
+  FragmentSurfaceProbe? probe;
+
+  // Evaluate on demand: these are the faces that paint actually accepted,
+  // with the same depth clip. No color classification is needed.
+  bool interiorVisibleAt(Offset point) =>
+      opening.contains(point) &&
+      (!(fragmentVisibility?.contains(point) ?? true) ||
+          !occludingFaces.any((face) => face.contains(point)));
+
+  // Diagnostic only, evaluated on demand by the copy button, never per frame.
+  Map<String, Object> toMap() {
+    final bounds = footprint.getBounds();
+    var covered = 0, total = 0;
+    var visible = 0;
+    const step = .25;
+    for (var y = bounds.top + step / 2; y < bounds.bottom; y += step) {
+      for (var x = bounds.left + step / 2; x < bounds.right; x += step) {
+        final point = Offset(x, y);
+        if (footprint.contains(point)) total++;
+        if (opening.contains(point)) covered++;
+        if (interiorVisibleAt(point)) visible++;
+      }
+    }
+    return {
+      'diagnostic': 'surface-paint-v4',
+      'paintedProgress': progress,
+      'openingAreaSampled': covered * step * step,
+      'visibleInteriorAreaSampled': visible * step * step,
+      'footprintAreaSampled': total * step * step,
+      'sampleStep': step,
+      'lift': lift,
+      'maxBorderGap': maxBorderGap,
+      'holds': holds,
+      'canvasWidth': size.width,
+      'canvasHeight': size.height,
+      'surfaces': {...surfaces, ...?meshSummary?.call()},
+    };
   }
-  var remaining = total * growth;
-  final visible = <Offset>[edge.first];
-  for (var i = 1; i < edge.length && remaining > 0; i++) {
-    final length = (edge[i] - edge[i - 1]).distance;
-    final part = (remaining / length).clamp(0.0, 1.0).toDouble();
-    visible.add(Offset.lerp(edge[i - 1], edge[i], part)!);
-    remaining -= length;
+}
+
+class _MaterialMesh {
+  _MaterialMesh(List<_V> outer, _V center) {
+    for (var ring = 0; ring < 10; ring++) {
+      for (var i = 0; i < outer.length; i++) {
+        final j = (i + 1) % outer.length;
+        final a = _V.lerp(center, outer[i], ring / 10);
+        final b = _V.lerp(center, outer[i], (ring + 1) / 10);
+        final c = _V.lerp(center, outer[j], (ring + 1) / 10);
+        final d = _V.lerp(center, outer[j], ring / 10);
+        triangles.addAll([
+          a,
+          b,
+          c,
+          if (ring > 0) ...[a, c, d],
+        ]);
+      }
+    }
+    final ids = <(double, double, double), int>{};
+    for (final v in triangles) {
+      indices.add(
+        ids.putIfAbsent((v.x, v.y, v.z), () {
+          vertices.add(v);
+          return vertices.length - 1;
+        }),
+      );
+    }
+    for (var i = 0; i < outer.length; i++) {
+      final a = outer[i].xy, b = outer[(i + 1) % outer.length].xy;
+      final farA = center.xy + (a - center.xy) * 20;
+      final farB = center.xy + (b - center.xy) * 20;
+      shellMesh.addAll([a, farA, farB, a, farB, b]);
+    }
   }
-  if (visible.length < 2) return _CrackOpening(Path(), Path(), Path());
-  final left = <Offset>[];
-  final right = <Offset>[];
-  for (var i = 0; i < visible.length; i++) {
-    final before = visible[i == 0 ? 0 : i - 1];
-    final after = visible[i == visible.length - 1 ? i : i + 1];
-    final tangent = after - before;
-    final length = tangent.distance;
-    if (length == 0) continue;
-    final normal = Offset(-tangent.dy / length, tangent.dx / length);
-    final taper = i == visible.length - 1 ? .18 : i == 0 ? .65 : 1.0;
-    final span = (after - before).distance;
-    final localWidth = widthAt(visible[i]) *
-        (.76 + .24 * (span / 18).clamp(0.0, 1.0).toDouble());
-    // The plate keeps the original fracture line. Material opens only on the
-    // remaining-shell side, so the same face can move without filling a gap.
-    final offset = normal * (localWidth * taper);
-    left.add(visible[i]);
-    right.add(visible[i] - offset);
+
+  final triangles = <_V>[];
+  final vertices = <_V>[];
+  final indices = <int>[];
+  final shellMesh = <Offset>[];
+  late final textureCoordinates = vertices.map((v) => v.xy).toList();
+  final _bindings = <Offset, (int, double, double)?>{};
+  final _cavityMeshes = <(double, bool), ui.Vertices>{};
+
+  // The far INNER wall belongs to the resting egg, never to the mobile pose.
+  // Project its concave ellipsoid onto the same material tessellation. Normals
+  // point into the cavity; lighting uses the existing upper-left scene light.
+  // Prepare once per thickness/mode, not once per animation frame.
+  ui.Vertices cavityMesh(double thickness, bool identify) =>
+      _cavityMeshes.putIfAbsent((thickness, identify), () {
+        final rx = 115 - thickness, ry = 220 - thickness, rz = 65 - thickness;
+        final colors = <Color>[];
+        for (final p in textureCoordinates) {
+          final z =
+              -rz *
+              math.sqrt(
+                math.max(
+                  0.0,
+                  1 - p.dx * p.dx / (rx * rx) - p.dy * p.dy / (ry * ry),
+                ),
+              );
+          final nx = -p.dx / (rx * rx),
+              ny = -p.dy / (ry * ry),
+              nz = -z / (rz * rz);
+          final length = math.sqrt(nx * nx + ny * ny + nz * nz);
+          final diffuse = ((-.35 * nx - .45 * ny + .82 * nz) / length).clamp(
+            0.0,
+            1.0,
+          );
+          final light = .25 + .75 * diffuse;
+          colors.add(
+            identify
+                ? FragmentSurfaceColors.cavity
+                : Color.fromARGB(
+                    255,
+                    (105 * light).round(),
+                    (68 * light).round(),
+                    (46 * light).round(),
+                  ),
+          );
+        }
+        return ui.Vertices(
+          ui.VertexMode.triangles,
+          textureCoordinates,
+          colors: colors,
+          indices: indices,
+        );
+      });
+
+  // Grain-to-material coordinates never depend on the pose.
+  (int, double, double)? bind(Offset point) => _bindings.putIfAbsent(point, () {
+    for (var i = 0; i < indices.length; i += 3) {
+      final a = vertices[indices[i]],
+          b = vertices[indices[i + 1]],
+          c = vertices[indices[i + 2]];
+      final ab = b.xy - a.xy, ac = c.xy - a.xy, ap = point - a.xy;
+      final determinant = ab.dx * ac.dy - ab.dy * ac.dx;
+      if (determinant.abs() < 1e-10) continue;
+      final u = (ap.dx * ac.dy - ap.dy * ac.dx) / determinant;
+      final v = (ab.dx * ap.dy - ab.dy * ap.dx) / determinant;
+      if (u < -1e-8 || v < -1e-8 || u + v > 1 + 1e-8) continue;
+      return (i, u, v);
+    }
+    return null;
+  });
+}
+
+class _FragmentGeometry {
+  _FragmentGeometry({
+    required this.outer,
+    required this.projectedOuter,
+    required this.projectedInner,
+    required this.center,
+    required this.transform,
+    required this.rigidTransform,
+    required this.flight,
+    required this.shift,
+    required this.bounce,
+    required this.lift,
+  }) : material = _materials[outer] ??= _MaterialMesh(outer, center);
+
+  // The immutable boundary is shared across frames; the pose is not cached.
+  static final _materials = Expando<_MaterialMesh>();
+  final _MaterialMesh material;
+  final List<_V> outer, projectedOuter, projectedInner;
+  final _V center, shift;
+  final _V Function(_V) transform, rigidTransform;
+  final double flight, bounce, lift;
+  List<_V> get mesh => material.triangles;
+  List<Offset> get shellMesh => material.shellMesh;
+  late final projectedVertices = material.vertices.map(transform).toList();
+  late final projectedPositions = projectedVertices.map((v) => v.xy).toList();
+
+  List<double> occlusionDepths(_V Function(Offset) surface) => [
+    // The resting mesh interpolates curved material with planar triangles.
+    // Its interpolation error is not penetration into the remaining shell.
+    // Compare changes from that SAME material reference on both sides: at
+    // identity the two differences are exactly zero, at every mesh vertex.
+    for (var i = 0; i < projectedVertices.length; i++)
+      (projectedVertices[i].z - material.vertices[i].z) -
+          (surface(projectedVertices[i].xy).z -
+              surface(material.vertices[i].xy).z),
+  ];
+
+  _V materialPoint(Offset point) {
+    final binding = material.bind(point);
+    if (binding == null) return transform(center);
+    final (i, u, v) = binding;
+    final a = material.vertices[material.indices[i]];
+    final b = material.vertices[material.indices[i + 1]];
+    final c = material.vertices[material.indices[i + 2]];
+    final da = projectedVertices[material.indices[i]] - a;
+    final db = projectedVertices[material.indices[i + 1]] - b;
+    final dc = projectedVertices[material.indices[i + 2]] - c;
+    // Interpolate displacement, not absolute coordinates. A resting grain
+    // point must retain exactly the same coordinates as on the fixed shell.
+    return _V(
+      point.dx + da.x + u * (db.x - da.x) + v * (dc.x - da.x),
+      point.dy + da.y + u * (db.y - da.y) + v * (dc.y - da.y),
+      a.z +
+          u * (b.z - a.z) +
+          v * (c.z - a.z) +
+          da.z +
+          u * (db.z - da.z) +
+          v * (dc.z - da.z),
+    );
   }
-  return _CrackOpening(
-    _polygon([...left, ...right.reversed]),
-    Path()..addPolygon(left, false),
-    Path()..addPolygon(right, false),
-  );
+
+  // Same per-triangle depth clipping as before. Cancel shared directed edges
+  // before Path.combine: internal tessellation is not an occlusion boundary.
+  Path visibility(Path shell, _V Function(Offset) surface) {
+    final points = [...projectedVertices];
+    final depths = occlusionDepths(surface);
+    final crossings = <(int, int), int>{};
+    final edges = <(int, int), (int, int)>{};
+    (int, int) key(int a, int b) => a < b ? (a, b) : (b, a);
+    int crossing(int a, int b) {
+      final pair = key(a, b);
+      return crossings.putIfAbsent(pair, () {
+        final (first, second) = pair;
+        points.add(
+          _V.lerp(
+            points[first],
+            points[second],
+            depths[first] / (depths[first] - depths[second]),
+          ),
+        );
+        return points.length - 1;
+      });
+    }
+
+    for (var i = 0; i < material.indices.length; i += 3) {
+      final triangle = material.indices.sublist(i, i + 3);
+      final clipped = <int>[];
+      for (var j = 0; j < 3; j++) {
+        final a = triangle[j], b = triangle[(j + 1) % 3];
+        if (depths[a] < 0) clipped.add(a);
+        if ((depths[a] < 0) != (depths[b] < 0)) clipped.add(crossing(a, b));
+      }
+      for (var j = 0; j < clipped.length; j++) {
+        final a = clipped[j], b = clipped[(j + 1) % clipped.length];
+        if (a == b) continue;
+        final pair = key(a, b);
+        if (edges.containsKey(pair)) {
+          edges.remove(pair);
+        } else {
+          edges[pair] = (a, b);
+        }
+      }
+    }
+    final next = <int, List<int>>{};
+    for (final (a, b) in edges.values) {
+      (next[a] ??= []).add(b);
+    }
+    final behind = Path();
+    while (next.isNotEmpty) {
+      final start = next.keys.first;
+      var current = start;
+      behind.moveTo(points[start].x, points[start].y);
+      do {
+        final outgoing = next[current]!;
+        final end = outgoing.removeLast();
+        if (outgoing.isEmpty) next.remove(current);
+        behind.lineTo(points[end].x, points[end].y);
+        current = end;
+      } while (current != start);
+      behind.close();
+    }
+    final occluded = combineFragmentOcclusionPaths(
+      PathOperation.intersect,
+      behind,
+      shell,
+    );
+    final result = combineFragmentOcclusionPaths(
+      PathOperation.difference,
+      Path()..addRect(const Rect.fromLTRB(-1000, -1000, 1000, 1000)),
+      occluded,
+    );
+    return result;
+  }
+}
+
+// Material details use the same accepted faces and depth clip as their carrier.
+// Positive winding of accepted faces makes this compound path their union.
+class _MaterialVisibility {
+  _MaterialVisibility(
+    Path shell,
+    Path fragmentClip,
+    List<_Face> faces,
+    _Face outerFace,
+  ) {
+    final fragment = Path();
+    var exposedOuter = Path();
+    var coveringOuter = Path();
+    for (final face in faces) {
+      if (face.screenArea <= 0) continue;
+      final path = _polygon(face.vertices.map((v) => v.xy));
+      fragment.addPath(path, Offset.zero);
+      if (identical(face, outerFace)) {
+        exposedOuter = path;
+        coveringOuter = Path();
+      } else {
+        coveringOuter.addPath(path, Offset.zero);
+      }
+    }
+    final visibleFragment = Path.combine(
+      PathOperation.intersect,
+      fragment,
+      fragmentClip,
+    );
+    fixed = Path.combine(PathOperation.difference, shell, visibleFragment);
+    exposedOuter = Path.combine(
+      PathOperation.difference,
+      exposedOuter,
+      coveringOuter,
+    );
+    mobile = Path.combine(PathOperation.intersect, exposedOuter, fragmentClip);
+  }
+  late final Path fixed, mobile;
 }
 
 class FragmentScene extends CustomPainter {
@@ -184,9 +517,15 @@ class FragmentScene extends CustomPainter {
     required this.guides,
     required this.showEgg,
     required this.shadow,
+    this.onDiagnostics,
+    this.identifySurfaces = false,
   });
   final double progress, thickness, motion;
   final bool guides, showEgg, shadow;
+  final bool identifySurfaces;
+  final ValueChanged<FragmentPaintDiagnostics>? onDiagnostics;
+  Color _surfaceColor(Color normal, Color identity) =>
+      identifySurfaces ? identity.withValues(alpha: normal.a) : normal;
 
   // One immutable boundary drives the crack, aperture and moving fragment.
   static const _boundary = [
@@ -245,27 +584,66 @@ class FragmentScene extends CustomPainter {
   // only immediately before the plate can move. Each edge is still part of
   // the one contour shared by the hole and the rigid fragment.
   static const _crackAdvances = [
-    _CrackAdvance(0, .15, .9), _CrackAdvance(3, .3, .95),
-    _CrackAdvance(4, .25, .95), _CrackAdvance(5, .25, 1),
-    _CrackAdvance(0, .35, 1), _CrackAdvance(2, .05, .9),
-    _CrackAdvance(4, .35, 1), _CrackAdvance(5, .4, 1),
-    _CrackAdvance(1, .1, .95), _CrackAdvance(3, .4, 1),
-    _CrackAdvance(4, .05, .9), _CrackAdvance(5, .5, 1),
+    _CrackAdvance(0, .15, .9),
+    _CrackAdvance(3, .3, .95),
+    _CrackAdvance(4, .25, .95),
+    _CrackAdvance(5, .25, 1),
+    _CrackAdvance(0, .35, 1),
+    _CrackAdvance(2, .05, .9),
+    _CrackAdvance(4, .35, 1),
+    _CrackAdvance(5, .4, 1),
+    _CrackAdvance(1, .1, .95),
+    _CrackAdvance(3, .4, 1),
+    _CrackAdvance(4, .05, .9),
+    _CrackAdvance(5, .5, 1),
   ];
   static const _branchAdvances = [
-    _CrackAdvance(1, .2, .9), _CrackAdvance(2, .1, .8),
-    _CrackAdvance(3, .45, 1), _CrackAdvance(1, .35, 1),
+    _CrackAdvance(1, .2, .9),
+    _CrackAdvance(2, .1, .8),
+    _CrackAdvance(3, .45, 1),
+    _CrackAdvance(1, .35, 1),
     _CrackAdvance(2, .3, .9),
   ];
   static const _branches = [
-    [Offset(72, -94), Offset(80, -91), Offset(83, -88), Offset(88, -86), Offset(95, -76)],
-    [Offset(53, -36), Offset(65, -31), Offset(68, -28), Offset(76, -23), Offset(83, -16)],
-    [Offset(-7, -75), Offset(-15, -68), Offset(-18, -66), Offset(-21, -61), Offset(-24, -53)],
-    [Offset(34, -123), Offset(43, -129), Offset(47, -128), Offset(51, -132), Offset(64, -125)],
-    [Offset(64, -71), Offset(76, -73), Offset(81, -70), Offset(83, -72), Offset(96, -62)],
+    [
+      Offset(72, -94),
+      Offset(80, -91),
+      Offset(83, -88),
+      Offset(88, -86),
+      Offset(95, -76),
+    ],
+    [
+      Offset(53, -36),
+      Offset(65, -31),
+      Offset(68, -28),
+      Offset(76, -23),
+      Offset(83, -16),
+    ],
+    [
+      Offset(-7, -75),
+      Offset(-15, -68),
+      Offset(-18, -66),
+      Offset(-21, -61),
+      Offset(-24, -53),
+    ],
+    [
+      Offset(34, -123),
+      Offset(43, -129),
+      Offset(47, -128),
+      Offset(51, -132),
+      Offset(64, -125),
+    ],
+    [
+      Offset(64, -71),
+      Offset(76, -73),
+      Offset(81, -70),
+      Offset(83, -72),
+      Offset(96, -62),
+    ],
   ];
   static const _microAdvances = [
-    _CrackAdvance(1, .55, 1), _CrackAdvance(2, .45, .95),
+    _CrackAdvance(1, .55, 1),
+    _CrackAdvance(2, .45, .95),
     _CrackAdvance(4, .35, .9),
   ];
   static const _microBranches = [
@@ -316,12 +694,14 @@ class FragmentScene extends CustomPainter {
     final random = math.Random(37);
     return List.generate(
       520,
-      (_) => Offset(-115 + 230 * random.nextDouble(),
-          -220 + 440 * random.nextDouble()),
+      (_) => Offset(
+        -115 + 230 * random.nextDouble(),
+        -220 + 440 * random.nextDouble(),
+      ),
     );
   }
 
-  _V _surface(Offset p) => _V(
+  static _V _surface(Offset p) => _V(
     p.dx,
     p.dy,
     65 *
@@ -330,257 +710,62 @@ class FragmentScene extends CustomPainter {
         ),
   );
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Uniform scale: changing the phone ratio reveals more vertical space.
-    final scale = size.width / 390;
-    final height = size.height / scale;
-    canvas.save();
-    canvas.scale(scale);
-    final bounds = Rect.fromLTWH(0, 0, 390, height);
-    canvas.drawRect(
-      bounds,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xff463a30), Color(0xffa08562), Color(0xffd4b985)],
-        ).createShader(bounds),
-    );
-    final base = height * .82;
-    canvas.drawRect(
-      Rect.fromLTWH(0, base, 390, height - base),
-      Paint()..color = const Color(0xffb99a68),
-    );
-    // Fixed seed and fixed coordinates: background never moves or flickers.
-    final random = math.Random(14);
-    for (var i = 0; i < 100; i++) {
-      final x = random.nextDouble() * 390;
-      final y = base + random.nextDouble() * (height - base);
-      canvas.drawLine(
-        Offset(x, y),
-        Offset(x + random.nextDouble() * 35 - 17, y - 5),
-        Paint()
-          ..color = const Color(0xffe1c58d)
-          ..strokeWidth = 1.5,
-      );
-    }
-    final origin = Offset(186, base - 220);
-    if (shadow) {
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(origin.dx, base + 3),
-          width: 195,
-          height: 22,
-        ),
-        Paint()
-          ..color = const Color(0x55453221)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
-      );
-    }
-    canvas.save();
-    canvas.translate(origin.dx, origin.dy);
-    // Whole-body motion has rounded acceleration and rests between episodes;
-    // local shell pressure remains on its own, quicker schedule.
-    final bodyTilt = _bodyEpisodes.fold(
-      0.0, (sum, episode) => sum + episode.tilt * episode.weight(progress),
-    );
-    final bodyRise = _bodyEpisodes.fold(
-      0.0, (sum, episode) => sum + episode.rise * episode.weight(progress),
-    );
-    final localPressure = _pressureEvents.fold(
-      0.0, (sum, event) => sum + event.at(progress),
-    );
-    final pressurePoint = localPressure > 0
-        ? _pressureEvents.fold(
-            Offset.zero,
-            (sum, event) => sum + event.point * event.at(progress),
-          ) / localPressure
-        : const Offset(35, -78);
-    final wobble = .01 * motion * bodyTilt;
-    canvas.translate(0, -1.8 * motion * bodyRise);
-    canvas.translate(0, 220);
-    canvas.rotate(wobble);
-    canvas.translate(0, -220);
-    final egg = Path()
-      ..moveTo(0, -220)
-      ..cubicTo(69, -220, 115, -52, 115, 75)
-      ..cubicTo(115, 181, 75, 220, 0, 220)
-      ..cubicTo(-75, 220, -115, 181, -115, 75)
-      ..cubicTo(-115, -52, -69, -220, 0, -220)
-      ..close();
-    final aperture = _polygon(_fractureBoundary);
-    final detached = progress > .495;
-    final gap = Path();
-    final openings = <_CrackOpening>[];
-    for (var i = 0; i < _fractureEdges.length; i++) {
-        final growth = _crackAdvances[i].at(progress, _pressureEvents);
-        final opening = _smooth(_part(growth, .62, 1));
-        if (opening == 0) continue;
-        final source = _pressureEvents[_crackAdvances[i].pressure].point;
-        double widthAt(Offset point) {
-          final nearSource =
-              (1 - ((point - source).distance / 120)
-                  .clamp(0.0, 1.0).toDouble());
-          final nearCurrentPressure =
-              (1 - ((point - pressurePoint).distance / 110)
-                  .clamp(0.0, 1.0).toDouble());
-          var retention = 1.0;
-          for (final attachment in _attachments) {
-            final attachmentPoint = _boundary[attachment.vertex];
-            final nearAttachment =
-                (1 - ((point - attachmentPoint).distance / 13)
-                    .clamp(0.0, 1.0).toDouble());
-            retention *= 1 - attachment.hold(progress) * nearAttachment;
-          }
-          return opening * (.43 + .2 * nearSource +
-              .09 * localPressure * nearCurrentPressure) * retention;
-        }
-        final cut = _gapRibbon(_fractureEdges[i], growth, widthAt);
-        gap.addPath(cut.gap, Offset.zero);
-        openings.add(cut);
-    }
-    final bridges = Path();
-    if (detached) {
-      for (final attachment in _attachments) {
-        final hold = attachment.hold(progress);
-        if (hold <= 0) continue;
-        bridges.addOval(Rect.fromCircle(
-          center: _boundary[attachment.vertex], radius: 1.8 * hold,
-        ));
-      }
-    }
-    final cutEgg = detached
-        ? Path.combine(PathOperation.difference, egg, aperture)
-        : egg;
-    final connectedShell = detached
-        ? Path.combine(PathOperation.union, cutEgg, bridges)
-        : cutEgg;
-    final shell = Path.combine(PathOperation.difference, connectedShell, gap);
-    final shellShader = const RadialGradient(
-      center: Alignment(-.5, -.6),
-      radius: 1.4,
-      colors: [Color(0xffffd8a0), Color(0xffd69b62), Color(0xff956039)],
-    ).createShader(const Rect.fromLTWH(-115, -220, 230, 440));
-    if (showEgg) {
-      canvas.drawPath(gap, Paint()..color = const Color(0xff69442e));
-      canvas.drawPath(shell, Paint()..color = const Color(0xff57402c));
-      canvas.drawPath(shell, Paint()..shader = shellShader);
-      if (openings.isNotEmpty) {
-        canvas.save();
-        canvas.clipPath(shell);
-        for (final opening in openings) {
-          canvas.drawPath(
-            opening.lightLip,
-            Paint()
-              ..color = const Color(0x66ffe4be)
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = .42,
-          );
-          canvas.drawPath(
-            opening.shadedLip,
-            Paint()
-              ..color = const Color(0x553d2417)
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = .35,
-          );
-        }
-        canvas.restore();
-      }
-      final darkGrain = Paint()..color = const Color(0x16825234);
-      final lightGrain = Paint()..color = const Color(0x14fff0d7);
-      for (var i = 0; i < _grain.length; i++) {
-        final spot = _grain[i];
-        if (!shell.contains(spot)) continue;
-        canvas.drawCircle(
-          spot, .3 + .08 * (i % 5), i % 4 == 0 ? lightGrain : darkGrain,
-        );
-      }
-    }
-    if (showEgg && progress > .25) {
-      // A local pressure mark lives on the still-intact shell. It fades as
-      // the pressure releases and never changes the shared rigid contour.
-      if (!detached && localPressure > 0) {
-        canvas.save();
-        canvas.clipPath(aperture);
-        canvas.drawOval(
-          Rect.fromCenter(center: pressurePoint, width: 93, height: 103),
-          Paint()
-            ..shader = RadialGradient(
-              colors: [
-                Color.fromRGBO(255, 239, 207, .1 * localPressure),
-                const Color(0x00ffefcf),
-              ],
-            ).createShader(
-              Rect.fromCenter(center: pressurePoint, width: 93, height: 103),
+  // Subdivision preserves the original polygon and its piecewise linear depth.
+  static final _materialBoundary = <_V>[
+    for (var i = 0; i < _fractureBoundary.length; i++)
+      ..._edgeSamples(
+        _fractureBoundary[i],
+        _fractureBoundary[(i + 1) % _fractureBoundary.length],
+      ),
+  ];
+
+  static List<_V> _edgeSamples(Offset a, Offset b) {
+    final count = ((b - a).distance / 2).ceil();
+    return [
+      for (var i = 0; i < count; i++)
+        _V.lerp(_surface(a), _surface(b), i / count),
+    ];
+  }
+
+  double _retention(Offset point) {
+    var retained = 0.0;
+    for (final attachment in _attachments) {
+      final distance = (point - _boundary[attachment.vertex]).distance;
+      // A surviving ligament pins its core until its actual rupture, including
+      // during the release episode. On rupture its elastic deformation cannot
+      // disappear instantaneously: relax it C1 over that ligament's loading
+      // duration, without changing the free rigid pose or switching meshes.
+      final responseDuration = attachment.releaseEnd - attachment.releaseStart;
+      final elasticMemory =
+          1 -
+          _smooth(
+            _part(
+              progress,
+              attachment.releaseEnd,
+              attachment.releaseEnd + responseDuration,
             ),
-        );
-        canvas.restore();
-      }
-      for (var i = 0; i < _fractureEdges.length && !detached; i++) {
-        final growth = _crackAdvances[i].at(progress, _pressureEvents);
-        if (growth == 0) continue;
-        final opening = _smooth(_part(growth, .62, 1));
-        final edge = Path()..addPolygon(_fractureEdges[i], false);
-        final metric = edge.computeMetrics().first;
-        final visible = metric.extractPath(0, metric.length * growth);
-        final pressureAtEdge = localPressure *
-            (1 - ((_fractureEdges[i].first - pressurePoint).distance / 160)
-                .clamp(0.0, 1.0).toDouble());
-        canvas.drawPath(
-          visible,
-          Paint()
-            ..color = const Color(0xff6c4430)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = (.45 + .25 * growth) * (1 - .8 * opening)
-            ..strokeCap = StrokeCap.round,
-        );
-      }
-      canvas.save();
-      canvas.clipPath(shell);
-      for (var i = 0; i < _branches.length; i++) {
-        final growth = _branchAdvances[i].at(progress, _pressureEvents);
-        if (growth == 0) continue;
-        final branch = Path()..addPolygon(_branches[i], false);
-        final metric = branch.computeMetrics().first;
-        canvas.drawPath(
-          metric.extractPath(0, metric.length * growth),
-          Paint()
-            ..color = const Color(0xff765038)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = .3 + .5 * growth
-            ..strokeCap = StrokeCap.round,
-        );
-      }
-      for (var i = 0; i < _microBranches.length; i++) {
-        final growth = _microAdvances[i].at(progress, _pressureEvents);
-        if (growth == 0) continue;
-        final branch = Path()..addPolygon(_microBranches[i], false);
-        final metric = branch.computeMetrics().first;
-        canvas.drawPath(
-          metric.extractPath(0, metric.length * growth),
-          Paint()
-            ..color = const Color(0x88765038)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = .32
-            ..strokeCap = StrokeCap.round,
-        );
-      }
-      canvas.restore();
+          );
+      final weight = 1 - _smooth(_part(distance, 4, 40));
+      retained = math.max(retained, elasticMemory * weight);
     }
-    // Unequal pushes leave brief holds and elastic returns. The rigid contour
-    // never deforms; only its pose advances before the final release.
-    final lift = (
-      _liftPushes.fold(0.0, (sum, push) => sum + push.at(progress)) -
-      .025 * _pulse(progress, .519, .005) -
-      .02 * _pulse(progress, .547, .005) -
-      .015 * _pulse(progress, .576, .006)
-    ).clamp(0.0, 1.0);
-    final flight = _part(progress, .6, .88);
+    return retained;
+  }
+
+  _FragmentGeometry _geometry() {
+    // Local material constraints bend the region around its established pose.
+    final lift =
+        (_liftPushes.fold(0.0, (sum, push) => sum + push.at(progress)) -
+                .025 * _pulse(progress, .519, .005) -
+                .02 * _pulse(progress, .547, .005) -
+                .015 * _pulse(progress, .576, .006))
+            .clamp(0.0, 1.0);
+    final linearFlight = _part(progress, .6, .88);
+    // C1 departure; recover the existing trajectory after 5% of flight.
+    final u = (linearFlight / .05).clamp(0.0, 1.0);
+    final flight = linearFlight < .05 ? .05 * u * u * (2 - u) : linearFlight;
     final turn = flight * (1.12 - .12 * flight);
     final settle = _smooth(_part(progress, .88, 1));
-    final recoil =
-        math.sin(2 * math.pi * settle) * (1 - settle) * (1 - settle);
+    final recoil = math.sin(2 * math.pi * settle) * (1 - settle) * (1 - settle);
     final bounce = 4 * math.sin(math.pi * settle) * (1 - settle);
     final center = _surface(const Offset(35, -78));
     var heldWeight = 0.0;
@@ -596,35 +781,40 @@ class FragmentScene extends CustomPainter {
     final releasedShare = 1 - heldWeight / _attachments.length;
     final attachmentBlend = _smooth(_part(releasedShare, .55, 1));
     final pivotOnShell = Offset.lerp(
-      remainingPivot, const Offset(35, -78), attachmentBlend,
+      remainingPivot,
+      const Offset(35, -78),
+      attachmentBlend,
     )!;
     final pivot = _surface(pivotOnShell);
     // Off-center pressure changes only the early pose. Its small torque fades
     // during flight, leaving the established fall and landing unchanged.
     final pressureRoll = _liftPushes.fold(
       0.0,
-      (sum, push) =>
-          sum + push.at(progress) * (push.point.dx - center.x) / 45,
+      (sum, push) => sum + push.at(progress) * (push.point.dx - center.x) / 45,
     );
     final pressurePitch = _liftPushes.fold(
       0.0,
-      (sum, push) =>
-          sum + push.at(progress) * (push.point.dy - center.y) / 45,
+      (sum, push) => sum + push.at(progress) * (push.point.dy - center.y) / 45,
     );
     final initialTorqueFade = 1 - turn;
     // Rotation never reaches an edge-on projection. The small damped roll and
     // lift after impact let the light shell settle on a broad face.
     const impactPitch = .55, impactYaw = .55, impactRoll = .35;
     final rotationX =
-        -.38 * lift + (impactPitch + .38) * turn + .25 * settle +
+        -.38 * lift +
+        (impactPitch + .38) * turn +
+        .25 * settle +
         (.03 + .01 * releasedShare) * pressurePitch * initialTorqueFade;
     final rotationY =
         .45 * lift + (impactYaw - .45) * turn - .4 * settle + .03 * recoil;
-    final rotationZ = impactRoll * turn - .5 * settle + .05 * recoil -
+    final rotationZ =
+        impactRoll * turn -
+        .5 * settle +
+        .05 * recoil -
         (.14 + .025 * releasedShare) * pressureRoll * initialTorqueFade;
     _V rotate(_V v) =>
         (v - pivot).rotate(rotationX, rotationY, rotationZ) + pivot - center;
-    final outer = _fractureBoundary.map(_surface).toList();
+    final outer = _materialBoundary;
     final inner = outer.map((v) => _V(v.x, v.y, v.z - thickness)).toList();
     final rotated = [...outer, ...inner].map(rotate).toList();
     final bottom = rotated.map((v) => v.y).reduce(math.max);
@@ -644,169 +834,615 @@ class FragmentScene extends CustomPainter {
       (settle > 0 ? groundedY : ballisticY) - bounce,
       22 * lift * lift,
     );
-    final fragmentShader = const RadialGradient(
+    // Express the pose as a displacement. A zero rotation/translation must
+    // preserve material coordinates exactly, without pivot round-trip error.
+    _V rigidTransform(_V v) {
+      final relative = v - pivot;
+      return v +
+          (relative.rotate(rotationX, rotationY, rotationZ) - relative) +
+          shift;
+    }
+
+    _V transform(_V v) => _V.lerp(rigidTransform(v), v, _retention(v.xy));
+    final projectedOuter = outer.map(transform).toList();
+    final projectedInner = inner.map(transform).toList();
+    return _FragmentGeometry(
+      outer: outer,
+      projectedOuter: projectedOuter,
+      projectedInner: projectedInner,
+      center: center,
+      transform: transform,
+      rigidTransform: rigidTransform,
+      flight: flight,
+      shift: shift,
+      bounce: bounce,
+      lift: lift,
+    );
+  }
+
+  @visibleForTesting
+  List<double> debugOcclusionDepths() => _geometry().occlusionDepths(_surface);
+
+  // Growth is measured in material coordinates, never in the deformed pose.
+  // Use the exact boundary vertices of the mobile mesh. A growing endpoint
+  // interpolates on its current triangle edge, including pinned attachments.
+  Path _mobileCrack(
+    List<Offset> points,
+    double growth,
+    _FragmentGeometry geometry,
+  ) {
+    var length = 0.0;
+    for (var i = 1; i < points.length; i++) {
+      length += (points[i] - points[i - 1]).distance;
+    }
+    var remaining = length * growth;
+    final start = geometry.transform(_surface(points.first)).xy;
+    final path = Path()..moveTo(start.dx, start.dy);
+    for (var i = 1; i < points.length && remaining > 0; i++) {
+      final a = points[i - 1], b = points[i];
+      final distance = (b - a).distance;
+      final samples = [..._edgeSamples(a, b), _surface(b)];
+      final stepLength = distance / (samples.length - 1);
+      for (var j = 1; j < samples.length && remaining > 0; j++) {
+        final p = _V
+            .lerp(
+              geometry.transform(samples[j - 1]),
+              geometry.transform(samples[j]),
+              math.min(1, remaining / stepLength),
+            )
+            .xy;
+        path.lineTo(p.dx, p.dy);
+        remaining -= stepLength;
+      }
+    }
+    return path;
+  }
+
+  @visibleForTesting
+  FragmentGeometrySnapshot debugGeometry() {
+    final g = _geometry();
+    var minimumAreaRatio = double.infinity;
+    for (var i = 0; i < g.mesh.length; i += 3) {
+      double area(List<_V> points) {
+        final a = points[1].xy - points[0].xy;
+        final b = points[2].xy - points[0].xy;
+        return a.dx * b.dy - a.dy * b.dx;
+      }
+
+      final triangle = g.mesh.sublist(i, i + 3);
+      minimumAreaRatio = math.min(
+        minimumAreaRatio,
+        area(triangle.map(g.transform).toList()) / area(triangle),
+      );
+    }
+    return FragmentGeometrySnapshot(
+      g.outer.map((v) => (v.x, v.y, v.z)).toList(),
+      g.projectedOuter.map((v) => (v.x, v.y, v.z)).toList(),
+      g.outer.map((v) => _retention(v.xy)).toList(),
+      _attachments.map((a) => a.hold(progress)).toList(),
+      g.outer.map((v) {
+        final p = g.rigidTransform(v);
+        return (p.x, p.y, p.z);
+      }).toList(),
+      minimumAreaRatio,
+      g.projectedInner.map((v) => (v.x, v.y, v.z)).toList(),
+    );
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final initialTransform = identifySurfaces && onDiagnostics != null
+        ? Matrix4.fromFloat64List(canvas.getTransform())
+        : null;
+    // Uniform scale: changing the phone ratio reveals more vertical space.
+    final scale = size.width / 390;
+    final height = size.height / scale;
+    canvas.save();
+    canvas.scale(scale);
+    final bounds = Rect.fromLTWH(0, 0, 390, height);
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..color = identifySurfaces
+            ? FragmentSurfaceColors.background
+            : Colors.white
+        ..shader = identifySurfaces
+            ? null
+            : const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xff463a30),
+                  Color(0xffa08562),
+                  Color(0xffd4b985),
+                ],
+              ).createShader(bounds),
+    );
+    final base = height * .82;
+    canvas.drawRect(
+      Rect.fromLTWH(0, base, 390, height - base),
+      Paint()
+        ..color = _surfaceColor(
+          const Color(0xffb99a68),
+          FragmentSurfaceColors.background,
+        ),
+    );
+    // Fixed seed and fixed coordinates: background never moves or flickers.
+    final random = math.Random(14);
+    for (var i = 0; i < 100; i++) {
+      final x = random.nextDouble() * 390;
+      final y = base + random.nextDouble() * (height - base);
+      canvas.drawLine(
+        Offset(x, y),
+        Offset(x + random.nextDouble() * 35 - 17, y - 5),
+        Paint()
+          ..color = _surfaceColor(
+            const Color(0xffe1c58d),
+            FragmentSurfaceColors.background,
+          )
+          ..strokeWidth = 1.5,
+      );
+    }
+    final origin = Offset(186, base - 220);
+    if (shadow) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(origin.dx, base + 3),
+          width: 195,
+          height: 22,
+        ),
+        Paint()
+          ..color = _surfaceColor(
+            const Color(0x55453221),
+            FragmentSurfaceColors.shadow,
+          )
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+      );
+    }
+    canvas.save();
+    canvas.translate(origin.dx, origin.dy);
+    // Whole-body motion has rounded acceleration and rests between episodes;
+    // local shell pressure remains on its own, quicker schedule.
+    final bodyTilt = _bodyEpisodes.fold(
+      0.0,
+      (sum, episode) => sum + episode.tilt * episode.weight(progress),
+    );
+    final bodyRise = _bodyEpisodes.fold(
+      0.0,
+      (sum, episode) => sum + episode.rise * episode.weight(progress),
+    );
+    final wobble = .01 * motion * bodyTilt;
+    canvas.translate(0, -1.8 * motion * bodyRise);
+    canvas.translate(0, 220);
+    canvas.rotate(wobble);
+    canvas.translate(0, -220);
+    final egg = Path()
+      ..moveTo(0, -220)
+      ..cubicTo(69, -220, 115, -52, 115, 75)
+      ..cubicTo(115, 181, 75, 220, 0, 220)
+      ..cubicTo(-75, 220, -115, 181, -115, 75)
+      ..cubicTo(-115, -52, -69, -220, 0, -220)
+      ..close();
+    final geometry = _geometry();
+    final outer = geometry.outer;
+    final projectedOuter = geometry.projectedOuter;
+    final projectedInner = geometry.projectedInner;
+    final flight = geometry.flight;
+    final shift = geometry.shift;
+    final bounce = geometry.bounce;
+    final lift = geometry.lift;
+    final aperture = _polygon(outer.map((v) => v.xy));
+    // Fixed ownership from rest: no second surface below the mobile region.
+    final shell = combineFragmentOcclusionPaths(
+      PathOperation.difference,
+      egg,
+      aperture,
+    );
+    final silhouette = _polygon(projectedOuter.map((v) => v.xy));
+    // Only the area actually uncovered by displacement is an opening.
+    final gap = Path.combine(PathOperation.difference, aperture, silhouette);
+    FragmentPaintDiagnostics? diagnostics;
+    if (onDiagnostics != null) {
+      var maxGap = 0.0;
+      for (var i = 0; i < outer.length; i++) {
+        maxGap = math.max(
+          maxGap,
+          (projectedOuter[i].xy - outer[i].xy).distance,
+        );
+      }
+      diagnostics = FragmentPaintDiagnostics(
+        progress,
+        gap,
+        aperture,
+        lift,
+        maxGap,
+        _attachments.map((a) => a.hold(progress)).toList(),
+        size,
+      );
+      if (initialTransform != null) {
+        // Remove parent widget transforms: the probe uses preview-local pixels.
+        final eggToCanvas = Matrix4.inverted(initialTransform)
+          ..multiply(Matrix4.fromFloat64List(canvas.getTransform()));
+        diagnostics.probe = FragmentSurfaceProbe(
+          egg: egg,
+          aperture: aperture,
+          opening: gap,
+          outer: silhouette,
+          inner: _polygon(projectedInner.map((v) => v.xy)),
+          showEgg: showEgg,
+          eggToCanvas: eggToCanvas,
+          positions: geometry.projectedPositions,
+          indices: geometry.material.indices,
+          textureCoordinates: geometry.material.textureCoordinates,
+          depthChanges: () => geometry.occlusionDepths(_surface),
+          shellTriangles: geometry.shellMesh,
+        );
+        if (shadow) {
+          final floorToEgg = Matrix4.inverted(eggToCanvas)
+            ..scaleByDouble(scale, scale, 1, 1);
+          diagnostics.probe!.shadows.add((
+            (Path()..addOval(
+                  Rect.fromCenter(
+                    center: Offset(origin.dx, base + 3),
+                    width: 195,
+                    height: 22,
+                  ),
+                ))
+                .transform(floorToEgg.storage),
+            null,
+            9,
+          ));
+        }
+      }
+      diagnostics.meshSummary = () {
+        var longestTriangleEdge = 0.0, longestBoundaryEdge = 0.0;
+        final indices = geometry.material.indices;
+        for (var i = 0; i < indices.length; i += 3) {
+          for (var j = 0; j < 3; j++) {
+            final a = geometry.projectedPositions[indices[i + j]];
+            final b = geometry.projectedPositions[indices[i + (j + 1) % 3]];
+            longestTriangleEdge = math.max(
+              longestTriangleEdge,
+              (b - a).distance,
+            );
+          }
+        }
+        for (var i = 0; i < projectedOuter.length; i++) {
+          longestBoundaryEdge = math.max(
+            longestBoundaryEdge,
+            (projectedOuter[(i + 1) % projectedOuter.length].xy -
+                    projectedOuter[i].xy)
+                .distance,
+          );
+        }
+        return {
+          'longestTriangleEdge': longestTriangleEdge,
+          'longestBoundaryEdge': longestBoundaryEdge,
+        };
+      };
+    }
+    final shellShader = const RadialGradient(
       center: Alignment(-.5, -.6),
       radius: 1.4,
       colors: [Color(0xffffd8a0), Color(0xffd69b62), Color(0xff956039)],
-    ).createShader(
-      const Rect.fromLTWH(-115, -220, 230, 440)
-          .shift(Offset(shift.x, shift.y)),
+    ).createShader(const Rect.fromLTWH(-115, -220, 230, 440));
+    final faces = <_Face>[];
+    // Preserve the validated lighting samples despite boundary subdivision.
+    final third = _fractureBoundary.length ~/ 3;
+    final lightSamples = [
+      _surface(_fractureBoundary[0]),
+      _surface(_fractureBoundary[third]),
+      _surface(_fractureBoundary[2 * third]),
+    ];
+    final outerLight = _diffuse(lightSamples.map(geometry.transform).toList());
+    final restingLight = _diffuse(lightSamples);
+    final lightChange = outerLight - restingLight;
+    final outerFace = _Face(
+      projectedOuter,
+      Colors.white,
+      shader: shellShader,
+      shade: (-lightChange * .48).clamp(0.0, .22),
+      highlight: (lightChange * .28).clamp(0.0, .15),
     );
-    _V transform(_V v) => rotate(v) + center + shift;
-    final projectedOuter = outer.map(transform).toList();
-    final projectedInner = inner.map(transform).toList();
+    final innerFace = _Face(
+      projectedInner.reversed.toList(),
+      const Color(0xffe7c79e),
+      shade:
+          .06 +
+          .2 *
+              (1 -
+                  _diffuse([
+                    geometry.transform(
+                      _V(
+                        lightSamples[1].x,
+                        lightSamples[1].y,
+                        lightSamples[1].z - thickness,
+                      ),
+                    ),
+                    geometry.transform(
+                      _V(
+                        lightSamples[0].x,
+                        lightSamples[0].y,
+                        lightSamples[0].z - thickness,
+                      ),
+                    ),
+                    geometry.transform(
+                      _V(
+                        lightSamples[2].x,
+                        lightSamples[2].y,
+                        lightSamples[2].z - thickness,
+                      ),
+                    ),
+                  ])),
+    );
+    faces.addAll([outerFace, innerFace]);
+    diagnostics?.surfaces.addAll({
+      'outerSignedArea': outerFace.screenArea / 2,
+      'innerSignedArea': innerFace.screenArea / 2,
+      'outerDiffuse': outerLight,
+      'restingDiffuse': restingLight,
+      'outerShade': outerFace.shade,
+      'outerHighlight': outerFace.highlight,
+      'meshVertices': geometry.material.vertices.length.toDouble(),
+      'meshTriangles': geometry.material.indices.length / 3,
+    });
+    for (var i = 0; i < outer.length; i++) {
+      final j = (i + 1) % outer.length;
+      final edgePoint = _V.lerp(outer[i], outer[j], .5);
+      // Intact material has no free rim. Buried thickness is not visible.
+      if (_retention(edgePoint.xy) == 1 || lift == 0) continue;
+      _V visibleInner(int index) {
+        final top = projectedOuter[index];
+        final bottom = projectedInner[index];
+        final exposedDepth = (top.z - _surface(top.xy).z).clamp(0.0, thickness);
+        final fraction = shell.contains(top.xy)
+            ? exposedDepth / thickness
+            : 1.0;
+        return _V.lerp(top, bottom, fraction);
+      }
+
+      final rimFace = [
+        projectedOuter[i],
+        visibleInner(i),
+        visibleInner(j),
+        projectedOuter[j],
+      ];
+      faces.add(
+        _Face(
+          rimFace,
+          const Color(0xffbd875a),
+          shade: .1 + .3 * (1 - _diffuse(rimFace)),
+        ),
+      );
+    }
+    faces.sort((a, b) => a.depth.compareTo(b.depth));
+    final visibility = showEgg
+        ? geometry.visibility(shell, _surface)
+        : (Path()..addRect(const Rect.fromLTRB(-1000, -1000, 1000, 1000)));
+    final materialVisibility = _MaterialVisibility(
+      shell,
+      visibility,
+      faces,
+      outerFace,
+    );
+    if (showEgg) {
+      canvas.save();
+      // The existing uncovered geometry alone reveals the inner wall. Its
+      // shading is fixed in egg coordinates and does not depend on progress.
+      canvas.clipPath(gap);
+      canvas.drawVertices(
+        geometry.material.cavityMesh(thickness, identifySurfaces),
+        BlendMode.modulate,
+        Paint()..color = Colors.white,
+      );
+      canvas.restore();
+      canvas.save();
+      canvas.clipPath(egg);
+      canvas.drawVertices(
+        ui.Vertices(
+          ui.VertexMode.triangles,
+          geometry.shellMesh,
+          textureCoordinates: geometry.shellMesh,
+        ),
+        BlendMode.srcOver,
+        Paint()
+          ..color = identifySurfaces
+              ? FragmentSurfaceColors.shell
+              : Colors.white
+          ..shader = identifySurfaces ? null : shellShader,
+      );
+      canvas.restore();
+    }
+    void paintFixedGrain(Path visibleMaterial) {
+      canvas.save();
+      canvas.clipPath(visibleMaterial);
+      final darkGrain = Paint()
+        ..color = _surfaceColor(
+          const Color(0x16825234),
+          FragmentSurfaceColors.shell,
+        );
+      final lightGrain = Paint()
+        ..color = _surfaceColor(
+          const Color(0x14fff0d7),
+          FragmentSurfaceColors.shell,
+        );
+      for (var i = 0; i < _grain.length; i++) {
+        final spot = _grain[i];
+        if (!shell.contains(spot)) continue;
+        canvas.drawCircle(
+          spot,
+          .3 + .08 * (i % 5),
+          i % 4 == 0 ? lightGrain : darkGrain,
+        );
+      }
+      canvas.restore();
+    }
+
+    if (showEgg) paintFixedGrain(materialVisibility.fixed);
     if (shadow && flight > 0) {
+      diagnostics?.probe?.shadows.add((
+        Path()..addOval(
+          Rect.fromCenter(
+            center: Offset(geometry.center.x + shift.x, 222),
+            width: 64,
+            height: 10,
+          ),
+        ),
+        null,
+        6,
+      ));
       canvas.drawOval(
         Rect.fromCenter(
-          center: Offset(center.x + shift.x, 222),
+          center: Offset(geometry.center.x + shift.x, 222),
           width: 64,
           height: 10,
         ),
         Paint()
-          ..color = Color.fromRGBO(
-            60, 40, 20, .08 + .2 * flight - .04 * bounce / 4,
+          ..color = _surfaceColor(
+            Color.fromRGBO(60, 40, 20, .08 + .2 * flight - .04 * bounce / 4),
+            FragmentSurfaceColors.shadow,
           )
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
       );
     }
-    if (shadow && showEgg && detached) {
-      // The moving silhouette casts only onto the remaining shell, never a
-      // blurred halo into the empty opening or the surrounding background.
-      canvas.save();
-      canvas.clipPath(shell);
-      canvas.translate(4, 5);
-      canvas.drawPath(
-        _polygon(projectedOuter.map((v) => v.xy)),
-        Paint()
-          ..color = Color.fromRGBO(48, 29, 16, .24 * lift)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
-      canvas.restore();
-    }
-
-    // Before departure this exact contour is part of the intact egg. After
-    // departure there is only one moving mesh and one matching empty aperture.
-    if (detached || !showEgg) {
-      final faces = <_Face>[];
-      final third = outer.length ~/ 3;
-      final outerLight = _diffuse([
-        projectedOuter[0], projectedOuter[third],
-        projectedOuter[2 * third],
-      ]);
-      final restingLight = _diffuse([
-        outer[0], outer[third], outer[2 * third],
-      ]);
-      final lightChange = outerLight - restingLight;
-      final outerFace = _Face(
-        projectedOuter,
-        Colors.white,
-        shader: fragmentShader,
-        shade: (-lightChange * .48).clamp(0.0, .22),
-        highlight: (lightChange * .28).clamp(0.0, .15),
-      );
-      final innerFace = _Face(
-        projectedInner.reversed.toList(),
-        const Color(0xffe7c79e),
-        shade: .06 + .2 *
-            (1 - _diffuse([
-              projectedInner[third], projectedInner[0],
-              projectedInner[2 * third],
-            ])),
-      );
-      faces.addAll([outerFace, innerFace]);
+    if (shadow && showEgg) {
+      // Project away from the existing upper-left light. Use displacement
+      // relative to the SAME resting surface as depth clipping: mesh curvature
+      // error must not create a contact shadow on an undeformed partition.
+      var separation = 0.0;
+      final projectedShadow = <Offset>[];
       for (var i = 0; i < outer.length; i++) {
-        final j = (i + 1) % outer.length;
-        final edgePoint = Offset(
-          (outer[i].x + outer[j].x) / 2,
-          (outer[i].y + outer[j].y) / 2,
+        final rest = outer[i], moved = projectedOuter[i];
+        final height = math.max(
+          0.0,
+          (moved.z - rest.z) - (_surface(moved.xy).z - _surface(rest.xy).z),
         );
-        var buried = 0.0;
-        for (final attachment in _attachments) {
-          final anchor = _boundary[attachment.vertex];
-          final near =
-              (1 - ((edgePoint - anchor).distance / 13)
-                  .clamp(0.0, 1.0).toDouble());
-          buried = math.max(buried, attachment.hold(progress) * near);
-        }
-        final exposed = 1 - buried;
-        if (exposed < .03) continue;
-        _V visibleInner(int index) => _V(
-          projectedOuter[index].x +
-              (projectedInner[index].x - projectedOuter[index].x) * exposed,
-          projectedOuter[index].y +
-              (projectedInner[index].y - projectedOuter[index].y) * exposed,
-          projectedOuter[index].z +
-              (projectedInner[index].z - projectedOuter[index].z) * exposed,
-        );
-        final rimFace = [
-          projectedOuter[i],
-          visibleInner(i),
-          visibleInner(j),
-          projectedOuter[j],
-        ];
-        faces.add(
-          _Face(
-            rimFace,
-            const Color(0xffbd875a),
-            shade: .1 + .3 * (1 - _diffuse(rimFace)),
-          ),
+        separation = math.max(separation, height);
+        projectedShadow.add(
+          moved.xy + const Offset(.35 / .82, .45 / .82) * height,
         );
       }
-      faces.sort((a, b) => a.depth.compareTo(b.depth));
+      // At contact the footprint coincides with the material and penumbra is
+      // zero. The visible shadow therefore grows geometrically from the edge;
+      // no time threshold or opacity ramp announces the mobile region.
+      if (separation > 0) {
+        final softness = .18 * separation;
+        final opacity = .34 / (1 + separation / 12);
+        // Only the footprint beyond the moving material reaches a visible
+        // receiver. Subtract before rasterization: clipping coincident filled
+        // silhouettes alone leaves an antialiased contact seam at zero gap.
+        final exposedShadow = Path.combine(
+          PathOperation.difference,
+          _polygon(projectedShadow),
+          silhouette,
+        );
+        diagnostics?.probe?.shadows.add((exposedShadow, shell, softness));
+        canvas.save();
+        canvas.clipPath(shell);
+        canvas.drawPath(
+          exposedShadow,
+          Paint()
+            ..color = _surfaceColor(
+              Color.fromRGBO(48, 29, 16, opacity),
+              FragmentSurfaceColors.shadow,
+            )
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, softness),
+        );
+        canvas.restore();
+      }
+    }
+
+    // One material partition from rest through flight, with constrained geometry.
+    {
+      canvas.save();
+      if (showEgg) {
+        canvas.clipPath(visibility);
+        diagnostics?.fragmentVisibility = visibility;
+        diagnostics?.probe?.visibility = visibility;
+      }
       for (final face in faces) {
         // The inner face stays hidden until the fragment actually turns.
         if (face.screenArea <= 0) continue;
         final path = _polygon(face.vertices.map((v) => v.xy));
+        diagnostics?.occludingFaces.add(path);
+        final identity = identical(face, outerFace)
+            ? FragmentSurfaceColors.outer
+            : identical(face, innerFace)
+            ? FragmentSurfaceColors.inner
+            : FragmentSurfaceColors.rim;
+        diagnostics?.probe?.faces.add((
+          identical(face, outerFace)
+              ? 'outer'
+              : identical(face, innerFace)
+              ? 'inner'
+              : 'rim',
+          path,
+        ));
         final paint = Paint()
-          ..color = face.color
-          ..shader = face.shader;
-        canvas.drawPath(path, paint);
+          ..color = _surfaceColor(face.color, identity)
+          ..shader = identifySurfaces ? null : face.shader;
         if (identical(face, outerFace)) {
-          // A broad, moving highlight describes the curved shell without
-          // exposing its construction or changing the fragment geometry.
-          canvas.drawPath(
-            path,
-            Paint()
-              ..shader = RadialGradient(
-                center: const Alignment(-.35, -.3),
-                radius: 1.15,
-                colors: [
-                  Color.fromRGBO(255, 247, 225, .08 * lift),
-                  const Color(0x00fff7e1),
-                ],
-              ).createShader(path.getBounds()),
+          // Carry the shell's original material coordinates through the pose.
+          // At rest, this samples exactly the same spatial gradient as the egg.
+          // No fragment-local gradient or lift-driven tint announces departure.
+          canvas.drawVertices(
+            ui.Vertices(
+              ui.VertexMode.triangles,
+              geometry.projectedPositions,
+              textureCoordinates: geometry.material.textureCoordinates,
+              indices: geometry.material.indices,
+            ),
+            BlendMode.srcOver,
+            paint,
           );
+        } else {
+          canvas.drawPath(path, paint);
         }
         if (face.shade > 0) {
           canvas.drawPath(
             path,
-            Paint()..color = Color.fromRGBO(38, 23, 12, face.shade),
+            Paint()
+              ..color = _surfaceColor(
+                Color.fromRGBO(38, 23, 12, face.shade),
+                identity,
+              ),
           );
         }
         if (face.highlight > 0) {
           canvas.drawPath(
             path,
-            Paint()..color = Color.fromRGBO(255, 238, 207, face.highlight),
+            Paint()
+              ..color = _surfaceColor(
+                Color.fromRGBO(255, 238, 207, face.highlight),
+                identity,
+              ),
           );
         }
       }
       final visibleSurface = outerFace.screenArea > 0
           ? outerFace
           : innerFace.screenArea > 0
-              ? innerFace
-              : null;
+          ? innerFace
+          : null;
       if (visibleSurface != null) {
-        final silhouette = _polygon(visibleSurface.vertices.map((v) => v.xy));
         if (identical(visibleSurface, outerFace)) {
           canvas.save();
-          canvas.clipPath(silhouette);
-          final darkGrain = Paint()..color = const Color(0x16825234);
-          final lightGrain = Paint()..color = const Color(0x14fff0d7);
+          canvas.clipPath(materialVisibility.mobile);
+          final darkGrain = Paint()
+            ..color = _surfaceColor(
+              const Color(0x16825234),
+              FragmentSurfaceColors.outer,
+            );
+          final lightGrain = Paint()
+            ..color = _surfaceColor(
+              const Color(0x14fff0d7),
+              FragmentSurfaceColors.outer,
+            );
           for (var i = 0; i < _grain.length; i++) {
             final spot = _grain[i];
             if (!aperture.contains(spot)) continue;
             canvas.drawCircle(
-              transform(_surface(spot)).xy,
+              geometry.materialPoint(spot).xy,
               .3 + .08 * (i % 5),
               i % 4 == 0 ? lightGrain : darkGrain,
             );
@@ -814,41 +1450,188 @@ class FragmentScene extends CustomPainter {
           canvas.restore();
         }
       }
+      canvas.restore();
     }
 
-    if (showEgg && detached && progress < .6) {
-      // Small bridges keep the opposite edge visibly tied to the shell until
-      // each attachment yields. They connect the same boundary points, not a
-      // second drawing of the fragment.
-      for (final attachment in _attachments) {
-        final hold = attachment.hold(progress);
-        if (hold <= 0) continue;
-        final shellPoint = _boundary[attachment.vertex];
-        final piecePoint = transform(_surface(shellPoint)).xy;
-        canvas.drawLine(
-          shellPoint, piecePoint,
-          Paint()
-            ..color = Color.fromRGBO(215, 166, 111, .85 * hold)
-            ..strokeWidth = thickness * hold
-            ..strokeCap = StrokeCap.round,
+    // The validated fixed lip uses the local shell normal. Geometry, exposure
+    // and occlusion are shared by normal paint and surface identification.
+    if (showEgg) {
+      _V inset(_V p) {
+        final normal = _V(
+          p.x / (115 * 115),
+          p.y / (220 * 220),
+          p.z / (65 * 65),
+        );
+        final length = math.sqrt(
+          normal.x * normal.x + normal.y * normal.y + normal.z * normal.z,
+        );
+        return p -
+            _V(
+              normal.x * thickness / length,
+              normal.y * thickness / length,
+              normal.z * thickness / length,
+            );
+      }
+
+      final proposed = Path();
+      final lipPositions = <Offset>[];
+      final lipColors = <Color>[];
+      for (var i = 0; i < outer.length; i++) {
+        final a = outer[i], b = outer[(i + 1) % outer.length];
+        final wall = [a, b, inset(b), inset(a)];
+        if (_Face(wall, Colors.white).screenArea <= 0) continue;
+        proposed.addPath(_polygon(wall.map((v) => v.xy)), Offset.zero);
+        // Same material and directional light as the mobile fracture rim.
+        final shade = .1 + .3 * (1 - _diffuse(wall));
+        final color = Color.alphaBlend(
+          Color.fromRGBO(38, 23, 12, shade),
+          const Color(0xffbd875a),
+        );
+        for (final index in [0, 1, 2, 0, 2, 3]) {
+          lipPositions.add(wall[index].xy);
+          lipColors.add(color);
+        }
+        diagnostics?.fixedLipFaces.add(
+          wall.map((v) => (v.x, v.y, v.z)).toList(),
         );
       }
+      final covering = Path();
+      for (final face in faces) {
+        if (face.screenArea > 0) {
+          covering.addPath(
+            _polygon(face.vertices.map((v) => v.xy)),
+            Offset.zero,
+          );
+        }
+      }
+      final visibleLip = combineFragmentOcclusionPaths(
+        PathOperation.difference,
+        combineFragmentOcclusionPaths(PathOperation.intersect, proposed, gap),
+        combineFragmentOcclusionPaths(
+          PathOperation.intersect,
+          covering,
+          visibility,
+        ),
+      );
+      diagnostics?.probe?.fixedLip = visibleLip;
+      if (identifySurfaces) {
+        canvas.drawPath(
+          visibleLip,
+          Paint()..color = FragmentSurfaceColors.fixedLip,
+        );
+      } else if (lipPositions.isNotEmpty) {
+        canvas.save();
+        canvas.clipPath(visibleLip);
+        canvas.drawVertices(
+          ui.Vertices(ui.VertexMode.triangles, lipPositions, colors: lipColors),
+          BlendMode.modulate,
+          Paint()..color = Colors.white,
+        );
+        canvas.restore();
+      }
     }
-    if (showEgg && detached) {
+
+    if (progress > .25) {
+      for (var i = 0; i < _fractureEdges.length; i++) {
+        final growth = _crackAdvances[i].at(progress, _pressureEvents);
+        if (growth == 0) continue;
+        final crackClip = materialVisibility.mobile;
+        final crackPath = _mobileCrack(_fractureEdges[i], growth, geometry);
+        final crackPaint = Paint()
+          ..color = const Color(0xff6c4430)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth =
+              (.45 + .25 * growth) * (1 - .8 * _smooth(_part(growth, .62, 1)))
+          ..strokeCap = StrokeCap.round;
+        diagnostics?.probe?.overlays.add(
+          FragmentOverlayStroke(
+            'mainCrack[$i]',
+            crackPath,
+            crackPaint,
+            crackClip,
+            owner: 'fragmentOuter',
+          ),
+        );
+        canvas.save();
+        canvas.clipPath(crackClip);
+        canvas.drawPath(crackPath, crackPaint);
+        canvas.restore();
+      }
+    }
+    if (showEgg && progress > .25) {
       canvas.save();
-      canvas.clipPath(shell);
+      canvas.clipPath(materialVisibility.fixed);
+      for (var i = 0; i < _branches.length; i++) {
+        final growth = _branchAdvances[i].at(progress, _pressureEvents);
+        if (growth == 0) continue;
+        final branch = Path()..addPolygon(_branches[i], false);
+        final metric = branch.computeMetrics().first;
+        final branchPath = metric.extractPath(0, metric.length * growth);
+        final branchPaint = Paint()
+          ..color = const Color(0xff765038)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = .3 + .5 * growth
+          ..strokeCap = StrokeCap.round;
+        diagnostics?.probe?.overlays.add(
+          FragmentOverlayStroke(
+            'shellBranch[$i]',
+            branchPath,
+            branchPaint,
+            materialVisibility.fixed,
+          ),
+        );
+        canvas.drawPath(branchPath, branchPaint);
+      }
+      for (var i = 0; i < _microBranches.length; i++) {
+        final growth = _microAdvances[i].at(progress, _pressureEvents);
+        if (growth == 0) continue;
+        final branch = Path()..addPolygon(_microBranches[i], false);
+        final metric = branch.computeMetrics().first;
+        final branchPath = metric.extractPath(0, metric.length * growth);
+        final branchPaint = Paint()
+          ..color = const Color(0x88765038)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = .32
+          ..strokeCap = StrokeCap.round;
+        diagnostics?.probe?.overlays.add(
+          FragmentOverlayStroke(
+            'microCrack[$i]',
+            branchPath,
+            branchPaint,
+            materialVisibility.fixed,
+          ),
+        );
+        canvas.drawPath(branchPath, branchPaint);
+      }
+      canvas.restore();
+    }
+    if (showEgg && lift > 0) {
+      canvas.save();
+      canvas.clipPath(materialVisibility.fixed);
       for (final attachment in _attachments) {
         final broken = 1 - attachment.hold(progress);
         if (broken <= 0) continue;
         final shellPoint = _boundary[attachment.vertex];
-        canvas.drawLine(
-          shellPoint,
-          Offset.lerp(shellPoint, attachment.scarEnd, broken)!,
-          Paint()
-            ..color = const Color(0xff765038)
-            ..strokeWidth = .75
-            ..strokeCap = StrokeCap.round,
+        final scarEnd = Offset.lerp(shellPoint, attachment.scarEnd, broken)!;
+        final scarPaint = Paint()
+          ..color = const Color(0xff765038)
+          ..strokeWidth = .75
+          ..strokeCap = StrokeCap.round;
+        diagnostics?.probe?.overlays.add(
+          FragmentOverlayStroke(
+            'attachmentScar[${attachment.vertex}]',
+            Path()
+              ..moveTo(shellPoint.dx, shellPoint.dy)
+              ..lineTo(scarEnd.dx, scarEnd.dy),
+            Paint()
+              ..color = scarPaint.color
+              ..strokeWidth = scarPaint.strokeWidth
+              ..strokeCap = scarPaint.strokeCap
+              ..style = PaintingStyle.stroke,
+            materialVisibility.fixed,
+          ),
         );
+        canvas.drawLine(shellPoint, scarEnd, scarPaint);
       }
       canvas.restore();
     }
@@ -871,6 +1654,7 @@ class FragmentScene extends CustomPainter {
     )..layout(maxWidth: 350);
     text.paint(canvas, Offset((390 - text.width) / 2, 32));
     canvas.restore();
+    if (diagnostics != null) onDiagnostics!(diagnostics);
   }
 
   @override
@@ -880,5 +1664,6 @@ class FragmentScene extends CustomPainter {
       motion != old.motion ||
       guides != old.guides ||
       showEgg != old.showEgg ||
+      identifySurfaces != old.identifySurfaces ||
       shadow != old.shadow;
 }

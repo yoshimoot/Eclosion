@@ -1,6 +1,12 @@
+import 'dart:convert';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+
 import 'fragment_scene.dart';
+import 'fragment_playback.dart';
 
 class FragmentLab extends StatefulWidget {
   const FragmentLab({super.key});
@@ -11,10 +17,7 @@ class FragmentLab extends StatefulWidget {
 
 class _FragmentLabState extends State<FragmentLab>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _time = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 6),
-  );
+  late final FragmentPlayback _time = FragmentPlayback(vsync: this);
   static const double _fragmentThickness = 2.5;
   static const double _eggMotion = 1.5;
   bool _slow = false;
@@ -22,6 +25,73 @@ class _FragmentLabState extends State<FragmentLab>
   bool _egg = true;
   bool _shadow = true;
   bool _tall = false;
+  bool _identifySurfaces = false;
+  FragmentPaintDiagnostics? _lastPaint;
+  final _previewKey = GlobalKey();
+  Offset? _probePoint;
+  Map<String, Object>? _surfaceProbe;
+  bool _probing = false;
+
+  Future<void> _probeSurface(TapUpDetails tap) async {
+    if (_probing) return;
+    _time.stop();
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    setState(() {
+      _probing = true;
+      _probePoint = null;
+      _surfaceProbe = null;
+    });
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !_identifySurfaces) return;
+      final painted = _lastPaint!;
+      final probe = painted.probe;
+      if (probe == null) return;
+      final boundary =
+          _previewKey.currentContext!.findRenderObject()!
+              as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: ratio);
+      try {
+        final bytes = await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        if (!mounted ||
+            !_identifySurfaces ||
+            !identical(_lastPaint, painted) ||
+            bytes == null) {
+          return;
+        }
+        final report = probe.rasterReport(
+          bytes,
+          image.width,
+          image.height,
+          ratio,
+          tap.localPosition,
+        );
+        final trace = await probe.tracePixel(tap.localPosition, ratio);
+        if (!mounted || !_identifySurfaces || !identical(_lastPaint, painted)) {
+          return;
+        }
+        setState(() {
+          _probePoint = tap.localPosition;
+          _surfaceProbe = {
+            'paintedProgress': painted.progress,
+            'showEgg': _egg,
+            'shadow': _shadow,
+            'guides': _guides,
+            'canvasWidth': painted.size.width,
+            'canvasHeight': painted.size.height,
+            ...report,
+            ...trace,
+          };
+        });
+      } finally {
+        image.dispose();
+      }
+    } finally {
+      if (mounted) setState(() => _probing = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -29,8 +99,13 @@ class _FragmentLabState extends State<FragmentLab>
     super.dispose();
   }
 
-  Widget _slider(String label, double value, double min, double max,
-      ValueChanged<double> change) => Column(
+  Widget _slider(
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> change,
+  ) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(label),
@@ -43,99 +118,240 @@ class _FragmentLabState extends State<FragmentLab>
     builder: (context, child) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Atelier Éclosion', style: Theme.of(context).textTheme.headlineSmall),
+        Text(
+          'Atelier Éclosion',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
         const SizedBox(height: 8),
-        const Text('Test de géométrie et de mouvement.\nDécor et matière provisoires ; aucun poussin à ce stade.'),
+        const Text(
+          'Test de géométrie et de mouvement.\nDécor et matière provisoires ; aucun poussin à ce stade.',
+        ),
         const SizedBox(height: 20),
-        Text(fragmentPhase(_time.value),
-            style: Theme.of(context).textTheme.titleMedium),
-        _slider('Progression du test · ${(_time.value * 100).round()} %',
-            _time.value, 0, 1, (v) { _time.stop(); _time.value = v; }),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          FilledButton(
-            onPressed: () {
-              if (_time.isAnimating) {
-                _time.stop();
-              } else {
-                _time.forward(from: _time.value == 1 ? 0 : _time.value);
-              }
-              setState(() {});
-            },
-            child: Text(_time.isAnimating ? 'Pause' : 'Lire'),
-          ),
-          OutlinedButton(onPressed: () => _time.forward(from: .55),
-              child: const Text('Rejouer la chute')),
-          OutlinedButton(onPressed: () { _time.reset(); setState(() {}); },
-              child: const Text('Début')),
-        ]),
+        Text(
+          fragmentPhase(_time.value),
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        _slider(
+          'Progression du test · ${(_time.value * 100).round()} %',
+          _time.value,
+          0,
+          1,
+          (v) {
+            _time.stop();
+            _time.value = v;
+          },
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton(
+              onPressed: () {
+                if (_time.isAnimating) {
+                  _time.stop();
+                } else {
+                  _time.forward(from: _time.value == 1 ? 0 : _time.value);
+                }
+                setState(() {});
+              },
+              child: Text(_time.isAnimating ? 'Pause' : 'Lire'),
+            ),
+            OutlinedButton(
+              onPressed: () => _time.forward(from: .55),
+              child: const Text('Rejouer la chute'),
+            ),
+            OutlinedButton(
+              onPressed: () {
+                _time.reset();
+                setState(() {});
+              },
+              child: const Text('Début'),
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
-        SwitchListTile(contentPadding: EdgeInsets.zero,
-          title: const Text('Ralenti ×4'), value: _slow,
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Ralenti ×4'),
+          value: _slow,
           onChanged: (v) {
-            final playing = _time.isAnimating;
-            setState(() { _slow = v;
-              _time.duration = Duration(seconds: v ? 24 : 6); });
-            if (playing) _time.forward();
-          }),
-        SwitchListTile(contentPadding: EdgeInsets.zero,
-          title: const Text('Format 9:20 (sinon 9:16)'), value: _tall,
-          onChanged: (v) => setState(() => _tall = v)),
-        CheckboxListTile(contentPadding: EdgeInsets.zero,
-          title: const Text('Repères de cadrage'), value: _guides,
-          onChanged: (v) => setState(() => _guides = v!)),
-        CheckboxListTile(contentPadding: EdgeInsets.zero,
-          title: const Text('Afficher l’œuf'), value: _egg,
-          onChanged: (v) => setState(() => _egg = v!)),
-        CheckboxListTile(contentPadding: EdgeInsets.zero,
-          title: const Text('Afficher les ombres'), value: _shadow,
-          onChanged: (v) => setState(() => _shadow = v!)),
+            setState(() {
+              _slow = v;
+              _time.slow = v;
+            });
+          },
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Format 9:20 (sinon 9:16)'),
+          value: _tall,
+          onChanged: (v) => setState(() => _tall = v),
+        ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Repères de cadrage'),
+          value: _guides,
+          onChanged: (v) => setState(() => _guides = v!),
+        ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Afficher l’œuf'),
+          value: _egg,
+          onChanged: (v) => setState(() => _egg = v!),
+        ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Afficher les ombres'),
+          value: _shadow,
+          onChanged: (v) => setState(() => _shadow = v!),
+        ),
         OutlinedButton.icon(
           icon: const Icon(Icons.copy),
           label: const Text('Copier les réglages'),
           onPressed: () async {
             final messenger = ScaffoldMessenger.of(context);
-            await Clipboard.setData(ClipboardData(text:
-                'Éclosion fragment-v1 | progression=${_time.value.toStringAsFixed(3)}'
-                ' | format=${_tall ? "9:20" : "9:16"} | ralenti=$_slow'));
+            await Clipboard.setData(
+              ClipboardData(
+                text:
+                    'Éclosion fragment-v1 | progression=${_time.value.toStringAsFixed(6)}'
+                    ' | format=${_tall ? "9:20" : "9:16"} | ralenti=$_slow'
+                    '\n${jsonEncode({...?_lastPaint?.toMap(), 'showEgg': _egg, 'shadow': _shadow, 'guides': _guides, 'identifySurfaces': _identifySurfaces, 'devicePixelRatio': MediaQuery.devicePixelRatioOf(context), if (_surfaceProbe != null) 'surfaceProbeCapture': _surfaceProbe})}',
+              ),
+            );
             if (!mounted) return;
-            messenger.showSnackBar(const SnackBar(content: Text('Réglages copiés')));
+            messenger.showSnackBar(
+              const SnackBar(content: Text('Réglages copiés')),
+            );
           },
         ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Identifier les surfaces'),
+          value: _identifySurfaces,
+          onChanged: (value) => setState(() {
+            _identifySurfaces = value!;
+            _probePoint = null;
+            _surfaceProbe = null;
+          }),
+        ),
+        if (_identifySurfaces)
+          const Text(
+            'Diagnostic : coquille jaune · face extérieure cyan · '
+            'face intérieure magenta · tranche mobile orange · '
+            'lèvre fixe verte (2,5 selon la normale) · intérieur bleu · '
+            'fond gris · ombres violettes.',
+          ),
+        if (_identifySurfaces) ...[
+          const SizedBox(height: 8),
+          Text(
+            _probing ? 'Mesure de la surface…' : 'Cliquez dans la zone à analyser : lecture en pause, sonde et ROI de 16 × 16 px. Puis « Copier les réglages ».',
+          ),
+          if (_surfaceProbe case final report?)
+            Text(
+              'Sonde figée à ${(report['paintedProgress'] as double).toStringAsFixed(6)} : '
+              'géométrie ${(report['point'] as Map)['expectedSurface']}, '
+              'pixel ${(report['point'] as Map)['finalRenderedSurface']}. '
+              'ROI mesurée : ${jsonEncode(report['renderedPercent'])} %.',
+            ),
+        ],
       ],
     ),
   );
 
   Widget _preview(double height) => SizedBox(
     height: height,
-    child: Center(child: AspectRatio(
-      aspectRatio: _tall ? 9 / 20 : 9 / 16,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: AnimatedBuilder(animation: _time, builder: (context, child) =>
-          CustomPaint(painter: FragmentScene(
-            progress: _time.value,
-            thickness: _fragmentThickness, motion: _eggMotion,
-            guides: _guides, showEgg: _egg, shadow: _shadow,
-          ), child: const SizedBox.expand())),
+    child: Center(
+      child: AspectRatio(
+        aspectRatio: _tall ? 9 / 20 : 9 / 16,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: GestureDetector(
+            onTapUp: _identifySurfaces ? _probeSurface : null,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                RepaintBoundary(
+                  key: _previewKey,
+                  child: AnimatedBuilder(
+                    animation: _time,
+                    builder: (context, child) => CustomPaint(
+                      painter: FragmentScene(
+                        progress: _time.value,
+                        thickness: _fragmentThickness,
+                        motion: _eggMotion,
+                        guides: _guides,
+                        showEgg: _egg,
+                        shadow: _shadow,
+                        identifySurfaces: _identifySurfaces,
+                        onDiagnostics: (diagnostics) =>
+                            _lastPaint = diagnostics,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+                // Outside the captured boundary: the marker never contaminates
+                // sampled pixels or the scene's normal rendering.
+                if (_identifySurfaces && _probePoint != null)
+                  AnimatedBuilder(
+                    animation: _time,
+                    builder: (context, child) =>
+                        _surfaceProbe?['paintedProgress'] != _time.value
+                        ? const SizedBox.shrink()
+                        : Positioned(
+                            left: _probePoint!.dx - 8,
+                            top: _probePoint!.dy - 8,
+                            width: 16,
+                            height: 16,
+                            child: IgnorePointer(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
-    )),
+    ),
   );
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(child: LayoutBuilder(builder: (context, box) {
-      if (box.maxWidth >= 850) {
-        return Padding(padding: const EdgeInsets.all(24), child: Row(children: [
-          Expanded(child: _preview(box.maxHeight - 48)),
-          const SizedBox(width: 32),
-          SizedBox(width: 350, child: SingleChildScrollView(child: _controls())),
-        ]));
-      }
-      return SingleChildScrollView(padding: const EdgeInsets.all(16),
-        child: Column(children: [
-          _preview((box.maxHeight * .78).clamp(280.0, 760.0)),
-          const SizedBox(height: 24), _controls(),
-        ]));
-    })),
+    body: SafeArea(
+      child: LayoutBuilder(
+        builder: (context, box) {
+          if (box.maxWidth >= 850) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  Expanded(child: _preview(box.maxHeight - 48)),
+                  const SizedBox(width: 32),
+                  SizedBox(
+                    width: 350,
+                    child: SingleChildScrollView(child: _controls()),
+                  ),
+                ],
+              ),
+            );
+          }
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _preview((box.maxHeight * .78).clamp(280.0, 760.0)),
+                const SizedBox(height: 24),
+                _controls(),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
   );
 }
