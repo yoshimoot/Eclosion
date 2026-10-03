@@ -279,7 +279,9 @@ class _MaterialMesh {
   ui.Vertices cavityMesh(double thickness, bool identify) =>
       _cavityMeshes.putIfAbsent((thickness, identify), () {
         final rx = 115 - thickness, ry = 220 - thickness, rz = 65 - thickness;
-        final colors = <Color>[];
+        final depths = <double>[];
+        final facings = <double>[];
+        final diffuses = <double>[];
         for (final p in textureCoordinates) {
           final z =
               -rz *
@@ -293,36 +295,43 @@ class _MaterialMesh {
               ny = -p.dy / (ry * ry),
               nz = -z / (rz * rz);
           final length = math.sqrt(nx * nx + ny * ny + nz * nz);
-          final diffuse = ((-.35 * nx - .45 * ny + .82 * nz) / length).clamp(
+          depths.add((-z / rz).clamp(0.0, 1.0));
+          facings.add((nz / length).clamp(0.0, 1.0));
+          diffuses.add(
+            ((-.35 * nx - .45 * ny + .82 * nz) / length).clamp(0.0, 1.0),
+          );
+        }
+
+        // Only a small patch of the full inner ellipsoid is visible through
+        // this opening. Normalize the REAL depth range of that patch once so
+        // its concavity remains perceptible after orthographic projection.
+        // This mapping is stable in egg coordinates and never depends on time.
+        final minDepth = depths.reduce(math.min);
+        final maxDepth = depths.reduce(math.max);
+        final depthSpan = math.max(1e-6, maxDepth - minDepth);
+        final colors = <Color>[];
+        for (var i = 0; i < textureCoordinates.length; i++) {
+          final localDepth = ((depths[i] - minDepth) / depthSpan).clamp(
             0.0,
             1.0,
           );
-          // The inner wall must read as a concave eggshell surface, not as a
-          // flat colored patch behind the opening. Canvas projects this mesh
-          // orthographically, so preserve the real ellipsoid z geometry and
-          // make its curvature legible through local surface orientation and
-          // non-linear depth contrast. Keep the same warm inner-shell palette
-          // and the same fixed scene light; nothing depends on progress.
-          final depth = (-z / rz).clamp(0.0, 1.0);
-          final curvedDepth = _smoother(depth);
-          final facing = (nz / length).clamp(0.0, 1.0);
+          final bowlDepth = _smoother(localDepth);
 
-          // Make the bowl readable before material tuning. The visible opening
-          // covers only a small part of the ellipsoid, so the previous linear
-          // relief compressed most samples into nearly the same value. Expand
-          // the geometry-driven separation: the lip-side wall stays lighter,
-          // while the deepest/front-facing material clearly recedes.
-          final directionalRelief = .10 * (diffuse - .5);
-          final wallRelief = .24 * (1 - facing);
-          final nearOpeningRelief = .24 * (1 - curvedDepth);
-          final depthFalloff = .40 * math.pow(curvedDepth, 1.35);
+          // Preserve the warm inner-shell identity while making the bowl
+          // unmistakable: near-wall material catches more light and the
+          // deepest region clearly recedes. Directional lighting adds only a
+          // secondary asymmetry so it cannot flatten the depth cue again.
+          final directionalRelief = .10 * (diffuses[i] - .5);
+          final wallRelief = .08 * (1 - facings[i]);
+          final nearWallLift = .22 * (1 - bowlDepth);
+          final depthFalloff = .30 * bowlDepth;
           final exposure =
-              (.58 +
+              (.54 +
                       directionalRelief +
                       wallRelief +
-                      nearOpeningRelief -
+                      nearWallLift -
                       depthFalloff)
-                  .clamp(.16, .84);
+                  .clamp(.18, .82);
           final innerShell = Color.lerp(
             const Color(0xff9b7060),
             const Color(0xfff0d8c0),
