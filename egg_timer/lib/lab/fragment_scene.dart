@@ -307,9 +307,17 @@ class _MaterialMesh {
           final curvedDepth = _smoother(depth);
           final facing = (nz / length).clamp(0.0, 1.0);
           final baseExposure = .28 + .38 * diffuse + .18 * (1 - depth);
-          final curvatureRelief =
-              .10 * (facing - .55) - .12 * (curvedDepth - .5);
-          final exposure = (baseExposure + curvatureRelief).clamp(.22, .86);
+          // Make the bowl shape readable at a glance: material close to the
+          // opening catches more light while the ellipsoid recedes distinctly
+          // toward its deepest region. This remains entirely geometry-driven.
+          final rimLift = .10 * (1 - curvedDepth);
+          final depthFalloff = .24 * curvedDepth;
+          final normalRelief = .12 * (facing - .55);
+          final exposure =
+              (baseExposure + rimLift + normalRelief - depthFalloff).clamp(
+                .20,
+                .84,
+              );
           final innerShell = Color.lerp(
             const Color(0xff9b7060),
             const Color(0xfff0d8c0),
