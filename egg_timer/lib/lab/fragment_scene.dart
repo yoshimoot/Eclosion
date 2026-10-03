@@ -306,18 +306,22 @@ class _MaterialMesh {
           final depth = (-z / rz).clamp(0.0, 1.0);
           final curvedDepth = _smoother(depth);
           final facing = (nz / length).clamp(0.0, 1.0);
-          final baseExposure = .28 + .38 * diffuse + .18 * (1 - depth);
-          // Make the bowl shape readable at a glance: material close to the
-          // opening catches more light while the ellipsoid recedes distinctly
-          // toward its deepest region. This remains entirely geometry-driven.
-          final rimLift = .10 * (1 - curvedDepth);
-          final depthFalloff = .24 * curvedDepth;
-          final normalRelief = .12 * (facing - .55);
+
+          // Preserve the material's average value while making the concavity
+          // unambiguous. The deepest, front-facing region must recede instead
+          // of being re-lit by its normal; sloping walls nearer the opening
+          // carry the brighter cue. Directional light remains secondary.
+          final directionalRelief = .16 * (diffuse - .5);
+          final wallRelief = .18 * (1 - facing);
+          final nearOpeningRelief = .14 * (1 - curvedDepth);
+          final depthFalloff = .28 * curvedDepth;
           final exposure =
-              (baseExposure + rimLift + normalRelief - depthFalloff).clamp(
-                .20,
-                .84,
-              );
+              (.48 +
+                      directionalRelief +
+                      wallRelief +
+                      nearOpeningRelief -
+                      depthFalloff)
+                  .clamp(.18, .82);
           final innerShell = Color.lerp(
             const Color(0xff9b7060),
             const Color(0xfff0d8c0),
