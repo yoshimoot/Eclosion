@@ -1481,11 +1481,14 @@ class FragmentScene extends CustomPainter {
         final wall = [a, b, inset(b), inset(a)];
         if (_Face(wall, Colors.white).screenArea <= 0) continue;
         proposed.addPath(_polygon(wall.map((v) => v.xy)), Offset.zero);
-        // Same material and directional light as the mobile fracture rim.
-        final shade = .1 + .3 * (1 - _diffuse(wall));
+        // The exposed shell cross-section is lighter than the cavity and
+        // catches the same directional light as the other shell surfaces.
+        // Reuse the inner-shell material instead of darkening it into the
+        // cavity range: geometry, thickness and exposure stay unchanged.
+        final shade = .06 + .18 * (1 - _diffuse(wall));
         final color = Color.alphaBlend(
           Color.fromRGBO(38, 23, 12, shade),
-          const Color(0xffbd875a),
+          const Color(0xffe7c79e),
         );
         for (final index in [0, 1, 2, 0, 2, 3]) {
           lipPositions.add(wall[index].xy);
