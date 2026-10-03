@@ -317,21 +317,22 @@ class _MaterialMesh {
           );
           final bowlDepth = _smoother(localDepth);
 
-          // Preserve the warm inner-shell identity while making the bowl
-          // unmistakable: near-wall material catches more light and the
-          // deepest region clearly recedes. Directional lighting adds only a
-          // secondary asymmetry so it cannot flatten the depth cue again.
-          final directionalRelief = .10 * (diffuses[i] - .5);
-          final wallRelief = .08 * (1 - facings[i]);
-          final nearWallLift = .22 * (1 - bowlDepth);
-          final depthFalloff = .30 * bowlDepth;
+          // Let geometric depth dominate the read of the cavity. A strong
+          // left/right lighting gradient made the wall look flat despite the
+          // concave mesh, so directional light is now only a subtle asymmetry.
+          // The opening-side wall stays lighter and the deepest region recedes
+          // clearly, independent of where it sits in the aperture.
+          final directionalRelief = .03 * (diffuses[i] - .5);
+          final wallRelief = .04 * (1 - facings[i]);
+          final nearWallLift = .32 * (1 - bowlDepth);
+          final depthFalloff = .46 * bowlDepth;
           final exposure =
-              (.54 +
+              (.56 +
                       directionalRelief +
                       wallRelief +
                       nearWallLift -
                       depthFalloff)
-                  .clamp(.18, .82);
+                  .clamp(.14, .84);
           final innerShell = Color.lerp(
             const Color(0xff9b7060),
             const Color(0xfff0d8c0),
