@@ -297,15 +297,24 @@ class _MaterialMesh {
             0.0,
             1.0,
           );
-          final light = .25 + .75 * diffuse;
+          // Keep the inner wall materially related to the shell instead of
+          // collapsing it into a near-black brown patch. Depth darkens the
+          // concave wall while the fixed directional light keeps its volume
+          // readable; both terms live in egg coordinates and never depend on
+          // animation progress.
+          final depth = (-z / rz).clamp(0.0, 1.0);
+          final light = (.34 + .42 * diffuse + .10 * (1 - depth)).clamp(
+            .34,
+            .82,
+          );
           colors.add(
             identify
                 ? FragmentSurfaceColors.cavity
                 : Color.fromARGB(
                     255,
-                    (105 * light).round(),
-                    (68 * light).round(),
-                    (46 * light).round(),
+                    (231 * light).round(),
+                    (199 * light).round(),
+                    (158 * light).round(),
                   ),
           );
         }
