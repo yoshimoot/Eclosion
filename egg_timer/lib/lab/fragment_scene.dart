@@ -297,25 +297,22 @@ class _MaterialMesh {
             0.0,
             1.0,
           );
-          // Keep the inner wall materially related to the shell instead of
-          // collapsing it into a near-black brown patch. Depth darkens the
-          // concave wall while the fixed directional light keeps its volume
-          // readable; both terms live in egg coordinates and never depend on
-          // animation progress.
+          // The inner wall must read as eggshell, not as the brown scene
+          // background. Keep a warm, slightly pink inner-shell palette while
+          // depth and the fixed directional light describe the concavity.
+          // Everything stays in egg coordinates: no progress-driven color.
           final depth = (-z / rz).clamp(0.0, 1.0);
-          final light = (.34 + .42 * diffuse + .10 * (1 - depth)).clamp(
-            .34,
-            .82,
+          final exposure = (.28 + .38 * diffuse + .18 * (1 - depth)).clamp(
+            .28,
+            .86,
           );
+          final innerShell = Color.lerp(
+            const Color(0xff9b7060),
+            const Color(0xfff0d8c0),
+            exposure,
+          )!;
           colors.add(
-            identify
-                ? FragmentSurfaceColors.cavity
-                : Color.fromARGB(
-                    255,
-                    (231 * light).round(),
-                    (199 * light).round(),
-                    (158 * light).round(),
-                  ),
+            identify ? FragmentSurfaceColors.cavity : innerShell,
           );
         }
         return ui.Vertices(
