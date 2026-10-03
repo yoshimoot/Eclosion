@@ -297,15 +297,19 @@ class _MaterialMesh {
             0.0,
             1.0,
           );
-          // The inner wall must read as eggshell, not as the brown scene
-          // background. Keep a warm, slightly pink inner-shell palette while
-          // depth and the fixed directional light describe the concavity.
-          // Everything stays in egg coordinates: no progress-driven color.
+          // The inner wall must read as a concave eggshell surface, not as a
+          // flat colored patch behind the opening. Canvas projects this mesh
+          // orthographically, so preserve the real ellipsoid z geometry and
+          // make its curvature legible through local surface orientation and
+          // non-linear depth contrast. Keep the same warm inner-shell palette
+          // and the same fixed scene light; nothing depends on progress.
           final depth = (-z / rz).clamp(0.0, 1.0);
-          final exposure = (.28 + .38 * diffuse + .18 * (1 - depth)).clamp(
-            .28,
-            .86,
-          );
+          final curvedDepth = _smoother(depth);
+          final facing = (nz / length).clamp(0.0, 1.0);
+          final baseExposure = .28 + .38 * diffuse + .18 * (1 - depth);
+          final curvatureRelief =
+              .10 * (facing - .55) - .12 * (curvedDepth - .5);
+          final exposure = (baseExposure + curvatureRelief).clamp(.22, .86);
           final innerShell = Color.lerp(
             const Color(0xff9b7060),
             const Color(0xfff0d8c0),
