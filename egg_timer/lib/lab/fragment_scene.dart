@@ -626,7 +626,7 @@ class _FractureClusterSpec {
 
   double _spatialWeight(Offset source, Offset target, {double radius = 65}) {
     final normalized = 1 - (target - source).distance / radius;
-    return _smooth(normalized.clamp(0.0, 1.0));
+    return _smooth(normalized.clamp(0.0, 1.0).toDouble());
   }
 
   // Instantaneous pressure bends still-attached shell material.
