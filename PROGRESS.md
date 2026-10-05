@@ -22,7 +22,7 @@ Acquis explicitement validés, à préserver :
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. La propagation mécanique est désormais organisée autour d'une chorégraphie de pression cohérente avec l'action du poussin : efforts d'abord localisés, puis déplacement des appuis, puis effort plus large de tête/corps contre la zone déjà fragilisée. Ce dernier effort est commun au cluster et peut libérer plusieurs plaques dans des fenêtres qui se chevauchent ; il ne correspond pas à une séquence artificielle fragment 2 → fragment 3.
+Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. Un prototype de **trajectoire interne du poussin** vient d'être introduit pour la phase tardive : deux épisodes de contact continus se chevauchent, le point d'appui se déplace progressivement vers la gauche et la surface de contact s'élargit de tête/cou vers tête/corps. Ces contacts pilotent désormais la pression, le dommage cumulé et un couple de rotation dépendant de la position du fragment. Les anciens points tardifs restent seulement comme repères temporels de propagation des fissures. Cette nouvelle mécanique reste à valider visuellement.
 
 ## Gelé pour l'itération actuelle
 
@@ -33,7 +33,7 @@ Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuel
 
 ## Prochaine étape
 
-Valider visuellement la nouvelle phase tardive de pression large : le deuxième et le troisième fragment doivent pouvoir pivoter/se libérer dans des fenêtres proches sous le même effort interne, sans donner l'impression d'une animation l'un après l'autre. Le troisième fragment doit conserver son arête réellement partagée avec le deuxième et bénéficier automatiquement du tri de profondeur et des règles génériques de conservation de forme.
+Valider visuellement la trajectoire de contact interne : entre environ 62,5 % et 73,5 %, l'appui doit migrer continûment vers les fragments 2–3 et s'élargir. Les deux plaques doivent pouvoir pivoter dans des sens différents sous le même effort parce que leur centre et leurs charnières diffèrent, puis se libérer dans des fenêtres proches sans séquence artificielle. Vérifier en particulier l'absence de saut de mouvement au chevauchement des deux épisodes de contact.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -43,7 +43,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin, la continuité de forme post-libération et le tri d'occlusion inter-fragments par profondeur 3D courante sont validés visuellement.
+- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin, la continuité de forme post-libération et le tri d'occlusion inter-fragments par profondeur 3D courante sont validés visuellement. La phase tardive utilise maintenant une trajectoire continue de contact du poussin et un couple de rotation spatial ; cette extension reste à valider.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
