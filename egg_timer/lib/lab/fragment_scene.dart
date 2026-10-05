@@ -1218,11 +1218,8 @@ class FragmentScene extends CustomPainter {
       allApertures,
     );
 
-    // This refactor intentionally keeps one active frame. Downstream rendering
-    // remains untouched until the list-based ownership above is validated.
-    assert(frames.length == 1);
-    final frame = frames.single;
-    final fragment = frame.spec;
+    void paintFrame(_FragmentFrame frame) {
+      final fragment = frame.spec;
     final geometry = frame.geometry;
     final outer = geometry.outer;
     final projectedOuter = geometry.projectedOuter;
@@ -1852,6 +1849,12 @@ class FragmentScene extends CustomPainter {
         canvas.drawLine(shellPoint, scarEnd, scarPaint);
       }
       canvas.restore();
+    }
+
+    }
+
+    for (final frame in frames) {
+      paintFrame(frame);
     }
 
     canvas.restore();
