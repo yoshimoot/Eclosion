@@ -45,6 +45,50 @@ class _PressureEvent {
   double advance(double t) => _part(t, center - halfWidth, center + halfWidth);
 }
 
+class _ChickContactEpisode {
+  const _ChickContactEpisode({
+    required this.start,
+    required this.peak,
+    required this.end,
+    required this.startPoint,
+    required this.peakPoint,
+    required this.endPoint,
+    required this.startRadius,
+    required this.peakRadius,
+    required this.endRadius,
+    required this.strength,
+  });
+
+  final double start, peak, end, strength;
+  final Offset startPoint, peakPoint, endPoint;
+  final double startRadius, peakRadius, endRadius;
+
+  double envelope(double t) {
+    if (t <= start || t >= end) return 0;
+    return t < peak
+        ? _smoother(_part(t, start, peak))
+        : 1 - _smoother(_part(t, peak, end));
+  }
+
+  Offset pointAt(double t) {
+    if (t <= peak) {
+      final u = _smoother(_part(t, start, peak));
+      return Offset.lerp(startPoint, peakPoint, u)!;
+    }
+    final u = _smoother(_part(t, peak, end));
+    return Offset.lerp(peakPoint, endPoint, u)!;
+  }
+
+  double radiusAt(double t) {
+    if (t <= peak) {
+      final u = _smoother(_part(t, start, peak));
+      return startRadius + (peakRadius - startRadius) * u;
+    }
+    final u = _smoother(_part(t, peak, end));
+    return peakRadius + (endRadius - peakRadius) * u;
+  }
+}
+
 class _CrackAdvance {
   const _CrackAdvance(this.pressure, this.start, this.end);
   final int pressure;
@@ -613,6 +657,7 @@ class _FractureClusterSpec {
   const _FractureClusterSpec({
     required this.seed,
     required this.pressureEvents,
+    required this.chickContacts,
     required this.edges,
     required this.branches,
     required this.microBranches,
@@ -620,6 +665,7 @@ class _FractureClusterSpec {
 
   final int seed;
   final List<_PressureEvent> pressureEvents;
+  final List<_ChickContactEpisode> chickContacts;
   final List<_FractureEdgeSpec> edges;
   final List<_ClusterCrackSpec> branches;
   final List<_ClusterCrackSpec> microBranches;
@@ -644,6 +690,16 @@ class _FractureClusterSpec {
           event.at(t) *
           _spatialWeight(event.point, point, radius: event.radius + 5);
     }
+    for (final contact in chickContacts) {
+      pressure +=
+          contact.strength *
+          contact.envelope(t) *
+          _spatialWeight(
+            contact.pointAt(t),
+            point,
+            radius: contact.radiusAt(t),
+          );
+    }
     return pressure;
   }
 
@@ -667,6 +723,16 @@ class _FractureClusterSpec {
                     (1 - _smoother(_part(t, end, end + .055)));
       response += (event.at(t) + relaxation) * weight;
     }
+    for (final contact in chickContacts) {
+      response +=
+          contact.strength *
+          contact.envelope(t) *
+          _spatialWeight(
+            contact.pointAt(t),
+            point,
+            radius: contact.radiusAt(t),
+          );
+    }
     return response;
   }
 
@@ -680,7 +746,56 @@ class _FractureClusterSpec {
           _smooth(event.advance(t)) *
           _spatialWeight(event.point, point, radius: event.radius);
     }
+
+    // Integrate the moving chick contact over its traveled path. A fixed number
+    // of deterministic segments keeps damage continuous and reproducible while
+    // preserving the spatial history of the contact.
+    const samples = 12;
+    for (final contact in chickContacts) {
+      final completed = _part(t, contact.start, contact.end);
+      if (completed <= 0) continue;
+      var accumulated = 0.0;
+      for (var i = 0; i < samples; i++) {
+        final u0 = i / samples;
+        final u1 = (i + 1) / samples;
+        final coverage = _part(completed, u0, u1);
+        if (coverage <= 0) continue;
+        final u = u0 + (u1 - u0) * coverage * .5;
+        final sampleT = contact.start + (contact.end - contact.start) * u;
+        accumulated +=
+            contact.envelope(sampleT) *
+            _spatialWeight(
+              contact.pointAt(sampleT),
+              point,
+              radius: contact.radiusAt(sampleT),
+            ) *
+            coverage;
+      }
+      damage += contact.strength * 2 * accumulated / samples;
+    }
     return damage;
+  }
+
+  // Resultant moment arm of the current internal effort around a fragment
+  // center. Two plates under the same chick contact can therefore rotate in
+  // different directions without fragment-specific animation tracks.
+  Offset momentAt(double t, Offset center) {
+    var moment = Offset.zero;
+    for (final event in pressureEvents) {
+      final weight =
+          event.at(t) *
+          _spatialWeight(event.point, center, radius: event.radius + 5);
+      moment += (event.point - center) * weight;
+    }
+    for (final contact in chickContacts) {
+      final point = contact.pointAt(t);
+      final weight =
+          contact.strength *
+          contact.envelope(t) *
+          _spatialWeight(point, center, radius: contact.radiusAt(t));
+      moment += (point - center) * weight;
+    }
+    return moment;
   }
 }
 
@@ -945,20 +1060,41 @@ class FragmentScene extends CustomPainter {
     // their original pressure indices; neighbouring edges can react to this
     // same physical impulse without owning an independent timer.
     _PressureEvent(.515, .022, .7, Offset(-4, -67)),
-    // After the first plate opens, the chick pushes again through the enlarged
-    // weak zone. This shared impulse transfers load toward the neighbour's last
-    // hinge and can finish its release through accumulated cluster damage.
-    _PressureEvent(.665, .024, .95, Offset(-34, -52)),
-    // Once an opening exists, the chick can brace more of its head/body
-    // against the weakened zone. Model that as ONE broader common effort rather
-    // than "fragment 2 then fragment 3": neighbouring plates can therefore
-    // release in overlapping windows under the same physical action.
-    _PressureEvent(
-      .69,
-      .035,
-      1.4,
-      Offset(-48, -56),
-      radius: 120,
+    // Timing references used by fracture propagation only. Their physical
+    // force is zero: late shell mechanics now come from the moving chick
+    // contact trajectory below rather than from disconnected pressure points.
+    _PressureEvent(.665, .024, 0, Offset(-34, -52)),
+    _PressureEvent(.69, .035, 0, Offset(-48, -56)),
+  ];
+
+  static const _chickContacts = <_ChickContactEpisode>[
+    // Head/neck finds purchase near the first enlarged opening and moves
+    // gradually left while the contact patch widens.
+    _ChickContactEpisode(
+      start: .625,
+      peak: .652,
+      end: .682,
+      startPoint: Offset(-18, -60),
+      peakPoint: Offset(-31, -55),
+      endPoint: Offset(-38, -56),
+      startRadius: 28,
+      peakRadius: 36,
+      endRadius: 42,
+      strength: .9,
+    ),
+    // The head/body then bears more broadly on the weakened cluster. This
+    // overlaps the first effort and can load fragments 2 and 3 together.
+    _ChickContactEpisode(
+      start: .655,
+      peak: .692,
+      end: .735,
+      startPoint: Offset(-31, -56),
+      peakPoint: Offset(-44, -56),
+      endPoint: Offset(-50, -58),
+      startRadius: 45,
+      peakRadius: 70,
+      endRadius: 80,
+      strength: 1.6,
     ),
   ];
   static const _liftPushes = [
@@ -1210,26 +1346,27 @@ class FragmentScene extends CustomPainter {
       1.05,
       1.08,
       Offset(-58, -27),
-      damageStart: .85,
-      damageEnd: 1.15,
+      damageStart: .55,
+      damageEnd: .85,
     ),
-    // Stronger far-side ligament: it acts as the final hinge until the broader
-    // body/head effort redistributes enough load across the weakened cluster.
+    // The outer ligament is less directly loaded but still participates in the
+    // same broad body/head effort; it can therefore release shortly after its
+    // neighbours rather than waiting for a separate fragment event.
     _ShellAttachment(
       4,
       1.10,
       1.13,
       Offset(-89, -57),
-      damageStart: .70,
-      damageEnd: 1.05,
+      damageStart: .40,
+      damageEnd: .58,
     ),
     _ShellAttachment(
       6,
       1.15,
       1.18,
       Offset(-53, -87),
-      damageStart: .65,
-      damageEnd: .95,
+      damageStart: .45,
+      damageEnd: .70,
     ),
   ];
 
@@ -1238,6 +1375,7 @@ class FragmentScene extends CustomPainter {
   static final _fractureCluster = _FractureClusterSpec(
     seed: 1,
     pressureEvents: _clusterPressureEvents,
+    chickContacts: _chickContacts,
     edges: [
       for (var i = 0; i < _fractureEdges.length; i++)
         _FractureEdgeSpec(
@@ -1548,14 +1686,25 @@ class FragmentScene extends CustomPainter {
     final pivot = _surface(pivotOnShell);
     // Off-center pressure changes only the early pose. Its small torque fades
     // during flight, leaving the established fall and landing unchanged.
-    final pressureRoll = fragment.liftPushes.fold(
-      0.0,
-      (sum, push) => sum + push.at(fragmentProgress) * (push.point.dx - center.x) / 45,
-    );
-    final pressurePitch = fragment.liftPushes.fold(
-      0.0,
-      (sum, push) => sum + push.at(fragmentProgress) * (push.point.dy - center.y) / 45,
-    );
+    final clusterMoment = fragment.pressureCoupling == 0
+        ? Offset.zero
+        : fragment.cluster.momentAt(fragmentProgress, fragment.centerOnShell);
+    final pressureRoll =
+        fragment.liftPushes.fold(
+          0.0,
+          (sum, push) =>
+              sum +
+              push.at(fragmentProgress) * (push.point.dx - center.x) / 45,
+        ) +
+        fragment.pressureCoupling * clusterMoment.dx / 45;
+    final pressurePitch =
+        fragment.liftPushes.fold(
+          0.0,
+          (sum, push) =>
+              sum +
+              push.at(fragmentProgress) * (push.point.dy - center.y) / 45,
+        ) +
+        fragment.pressureCoupling * clusterMoment.dy / 45;
     final initialTorqueFade = 1 - turn;
     // Rotation never reaches an edge-on projection. The small damped roll and
     // lift after impact let the light shell settle on a broad face.
