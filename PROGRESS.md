@@ -13,12 +13,13 @@ Acquis explicitement validés, à préserver :
 - Agrégation mono→liste validée visuellement le 5 octobre 2026 : les frames de fragments sont désormais préparées en liste et les apertures sont agrégées pour calculer la coquille fixe, sans changement visuel du fragment de référence.
 - Introduction du cluster partagé validée visuellement le 5 octobre 2026 avec un seul fragment : les arêtes primaires et les impulsions de pression sont centralisées sans régression du rendu de référence.
 - Premier voisin à arête réellement partagée validé visuellement le 5 octobre 2026 : continuité de la fissure commune, absence de double bord/patch et maintien crédible de la plaque voisine pendant le détachement du fragment principal.
+- Couplage pression commune → flexion/dommage → pivot du voisin validé visuellement comme amélioration le 5 octobre 2026.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le premier voisin à arête réellement partagée est validé. La priorité actuelle est désormais de remplacer son maintien purement temporel par une **réponse mécanique à la pression commune du cluster** : flexion locale et accumulation irréversible de dommage sur les attaches selon leur proximité avec les impulsions.
+Le couplage mécanique du voisin est désormais lisible. La priorité actuelle est son **détachement complet comme conséquence du cluster** : une nouvelle poussée commune après l'ouverture du premier fragment transfère la contrainte vers la dernière charnière ; la chute ne démarre que lorsque toutes les attaches ont réellement perdu leur tenue.
 
 ## Gelé pour l'itération actuelle
 
@@ -29,7 +30,7 @@ Le premier voisin à arête réellement partagée est validé. La priorité actu
 
 ## Prochaine étape
 
-Valider la nouvelle réponse couplée du voisin : une impulsion proche doit provoquer un léger soulèvement local, les attaches proches doivent perdre progressivement leur tenue, et l'attache plus éloignée doit rester comme charnière. Le fragment principal doit conserver strictement son comportement validé. Le voisin ne doit pas encore tomber : cette itération valide seulement le couplage pression → dommage → pivot.
+Valider le détachement complet du voisin : après le départ du fragment principal, une nouvelle poussée commune doit finir de rompre la dernière charnière ; le voisin doit alors passer continûment du pivot au vol puis à la chute, sans seuil visuel artificiel. L'instant de départ est dérivé du dommage cumulé du cluster, pas d'une timeline propre au fragment.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -39,7 +40,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé et un premier voisin à arête commune sont validés. Le couplage pression → flexion/dommage des attaches vient d'être introduit et reste à valider ; la redistribution des contraintes après rupture et le détachement complet du voisin viendront ensuite.
+- Le cluster partagé, l'arête commune et le couplage pression → flexion/dommage/pivot sont validés. Le détachement complet du voisin piloté par le dommage cumulé vient d'être introduit et reste à valider visuellement.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
