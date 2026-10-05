@@ -256,6 +256,45 @@ class _MaterialMesh {
         }),
       );
     }
+
+    // Stable aperture-space depth cue: 0 on the fracture boundary, 1 near the
+    // point farthest from that irregular boundary. This is derived from the
+    // actual opening geometry once and is independent of animation progress.
+    double distanceToSegment(Offset p, Offset a, Offset b) {
+      final ab = b - a;
+      final lengthSquared = ab.dx * ab.dx + ab.dy * ab.dy;
+      if (lengthSquared == 0) return (p - a).distance;
+      final ap = p - a;
+      final t = ((ap.dx * ab.dx + ap.dy * ab.dy) / lengthSquared).clamp(
+        0.0,
+        1.0,
+      );
+      final closest = a + ab * t;
+      return (p - closest).distance;
+    }
+
+    var maxBoundaryDistance = 0.0;
+    for (final v in vertices) {
+      var nearest = double.infinity;
+      for (var i = 0; i < outer.length; i++) {
+        nearest = math.min(
+          nearest,
+          distanceToSegment(
+            v.xy,
+            outer[i].xy,
+            outer[(i + 1) % outer.length].xy,
+          ),
+        );
+      }
+      apertureDepths.add(nearest);
+      maxBoundaryDistance = math.max(maxBoundaryDistance, nearest);
+    }
+    if (maxBoundaryDistance > 0) {
+      for (var i = 0; i < apertureDepths.length; i++) {
+        apertureDepths[i] /= maxBoundaryDistance;
+      }
+    }
+
     for (var i = 0; i < outer.length; i++) {
       final a = outer[i].xy, b = outer[(i + 1) % outer.length].xy;
       final farA = center.xy + (a - center.xy) * 20;
@@ -267,6 +306,7 @@ class _MaterialMesh {
   final triangles = <_V>[];
   final vertices = <_V>[];
   final indices = <int>[];
+  final apertureDepths = <double>[];
   final shellMesh = <Offset>[];
   late final textureCoordinates = vertices.map((v) => v.xy).toList();
   final _bindings = <Offset, (int, double, double)?>{};
@@ -317,22 +357,24 @@ class _MaterialMesh {
           );
           final bowlDepth = _smoother(localDepth);
 
-          // Let geometric depth dominate the read of the cavity. A strong
-          // left/right lighting gradient made the wall look flat despite the
-          // concave mesh, so directional light is now only a subtle asymmetry.
-          // The opening-side wall stays lighter and the deepest region recedes
-          // clearly, independent of where it sits in the aperture.
-          final directionalRelief = .03 * (diffuses[i] - .5);
-          final wallRelief = .04 * (1 - facings[i]);
-          final nearWallLift = .32 * (1 - bowlDepth);
-          final depthFalloff = .46 * bowlDepth;
+          // The main depth cue follows the REAL irregular aperture rather
+          // than creating a central highlight. Material beside the fracture
+          // catches more light; moving inward from that edge recedes into the
+          // egg. Ellipsoid depth and directional light remain secondary cues.
+          final apertureDepth = _smoother(apertureDepths[i]);
+          final directionalRelief = .025 * (diffuses[i] - .5);
+          final wallRelief = .035 * (1 - facings[i]);
+          final fractureEdgeLift = .24 * (1 - apertureDepth);
+          final inwardFalloff = .30 * apertureDepth;
+          final ellipsoidFalloff = .10 * bowlDepth;
           final exposure =
-              (.56 +
+              (.52 +
                       directionalRelief +
                       wallRelief +
-                      nearWallLift -
-                      depthFalloff)
-                  .clamp(.14, .84);
+                      fractureEdgeLift -
+                      inwardFalloff -
+                      ellipsoidFalloff)
+                  .clamp(.16, .80);
           final innerShell = Color.lerp(
             const Color(0xff9b7060),
             const Color(0xfff0d8c0),
