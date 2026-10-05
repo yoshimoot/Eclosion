@@ -929,6 +929,10 @@ class FragmentScene extends CustomPainter {
     // weak zone. This shared impulse transfers load toward the neighbour's last
     // hinge and can finish its release through accumulated cluster damage.
     _PressureEvent(.665, .024, .95, Offset(-34, -52)),
+    // Propagation step: once the neighbour has opened, the next common push
+    // reaches the plate immediately to its left. This remains a cluster event,
+    // not a fragment-local trigger.
+    _PressureEvent(.755, .026, .9, Offset(-58, -56)),
   ];
   static const _liftPushes = [
     _LiftPush(.495, .514, .16, Offset(63, -81)),
@@ -1090,6 +1094,118 @@ class FragmentScene extends CustomPainter {
     ),
   ];
 
+  // Third plate in the SAME fracture cluster. It shares neighbour outer edge 3
+  // exactly (reversed), proving that topology can propagate beyond one pair.
+  // This iteration keeps one far-side ligament alive so we validate shared-edge
+  // propagation and pivot before adding another free-flight event.
+  static final _thirdBoundary = <Offset>[
+    _neighborBoundary[5],
+    _neighborBoundary[4],
+    const Offset(-57, -34),
+    const Offset(-75, -40),
+    const Offset(-82, -56),
+    const Offset(-73, -72),
+    const Offset(-55, -80),
+  ];
+
+  static const _thirdSteps = <List<Offset>>[
+    [Offset(.24, -.5), Offset(.58, .7), Offset(.82, -.4)],
+    [Offset(.31, .6), Offset(.69, -.7)],
+    [Offset(.2, -.5), Offset(.49, .6), Offset(.78, -.5)],
+    [Offset(.28, .7), Offset(.64, -.6)],
+    [Offset(.22, -.6), Offset(.55, .7), Offset(.8, -.4)],
+    [Offset(.34, .5), Offset(.7, -.6)],
+  ];
+
+  static final _thirdOuterEdges = <List<Offset>>[
+    _buildSingleFractureEdge(
+      _thirdBoundary[1],
+      _thirdBoundary[2],
+      _thirdSteps[0],
+    ),
+    _buildSingleFractureEdge(
+      _thirdBoundary[2],
+      _thirdBoundary[3],
+      _thirdSteps[1],
+    ),
+    _buildSingleFractureEdge(
+      _thirdBoundary[3],
+      _thirdBoundary[4],
+      _thirdSteps[2],
+    ),
+    _buildSingleFractureEdge(
+      _thirdBoundary[4],
+      _thirdBoundary[5],
+      _thirdSteps[3],
+    ),
+    _buildSingleFractureEdge(
+      _thirdBoundary[5],
+      _thirdBoundary[6],
+      _thirdSteps[4],
+    ),
+    _buildSingleFractureEdge(
+      _thirdBoundary[6],
+      _thirdBoundary[0],
+      _thirdSteps[5],
+    ),
+  ];
+
+  static const _thirdOuterAdvances = <_CrackAdvance>[
+    _CrackAdvance(10, .32, .9),
+    _CrackAdvance(11, .05, .78),
+    _CrackAdvance(11, .2, .9),
+    _CrackAdvance(11, .38, 1),
+    _CrackAdvance(10, .5, 1),
+    _CrackAdvance(11, .55, 1),
+  ];
+
+  static final _thirdFractureEdges = <List<Offset>>[
+    _neighborOuterEdges[3].reversed.toList(growable: false),
+    ..._thirdOuterEdges,
+  ];
+
+  static final _thirdFractureBoundary = <Offset>[
+    for (final edge in _thirdFractureEdges) ...edge.take(edge.length - 1),
+  ];
+
+  static final _thirdMaterialBoundary = <_V>[
+    for (var i = 0; i < _thirdFractureBoundary.length; i++)
+      ..._edgeSamples(
+        _thirdFractureBoundary[i],
+        _thirdFractureBoundary[
+            (i + 1) % _thirdFractureBoundary.length],
+      ),
+  ];
+
+  static const _thirdAttachments = <_ShellAttachment>[
+    _ShellAttachment(
+      2,
+      1.05,
+      1.08,
+      Offset(-58, -27),
+      damageStart: .85,
+      damageEnd: 1.15,
+    ),
+    // This far-side ligament intentionally survives the current sequence and
+    // acts as the final hinge for topology/pivot validation.
+    _ShellAttachment(
+      4,
+      1.10,
+      1.13,
+      Offset(-89, -57),
+      damageStart: .70,
+      damageEnd: 1.05,
+    ),
+    _ShellAttachment(
+      6,
+      1.15,
+      1.18,
+      Offset(-53, -87),
+      damageStart: .65,
+      damageEnd: .95,
+    ),
+  ];
+
   // Shared fracture topology. Fragments reference edge ids from this cluster;
   // edge 9 is therefore literally one crack used by both neighbouring plates.
   static final _fractureCluster = _FractureClusterSpec(
@@ -1107,6 +1223,12 @@ class FragmentScene extends CustomPainter {
           id: _fractureEdges.length + i,
           points: _neighborOuterEdges[i],
           advance: _neighborOuterAdvances[i],
+        ),
+      for (var i = 0; i < _thirdOuterEdges.length; i++)
+        _FractureEdgeSpec(
+          id: _fractureEdges.length + _neighborOuterEdges.length + i,
+          points: _thirdOuterEdges[i],
+          advance: _thirdOuterAdvances[i],
         ),
     ],
     branches: [
@@ -1127,6 +1249,14 @@ class FragmentScene extends CustomPainter {
     const _FragmentEdgeRef(9, reversed: true),
     for (var i = 0; i < _neighborOuterEdges.length; i++)
       _FragmentEdgeRef(_fractureEdges.length + i, reversed: false),
+  ];
+  static final _thirdEdgeRefs = <_FragmentEdgeRef>[
+    _FragmentEdgeRef(_fractureEdges.length + 3, reversed: true),
+    for (var i = 0; i < _thirdOuterEdges.length; i++)
+      _FragmentEdgeRef(
+        _fractureEdges.length + _neighborOuterEdges.length + i,
+        reversed: false,
+      ),
   ];
 
   // Exact validated single-fragment reference, now expressed as data.
@@ -1170,9 +1300,30 @@ class FragmentScene extends CustomPainter {
     pressureCoupling: .45,
   );
 
+  static final _thirdFragment = _FragmentSpec(
+    seed: 3,
+    cluster: _fractureCluster,
+    edgeRefs: _thirdEdgeRefs,
+    boundary: _thirdBoundary,
+    fractureBoundary: _thirdFractureBoundary,
+    liftPushes: const [],
+    attachments: _thirdAttachments,
+    materialBoundary: _thirdMaterialBoundary,
+    centerOnShell: const Offset(-61, -57),
+    // Not exercised while the final hinge survives; keep the generic broad-face
+    // fallback rather than tuning a third landing pose in this iteration.
+    impactPitch: .25,
+    impactYaw: .5,
+    impactRoll: .25,
+    flightShiftX: -48,
+    settleShiftX: -3,
+    pressureCoupling: .42,
+  );
+
   static final List<_FragmentSpec> _fragments = [
     _referenceFragment,
     _neighborFragment,
+    _thirdFragment,
   ];
 
   static List<_V> _edgeSamples(Offset a, Offset b) {
