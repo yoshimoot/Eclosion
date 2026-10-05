@@ -20,7 +20,7 @@ Acquis explicitement validés, à préserver :
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le premier couple de fragments est désormais validé visuellement et mécaniquement. La continuité de forme des fragments est généralisée : influence des attaches normalisée par la taille et séparation extérieure persistante après libération. Le deuxième fragment conserve maintenant correctement sa silhouette pendant le pivot, le détachement et la chute, sans réglage spécifique par fragment.
+Le premier couple de fragments est désormais validé visuellement et mécaniquement. La continuité de forme est généralisée. Un **troisième fragment** vient d'être ajouté au même cluster pour validation : il partage réellement une arête du deuxième fragment, reçoit les mêmes impulsions communes et utilise sans adaptation les règles génériques de retenue, pivot et conservation de forme. Pour cette itération, sa dernière attache reste volontairement intacte afin d'isoler la propagation topologique et le pivot avant un nouveau détachement libre.
 
 ## Gelé pour l'itération actuelle
 
@@ -31,7 +31,7 @@ Le premier couple de fragments est désormais validé visuellement et mécanique
 
 ## Prochaine étape
 
-Ajouter maintenant un troisième fragment voisin au même cluster afin de valider une propagation en chaîne sur plus d'une liaison : pression commune → redistribution après rupture → dommage d'une nouvelle plaque → pivot/détachement éventuel. Le troisième fragment doit bénéficier automatiquement des règles génériques déjà validées, sans correction manuelle de forme ou d'occlusion.
+Valider visuellement le troisième fragment : sa fissure commune avec le deuxième doit rester une seule cassure géométrique, la propagation doit atteindre cette nouvelle plaque après l'ouverture précédente, et la plaque doit pivoter sous le dommage cumulé tout en conservant sa forme. Sa dernière attache doit rester comme charnière pour cette étape ; aucun réglage spécifique de forme ou d'occlusion ne doit être nécessaire.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -41,7 +41,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin et la continuité de forme post-libération sont validés visuellement. Les règles de conservation de forme sont désormais génériques et doivent s'appliquer automatiquement aux prochains fragments.
+- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin et la continuité de forme post-libération sont validés visuellement. Un troisième fragment à arête réellement partagée est maintenant présent pour valider l'extension du même moteur à un petit réseau de trois plaques.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
