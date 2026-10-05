@@ -16,7 +16,7 @@ Acquis explicitement validés, à préserver :
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-La prochaine priorité est de supprimer la dernière dépendance mono-fragment du peintre (`frames.single`) afin que le rendu puisse réellement parcourir plusieurs fragments, tout en conservant d'abord un seul fragment actif pour validation.
+Le moteur sait désormais parcourir plusieurs fragments, mais le premier essai à deux fragments indépendants a révélé une erreur de modèle physique : une éclosion crédible doit être construite comme un **cluster de fragmentation couplé**, issu d'un réseau de fissures partagé et de zones de pression communes.
 
 ## Gelé pour l'itération actuelle
 
@@ -27,7 +27,7 @@ La prochaine priorité est de supprimer la dernière dépendance mono-fragment d
 
 ## Prochaine étape
 
-Refactorer le peintre pour parcourir réellement la liste des `_FragmentFrame` au lieu d'utiliser `frames.single`. Garder un seul fragment actif pendant cette étape pour garantir un rendu strictement neutre. Une fois ce passage validé, ajouter un deuxième `_FragmentSpec` déterministe et seulement ensuite valider les interactions entre ouvertures, occlusions et fragments.
+Construire la topologie d'un **réseau de fissures partagé** avant de réactiver plusieurs fragments. Les fragments voisins devront partager exactement les mêmes arêtes de cassure ; les ouvertures devront former un cluster continu ; les ruptures d'attaches et pivots devront découler d'impulsions de pression communes et de la résistance locale. Le deuxième fragment indépendant reste uniquement une fixture diagnostique et n'est plus rendu.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -37,7 +37,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Multi-fragments pas encore commencé ; réseau complet de fissures à développer.
+- Le moteur multi-fragments est opérationnel, mais le modèle physique couplé reste à construire : réseau partagé, arêtes communes, redistribution des contraintes et séquence de rupture.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
@@ -50,6 +50,10 @@ Le futur système devra permettre qu'une nouvelle utilisation du timer ne produi
 
 ### Architecture à prévoir
 
+- Les fragments appartiennent à un **cluster de fracture commun** : ils ne sont pas générés comme des trous indépendants.
+- Une arête entre deux fragments voisins est une seule cassure géométrique, référencée par les deux fragments.
+- Les impulsions de pression sont définies au niveau du cluster ; elles propagent l'endommagement dans le réseau puis libèrent les attaches successivement.
+- Le détachement d'une plaque peut redistribuer la contrainte et modifier la mobilité de ses voisines.
 - Multi-fragments et fragmentation procédurale contrôlée.
 - Génération déterministe à partir d'une seed créée au début d'une nouvelle éclosion et conservée pendant toute l'éclosion.
 - Aucune génération aléatoire de géométrie frame par frame.
