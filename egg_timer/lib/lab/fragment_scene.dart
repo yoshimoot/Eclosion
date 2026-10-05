@@ -1183,6 +1183,27 @@ class FragmentScene extends CustomPainter {
     ];
   }
 
+  static double _boundarySpan(List<Offset> boundary) {
+    var minX = double.infinity;
+    var maxX = double.negativeInfinity;
+    var minY = double.infinity;
+    var maxY = double.negativeInfinity;
+    for (final point in boundary) {
+      minX = math.min(minX, point.dx);
+      maxX = math.max(maxX, point.dx);
+      minY = math.min(minY, point.dy);
+      maxY = math.max(maxY, point.dy);
+    }
+    return math.sqrt(
+      math.pow(maxX - minX, 2) + math.pow(maxY - minY, 2),
+    );
+  }
+
+  static final double _referenceAttachmentSpan = _boundarySpan(_boundary);
+
+  double _attachmentInfluenceScale(_FragmentSpec fragment) =>
+      _boundarySpan(fragment.boundary) / _referenceAttachmentSpan;
+
   double _attachmentHold(
     _FragmentSpec fragment,
     _ShellAttachment attachment,
@@ -1232,6 +1253,13 @@ class FragmentScene extends CustomPainter {
     double fragmentProgress,
   ) {
     var retained = 0.0;
+    // The validated reference used a 4→40 unit attachment influence. Scale that
+    // SAME material behavior with each fragment's own span so a small plate is
+    // not deformed across nearly its entire surface by one surviving ligament.
+    // The reference fragment evaluates to exactly scale=1.
+    final influenceScale = _attachmentInfluenceScale(fragment);
+    final pinnedCore = 4 * influenceScale;
+    final influenceRadius = 40 * influenceScale;
     for (final attachment in fragment.attachments) {
       final distance =
           (point - fragment.boundary[attachment.vertex]).distance;
@@ -1255,7 +1283,8 @@ class FragmentScene extends CustomPainter {
                     attachment.releaseEnd + responseDuration,
                   ),
                 );
-      final weight = 1 - _smooth(_part(distance, 4, 40));
+      final weight =
+          1 - _smooth(_part(distance, pinnedCore, influenceRadius));
       retained = math.max(retained, elasticMemory * weight);
     }
     return retained;
