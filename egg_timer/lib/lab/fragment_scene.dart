@@ -1398,8 +1398,13 @@ class FragmentScene extends CustomPainter {
       // zero. The visible shadow therefore grows geometrically from the edge;
       // no time threshold or opacity ramp announces the mobile region.
       if (separation > 0) {
-        final softness = .18 * separation;
-        final opacity = .34 / (1 + separation / 12);
+        // Keep the cast shadow readable while the fragment crosses in front
+        // of the egg. The previous falloff became too faint at moderate
+        // separation, making the detached fragment look pasted onto the shell.
+        // Geometry still drives displacement and penumbra; only the optical
+        // falloff is softened.
+        final softness = .14 * separation;
+        final opacity = .30 / (1 + separation / 28);
         // Only the footprint beyond the moving material reaches a visible
         // receiver. Subtract before rasterization: clipping coincident filled
         // silhouettes alone leaves an antialiased contact seam at zero gap.
