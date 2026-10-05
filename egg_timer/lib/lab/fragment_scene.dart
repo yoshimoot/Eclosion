@@ -257,18 +257,6 @@ class _MaterialMesh {
       );
     }
 
-    // Smooth aperture-space bowl coordinates derived from the fragment's
-    // geometric center and extents. Unlike distance-to-boundary fields, this
-    // cannot inherit the fracture polygon's medial-axis/star pattern.
-    cavityCenter = center.xy;
-    var radiusX = 0.0, radiusY = 0.0;
-    for (final v in outer) {
-      radiusX = math.max(radiusX, (v.x - center.x).abs());
-      radiusY = math.max(radiusY, (v.y - center.y).abs());
-    }
-    cavityRadiusX = math.max(1e-6, radiusX);
-    cavityRadiusY = math.max(1e-6, radiusY);
-
     for (var i = 0; i < outer.length; i++) {
       final a = outer[i].xy, b = outer[(i + 1) % outer.length].xy;
       final farA = center.xy + (a - center.xy) * 20;
@@ -280,8 +268,6 @@ class _MaterialMesh {
   final triangles = <_V>[];
   final vertices = <_V>[];
   final indices = <int>[];
-  late final Offset cavityCenter;
-  late final double cavityRadiusX, cavityRadiusY;
   final shellMesh = <Offset>[];
   late final textureCoordinates = vertices.map((v) => v.xy).toList();
   final _bindings = <Offset, (int, double, double)?>{};
@@ -294,67 +280,43 @@ class _MaterialMesh {
   ui.Vertices cavityMesh(double thickness, bool identify) =>
       _cavityMeshes.putIfAbsent((thickness, identify), () {
         final rx = 115 - thickness, ry = 220 - thickness, rz = 65 - thickness;
-        final depths = <double>[];
-        final facings = <double>[];
-        final diffuses = <double>[];
+        final colors = <Color>[];
+
         for (final p in textureCoordinates) {
-          final z =
-              -rz *
-              math.sqrt(
-                math.max(
-                  0.0,
-                  1 - p.dx * p.dx / (rx * rx) - p.dy * p.dy / (ry * ry),
-                ),
-              );
+          // One continuous inner ellipsoid in EGG coordinates. The fragment
+          // only decides where this surface becomes visible; it never defines
+          // the cavity's center, radius or shading. Future openings from other
+          // fragments therefore reveal the same underlying interior surface.
+          final radialSquared =
+              p.dx * p.dx / (rx * rx) + p.dy * p.dy / (ry * ry);
+          final z = -rz * math.sqrt(math.max(0.0, 1 - radialSquared));
+
           final nx = -p.dx / (rx * rx),
               ny = -p.dy / (ry * ry),
               nz = -z / (rz * rz);
-          final length = math.sqrt(nx * nx + ny * ny + nz * nz);
-          depths.add((-z / rz).clamp(0.0, 1.0));
-          facings.add((nz / length).clamp(0.0, 1.0));
-          diffuses.add(
-            ((-.35 * nx - .45 * ny + .82 * nz) / length).clamp(0.0, 1.0),
-          );
-        }
+          final normalLength = math.sqrt(nx * nx + ny * ny + nz * nz);
+          final diffuse =
+              ((-.35 * nx - .45 * ny + .82 * nz) / normalLength).clamp(
+                0.0,
+                1.0,
+              );
 
-        // Only a small patch of the full inner ellipsoid is visible through
-        // this opening. Normalize the REAL depth range of that patch once so
-        // its concavity remains perceptible after orthographic projection.
-        // This mapping is stable in egg coordinates and never depends on time.
-        final minDepth = depths.reduce(math.min);
-        final maxDepth = depths.reduce(math.max);
-        final depthSpan = math.max(1e-6, maxDepth - minDepth);
-        final colors = <Color>[];
-        for (var i = 0; i < textureCoordinates.length; i++) {
-          final localDepth = ((depths[i] - minDepth) / depthSpan).clamp(
-            0.0,
-            1.0,
-          );
-          final bowlDepth = _smoother(localDepth);
-
-          // Use a smooth elliptical bowl centered on the actual fragment
-          // geometry. This keeps the fracture outline irregular while the
-          // interior depth cue stays continuous: darker toward the cavity
-          // center, gently lighter toward the opening wall, with no starburst.
-          final p = textureCoordinates[i];
-          final nxLocal = (p.dx - cavityCenter.dx) / cavityRadiusX;
-          final nyLocal = (p.dy - cavityCenter.dy) / cavityRadiusY;
-          final radial = math.sqrt(nxLocal * nxLocal + nyLocal * nyLocal)
-              .clamp(0.0, 1.0);
-          final bowlRadial = _smoother(radial);
-          final directionalRelief = .03 * (diffuses[i] - .5);
-          final wallRelief = .03 * (1 - facings[i]);
-          final edgeLift = .16 * bowlRadial;
-          final centerFalloff = .14 * (1 - bowlRadial);
-          final ellipsoidFalloff = .08 * bowlDepth;
+          // Global concavity cue, independent of every fracture outline:
+          // deeper points of the egg interior recede, while points approaching
+          // the inner side wall receive a modest lift. Directional light stays
+          // subtle so it cannot turn the cavity into a flat lateral gradient.
+          final depth = (-z / rz).clamp(0.0, 1.0);
+          final globalDepth = _smoother(depth);
+          final radial = math.sqrt(radialSquared.clamp(0.0, 1.0));
+          final sideLift = .12 * _smoother(radial);
+          final depthFalloff = .20 * globalDepth;
+          final directionalRelief = .04 * (diffuse - .5);
           final exposure =
-              (.46 +
-                      directionalRelief +
-                      wallRelief +
-                      edgeLift -
-                      centerFalloff -
-                      ellipsoidFalloff)
-                  .clamp(.20, .68);
+              (.46 + sideLift - depthFalloff + directionalRelief).clamp(
+                .22,
+                .62,
+              );
+
           final innerShell = Color.lerp(
             const Color(0xff9b7060),
             const Color(0xfff0d8c0),
@@ -364,6 +326,7 @@ class _MaterialMesh {
             identify ? FragmentSurfaceColors.cavity : innerShell,
           );
         }
+
         return ui.Vertices(
           ui.VertexMode.triangles,
           textureCoordinates,
