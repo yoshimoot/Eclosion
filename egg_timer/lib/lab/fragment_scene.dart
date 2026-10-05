@@ -565,17 +565,62 @@ class _MaterialVisibility {
   late final Path fixed, mobile;
 }
 
+class _FractureEdgeSpec {
+  const _FractureEdgeSpec({
+    required this.id,
+    required this.points,
+    required this.advance,
+  });
+
+  final int id;
+  final List<Offset> points;
+  final _CrackAdvance advance;
+}
+
+class _FragmentEdgeRef {
+  const _FragmentEdgeRef(this.edgeId, {this.reversed = false});
+
+  final int edgeId;
+  final bool reversed;
+}
+
+class _ClusterCrackSpec {
+  const _ClusterCrackSpec(this.points, this.advance);
+
+  final List<Offset> points;
+  final _CrackAdvance advance;
+}
+
+class _FractureClusterSpec {
+  const _FractureClusterSpec({
+    required this.seed,
+    required this.pressureEvents,
+    required this.edges,
+    required this.branches,
+    required this.microBranches,
+  });
+
+  final int seed;
+  final List<_PressureEvent> pressureEvents;
+  final List<_FractureEdgeSpec> edges;
+  final List<_ClusterCrackSpec> branches;
+  final List<_ClusterCrackSpec> microBranches;
+
+  _FractureEdgeSpec edge(_FragmentEdgeRef ref) => edges[ref.edgeId];
+
+  List<Offset> edgePoints(_FragmentEdgeRef ref) {
+    final points = edge(ref).points;
+    return ref.reversed ? points.reversed.toList(growable: false) : points;
+  }
+}
+
 class _FragmentSpec {
   const _FragmentSpec({
     required this.seed,
+    required this.cluster,
+    required this.edgeRefs,
     required this.boundary,
-    required this.fractureEdges,
     required this.fractureBoundary,
-    required this.crackAdvances,
-    required this.branchAdvances,
-    required this.branches,
-    required this.microAdvances,
-    required this.microBranches,
     required this.liftPushes,
     required this.attachments,
     required this.materialBoundary,
@@ -585,32 +630,21 @@ class _FragmentSpec {
     required this.impactRoll,
     required this.flightShiftX,
     required this.settleShiftX,
-    this.timelineStart = 0,
-    this.timelineEnd = 1,
   });
 
   // Reserved for future deterministic generation. It is metadata only for the
   // reference fragment today: no random value is sampled during animation.
   final int seed;
+  final _FractureClusterSpec cluster;
+  final List<_FragmentEdgeRef> edgeRefs;
   final List<Offset> boundary;
-  final List<List<Offset>> fractureEdges;
   final List<Offset> fractureBoundary;
-  final List<_CrackAdvance> crackAdvances;
-  final List<_CrackAdvance> branchAdvances;
-  final List<List<Offset>> branches;
-  final List<_CrackAdvance> microAdvances;
-  final List<List<Offset>> microBranches;
   final List<_LiftPush> liftPushes;
   final List<_ShellAttachment> attachments;
   final List<_V> materialBoundary;
   final Offset centerOnShell;
   final double impactPitch, impactYaw, impactRoll;
   final double flightShiftX, settleShiftX;
-  final double timelineStart, timelineEnd;
-
-  double localProgress(double globalProgress) =>
-      ((globalProgress - timelineStart) / (timelineEnd - timelineStart))
-          .clamp(0.0, 1.0);
 }
 
 class _FragmentFrame {
@@ -853,19 +887,43 @@ class FragmentScene extends CustomPainter {
       ),
   ];
 
+  // Shared fracture topology. The current validated fragment owns all primary
+  // edges, but future neighbouring fragments will reference the SAME edge ids
+  // (reversed where necessary) instead of copying their own crack geometry.
+  static final _referenceCluster = _FractureClusterSpec(
+    seed: 1,
+    pressureEvents: _pressureEvents,
+    edges: [
+      for (var i = 0; i < _fractureEdges.length; i++)
+        _FractureEdgeSpec(
+          id: i,
+          points: _fractureEdges[i],
+          advance: _crackAdvances[i],
+        ),
+    ],
+    branches: [
+      for (var i = 0; i < _branches.length; i++)
+        _ClusterCrackSpec(_branches[i], _branchAdvances[i]),
+    ],
+    microBranches: [
+      for (var i = 0; i < _microBranches.length; i++)
+        _ClusterCrackSpec(_microBranches[i], _microAdvances[i]),
+    ],
+  );
+
+  static final _referenceEdgeRefs = [
+    for (var i = 0; i < _fractureEdges.length; i++) _FragmentEdgeRef(i),
+  ];
+
   // Exact validated single-fragment reference, now expressed as data.
   // Future deterministic generation will create additional _FragmentSpec
   // instances; the mechanics below must not depend on these particular values.
   static final _referenceFragment = _FragmentSpec(
     seed: 1,
+    cluster: _referenceCluster,
+    edgeRefs: _referenceEdgeRefs,
     boundary: _boundary,
-    fractureEdges: _fractureEdges,
     fractureBoundary: _fractureBoundary,
-    crackAdvances: _crackAdvances,
-    branchAdvances: _branchAdvances,
-    branches: _branches,
-    microAdvances: _microAdvances,
-    microBranches: _microBranches,
     liftPushes: _liftPushes,
     attachments: _attachments,
     materialBoundary: _materialBoundary,
@@ -877,94 +935,8 @@ class FragmentScene extends CustomPainter {
     settleShiftX: 4,
   );
 
-  static const _referenceCenter = Offset(35, -78);
-  static const _secondaryCenter = Offset(-35, -23);
-  static const _secondaryScale = .65;
-
-  static Offset _secondaryPoint(Offset point) =>
-      _secondaryCenter + (point - _referenceCenter) * _secondaryScale;
-
-  static final _secondaryBoundary = [
-    for (final point in _boundary) _secondaryPoint(point),
-  ];
-
-  static final _secondaryFractureEdges = [
-    for (final edge in _fractureEdges)
-      [for (final point in edge) _secondaryPoint(point)],
-  ];
-
-  static final _secondaryFractureBoundary = [
-    for (final edge in _secondaryFractureEdges) ...edge.take(edge.length - 1),
-  ];
-
-  static final _secondaryBranches = [
-    for (final branch in _branches)
-      [for (final point in branch) _secondaryPoint(point)],
-  ];
-
-  static final _secondaryMicroBranches = [
-    for (final branch in _microBranches)
-      [for (final point in branch) _secondaryPoint(point)],
-  ];
-
-  static final _secondaryLiftPushes = [
-    for (final push in _liftPushes)
-      _LiftPush(
-        push.start,
-        push.end,
-        push.amount,
-        _secondaryPoint(push.point),
-      ),
-  ];
-
-  static final _secondaryAttachments = [
-    for (final attachment in _attachments)
-      _ShellAttachment(
-        attachment.vertex,
-        attachment.releaseStart,
-        attachment.releaseEnd,
-        _secondaryPoint(attachment.scarEnd),
-      ),
-  ];
-
-  static final _secondaryMaterialBoundary = <_V>[
-    for (var i = 0; i < _secondaryFractureBoundary.length; i++)
-      ..._edgeSamples(
-        _secondaryFractureBoundary[i],
-        _secondaryFractureBoundary[
-            (i + 1) % _secondaryFractureBoundary.length],
-      ),
-  ];
-
-  // First true multi-fragment configuration. Values are fixed and reproducible;
-  // the seed is metadata only until procedural generation is introduced.
-  static final _secondaryFragment = _FragmentSpec(
-    seed: 2,
-    boundary: _secondaryBoundary,
-    fractureEdges: _secondaryFractureEdges,
-    fractureBoundary: _secondaryFractureBoundary,
-    crackAdvances: _crackAdvances,
-    branchAdvances: _branchAdvances,
-    branches: _secondaryBranches,
-    microAdvances: _microAdvances,
-    microBranches: _secondaryMicroBranches,
-    liftPushes: _secondaryLiftPushes,
-    attachments: _secondaryAttachments,
-    materialBoundary: _secondaryMaterialBoundary,
-    centerOnShell: _secondaryCenter,
-    impactPitch: .48,
-    impactYaw: -.42,
-    impactRoll: -.28,
-    flightShiftX: -42,
-    settleShiftX: -3,
-    timelineStart: .035,
-    timelineEnd: .97,
-  );
-
-  // The independent second fragment proved the list renderer, but it is not
-  // a physically valid hatch model: real fragments must emerge from one shared
-  // fracture network and common pressure field. Keep the secondary spec as a
-  // diagnostic fixture, but do not render it until shared-edge topology exists.
+  // One fragment remains rendered while shared-edge cluster topology is
+  // introduced. The next fragment must reference this cluster, not duplicate it.
   static final List<_FragmentSpec> _fragments = [_referenceFragment];
 
   static List<_V> _edgeSamples(Offset a, Offset b) {
@@ -1005,7 +977,7 @@ class FragmentScene extends CustomPainter {
   }
 
   _FragmentGeometry _geometry(_FragmentSpec fragment) {
-    final fragmentProgress = fragment.localProgress(progress);
+    final fragmentProgress = progress;
     // Local material constraints bend the region around its established pose.
     final lift =
         (fragment.liftPushes.fold(
@@ -1180,10 +1152,10 @@ class FragmentScene extends CustomPainter {
       g.outer.map((v) => (v.x, v.y, v.z)).toList(),
       g.projectedOuter.map((v) => (v.x, v.y, v.z)).toList(),
       g.outer
-          .map((v) => _retention(fragment, v.xy, fragment.localProgress(progress)))
+          .map((v) => _retention(fragment, v.xy, progress))
           .toList(),
       fragment.attachments
-          .map((a) => a.hold(fragment.localProgress(progress)))
+          .map((a) => a.hold(progress))
           .toList(),
       g.outer.map((v) {
         final p = g.rigidTransform(v);
@@ -1327,7 +1299,7 @@ class FragmentScene extends CustomPainter {
 
     void paintFrame(_FragmentFrame frame, {required bool paintSharedShell}) {
       final fragment = frame.spec;
-      final fragmentProgress = fragment.localProgress(progress);
+      final fragmentProgress = progress;
     final geometry = frame.geometry;
     final outer = geometry.outer;
     final projectedOuter = geometry.projectedOuter;
@@ -1485,6 +1457,7 @@ class FragmentScene extends CustomPainter {
       'outerShade': outerFace.shade,
       'outerHighlight': outerFace.highlight,
       'fragmentSeed': fragment.seed.toDouble(),
+      'clusterSeed': fragment.cluster.seed.toDouble(),
       'meshVertices': geometry.material.vertices.length.toDouble(),
       'meshTriangles': geometry.material.indices.length / 3,
     });
@@ -1862,11 +1835,20 @@ class FragmentScene extends CustomPainter {
     }
 
     if (fragmentProgress > .25) {
-      for (var i = 0; i < fragment.fractureEdges.length; i++) {
-        final growth = fragment.crackAdvances[i].at(fragmentProgress, _pressureEvents);
+      for (var i = 0; i < fragment.edgeRefs.length; i++) {
+        final edgeRef = fragment.edgeRefs[i];
+        final edge = fragment.cluster.edge(edgeRef);
+        final growth = edge.advance.at(
+          fragmentProgress,
+          fragment.cluster.pressureEvents,
+        );
         if (growth == 0) continue;
         final crackClip = materialVisibility.mobile;
-        final crackPath = _mobileCrack(fragment.fractureEdges[i], growth, geometry);
+        final crackPath = _mobileCrack(
+          fragment.cluster.edgePoints(edgeRef),
+          growth,
+          geometry,
+        );
         final crackPaint = Paint()
           ..color = const Color(0xff6c4430)
           ..style = PaintingStyle.stroke
@@ -1891,10 +1873,14 @@ class FragmentScene extends CustomPainter {
     if (showEgg && fragmentProgress > .25) {
       canvas.save();
       canvas.clipPath(materialVisibility.fixed);
-      for (var i = 0; i < fragment.branches.length; i++) {
-        final growth = fragment.branchAdvances[i].at(fragmentProgress, _pressureEvents);
+      for (var i = 0; i < fragment.cluster.branches.length; i++) {
+        final crack = fragment.cluster.branches[i];
+        final growth = crack.advance.at(
+          fragmentProgress,
+          fragment.cluster.pressureEvents,
+        );
         if (growth == 0) continue;
-        final branch = Path()..addPolygon(fragment.branches[i], false);
+        final branch = Path()..addPolygon(crack.points, false);
         final metric = branch.computeMetrics().first;
         final branchPath = metric.extractPath(0, metric.length * growth);
         final branchPaint = Paint()
@@ -1912,10 +1898,14 @@ class FragmentScene extends CustomPainter {
         );
         canvas.drawPath(branchPath, branchPaint);
       }
-      for (var i = 0; i < fragment.microBranches.length; i++) {
-        final growth = fragment.microAdvances[i].at(fragmentProgress, _pressureEvents);
+      for (var i = 0; i < fragment.cluster.microBranches.length; i++) {
+        final crack = fragment.cluster.microBranches[i];
+        final growth = crack.advance.at(
+          fragmentProgress,
+          fragment.cluster.pressureEvents,
+        );
         if (growth == 0) continue;
-        final branch = Path()..addPolygon(fragment.microBranches[i], false);
+        final branch = Path()..addPolygon(crack.points, false);
         final metric = branch.computeMetrics().first;
         final branchPath = metric.extractPath(0, metric.length * growth);
         final branchPaint = Paint()
