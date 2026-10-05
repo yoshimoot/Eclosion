@@ -58,12 +58,23 @@ class _ShellAttachment {
     this.vertex,
     this.releaseStart,
     this.releaseEnd,
-    this.scarEnd,
-  );
+    this.scarEnd, {
+    this.damageStart,
+    this.damageEnd,
+  });
+
   final int vertex;
   final double releaseStart, releaseEnd;
   final Offset scarEnd;
-  double hold(double t) => 1 - _smooth(_part(t, releaseStart, releaseEnd));
+  final double? damageStart, damageEnd;
+
+  double hold(double t, {double? damage}) {
+    if (damageStart != null && damageEnd != null) {
+      assert(damage != null);
+      return 1 - _smooth(_part(damage!, damageStart!, damageEnd!));
+    }
+    return 1 - _smooth(_part(t, releaseStart, releaseEnd));
+  }
 }
 
 class _BodyEpisode {
@@ -612,6 +623,34 @@ class _FractureClusterSpec {
     final points = edge(ref).points;
     return ref.reversed ? points.reversed.toList(growable: false) : points;
   }
+
+  double _spatialWeight(Offset source, Offset target, {double radius = 65}) {
+    final normalized = 1 - (target - source).distance / radius;
+    return _smooth(normalized.clamp(0.0, 1.0));
+  }
+
+  // Instantaneous pressure bends still-attached shell material.
+  double pressureAt(double t, Offset point) {
+    var pressure = 0.0;
+    for (final event in pressureEvents) {
+      pressure +=
+          event.at(t) * _spatialWeight(event.point, point, radius: 70);
+    }
+    return pressure;
+  }
+
+  // Damage is cumulative and therefore never heals when the chick releases
+  // pressure. It is the structural signal used by coupled shell attachments.
+  double damageAt(double t, Offset point) {
+    var damage = 0.0;
+    for (final event in pressureEvents) {
+      damage +=
+          event.strength *
+          _smooth(event.advance(t)) *
+          _spatialWeight(event.point, point);
+    }
+    return damage;
+  }
 }
 
 class _FragmentSpec {
@@ -630,6 +669,7 @@ class _FragmentSpec {
     required this.impactRoll,
     required this.flightShiftX,
     required this.settleShiftX,
+    this.pressureCoupling = 0,
   });
 
   // Reserved for future deterministic generation. It is metadata only for the
@@ -645,6 +685,7 @@ class _FragmentSpec {
   final Offset centerOnShell;
   final double impactPitch, impactYaw, impactRoll;
   final double flightShiftX, settleShiftX;
+  final double pressureCoupling;
 }
 
 class _FragmentFrame {
@@ -997,9 +1038,33 @@ class FragmentScene extends CustomPainter {
   // They model a neighbouring plate that cracks under the common pressure but
   // has not yet accumulated enough damage to detach.
   static const _neighborAttachments = <_ShellAttachment>[
-    _ShellAttachment(2, 1.05, 1.08, Offset(-8, -31)),
-    _ShellAttachment(4, 1.10, 1.13, Offset(-49, -45)),
-    _ShellAttachment(6, 1.15, 1.18, Offset(-27, -87)),
+    // Close to the shared pressure zone: these ligaments accumulate enough
+    // damage to release first.
+    _ShellAttachment(
+      2,
+      1.05,
+      1.08,
+      Offset(-8, -31),
+      damageStart: .45,
+      damageEnd: .75,
+    ),
+    // Farther from the pressure source: this remains the local hinge.
+    _ShellAttachment(
+      4,
+      1.10,
+      1.13,
+      Offset(-49, -45),
+      damageStart: .55,
+      damageEnd: .85,
+    ),
+    _ShellAttachment(
+      6,
+      1.15,
+      1.18,
+      Offset(-27, -87),
+      damageStart: .35,
+      damageEnd: .60,
+    ),
   ];
 
   // Shared fracture topology. Fragments reference edge ids from this cluster;
@@ -1076,6 +1141,7 @@ class FragmentScene extends CustomPainter {
     impactRoll: -.25,
     flightShiftX: -40,
     settleShiftX: -3,
+    pressureCoupling: .25,
   );
 
   static final List<_FragmentSpec> _fragments = [
@@ -1089,6 +1155,19 @@ class FragmentScene extends CustomPainter {
       for (var i = 0; i < count; i++)
         _V.lerp(_surface(a), _surface(b), i / count),
     ];
+  }
+
+  double _attachmentHold(
+    _FragmentSpec fragment,
+    _ShellAttachment attachment,
+    double fragmentProgress,
+  ) {
+    final attachmentPoint = fragment.boundary[attachment.vertex];
+    final damage = fragment.cluster.damageAt(
+      fragmentProgress,
+      attachmentPoint,
+    );
+    return attachment.hold(fragmentProgress, damage: damage);
   }
 
   double _retention(
@@ -1105,15 +1184,21 @@ class FragmentScene extends CustomPainter {
       // disappear instantaneously: relax it C1 over that ligament's loading
       // duration, without changing the free rigid pose or switching meshes.
       final responseDuration = attachment.releaseEnd - attachment.releaseStart;
-      final elasticMemory =
-          1 -
-          _smooth(
-            _part(
-              fragmentProgress,
-              attachment.releaseEnd,
-              attachment.releaseEnd + responseDuration,
-            ),
-          );
+      final attachmentHold = _attachmentHold(
+        fragment,
+        attachment,
+        fragmentProgress,
+      );
+      final elasticMemory = attachment.damageStart != null
+          ? attachmentHold
+          : 1 -
+                _smooth(
+                  _part(
+                    fragmentProgress,
+                    attachment.releaseEnd,
+                    attachment.releaseEnd + responseDuration,
+                  ),
+                );
       final weight = 1 - _smooth(_part(distance, 4, 40));
       retained = math.max(retained, elasticMemory * weight);
     }
@@ -1123,11 +1208,15 @@ class FragmentScene extends CustomPainter {
   _FragmentGeometry _geometry(_FragmentSpec fragment) {
     final fragmentProgress = progress;
     // Local material constraints bend the region around its established pose.
+    final pressureLift =
+        fragment.pressureCoupling *
+        fragment.cluster.pressureAt(fragmentProgress, fragment.centerOnShell);
     final lift =
         (fragment.liftPushes.fold(
               0.0,
               (sum, push) => sum + push.at(fragmentProgress),
-            ) -
+            ) +
+                pressureLift -
                 .025 * _pulse(fragmentProgress, .519, .005) -
                 .02 * _pulse(fragmentProgress, .547, .005) -
                 .015 * _pulse(fragmentProgress, .576, .006))
@@ -1155,7 +1244,7 @@ class FragmentScene extends CustomPainter {
     var heldWeight = 0.0;
     var heldPoint = Offset.zero;
     for (final attachment in fragment.attachments) {
-      final hold = attachment.hold(fragmentProgress);
+      final hold = _attachmentHold(fragment, attachment, fragmentProgress);
       heldWeight += hold;
       heldPoint += fragment.boundary[attachment.vertex] * hold;
     }
@@ -1310,7 +1399,7 @@ class FragmentScene extends CustomPainter {
           .map((v) => _retention(fragment, v.xy, progress))
           .toList(),
       fragment.attachments
-          .map((a) => a.hold(progress))
+          .map((a) => _attachmentHold(fragment, a, progress))
           .toList(),
       g.outer.map((v) {
         final p = g.rigidTransform(v);
@@ -1481,7 +1570,9 @@ class FragmentScene extends CustomPainter {
         aperture,
         lift,
         maxGap,
-        fragment.attachments.map((a) => a.hold(fragmentProgress)).toList(),
+        fragment.attachments
+            .map((a) => _attachmentHold(fragment, a, fragmentProgress))
+            .toList(),
         size,
       );
       // The public diagnostic callback is still singular. Keep the first frame
@@ -2087,7 +2178,8 @@ class FragmentScene extends CustomPainter {
       canvas.save();
       canvas.clipPath(materialVisibility.fixed);
       for (final attachment in fragment.attachments) {
-        final broken = 1 - attachment.hold(fragmentProgress);
+        final broken =
+            1 - _attachmentHold(fragment, attachment, fragmentProgress);
         if (broken <= 0) continue;
         final shellPoint = fragment.boundary[attachment.vertex];
         final scarEnd = Offset.lerp(shellPoint, attachment.scarEnd, broken)!;
