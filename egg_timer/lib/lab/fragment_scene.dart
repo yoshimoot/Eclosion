@@ -639,6 +639,25 @@ class _FractureClusterSpec {
     return pressure;
   }
 
+  // Shell response keeps a short mechanical tail after each internal impulse.
+  // This is not a fragment timer: it is the relaxation of the same shared
+  // pressure event after the chick stops pushing.
+  double responseAt(double t, Offset point) {
+    var response = 0.0;
+    for (final event in pressureEvents) {
+      final weight = _spatialWeight(event.point, point, radius: 70);
+      final end = event.center + event.halfWidth;
+      final relaxation =
+          t <= end
+              ? 0.0
+              : .35 *
+                    event.strength *
+                    (1 - _smoother(_part(t, end, end + .055)));
+      response += (event.at(t) + relaxation) * weight;
+    }
+    return response;
+  }
+
   // Damage is cumulative and therefore never heals when the chick releases
   // pressure. It is the structural signal used by coupled shell attachments.
   double damageAt(double t, Offset point) {
@@ -1141,7 +1160,7 @@ class FragmentScene extends CustomPainter {
     impactRoll: -.25,
     flightShiftX: -40,
     settleShiftX: -3,
-    pressureCoupling: .25,
+    pressureCoupling: .45,
   );
 
   static final List<_FragmentSpec> _fragments = [
@@ -1208,9 +1227,27 @@ class FragmentScene extends CustomPainter {
   _FragmentGeometry _geometry(_FragmentSpec fragment) {
     final fragmentProgress = progress;
     // Local material constraints bend the region around its established pose.
+    final coupledReleasedShare = fragment.attachments.isEmpty
+        ? 0.0
+        : fragment.attachments.fold(
+                0.0,
+                (sum, attachment) =>
+                    sum +
+                    (1 -
+                        _attachmentHold(
+                          fragment,
+                          attachment,
+                          fragmentProgress,
+                        )),
+              ) /
+              fragment.attachments.length;
     final pressureLift =
         fragment.pressureCoupling *
-        fragment.cluster.pressureAt(fragmentProgress, fragment.centerOnShell);
+        fragment.cluster.responseAt(
+          fragmentProgress,
+          fragment.centerOnShell,
+        ) *
+        (1 + .65 * coupledReleasedShare);
     final lift =
         (fragment.liftPushes.fold(
               0.0,
