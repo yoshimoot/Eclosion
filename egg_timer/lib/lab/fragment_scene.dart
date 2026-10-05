@@ -1314,7 +1314,7 @@ class FragmentScene extends CustomPainter {
           fragment.centerOnShell,
         ) *
         (1 + .65 * coupledReleasedShare);
-    final lift =
+    final drivenLift =
         (fragment.liftPushes.fold(
               0.0,
               (sum, push) => sum + push.at(fragmentProgress),
@@ -1324,6 +1324,12 @@ class FragmentScene extends CustomPainter {
                 .02 * _pulse(fragmentProgress, .547, .005) -
                 .015 * _pulse(fragmentProgress, .576, .006))
             .clamp(0.0, 1.0);
+    // Once a plate is almost free, its outward separation cannot collapse just
+    // because the pressure impulse ended. Carry the release state into free
+    // flight for every fragment. The validated reference already reaches lift=1
+    // from its existing pushes, so this generic floor leaves it unchanged.
+    final releaseLift = _smooth(_part(coupledReleasedShare, .72, 1));
+    final lift = math.max(drivenLift, releaseLift);
     // Free flight begins only after all attachments have actually released.
     // For cluster-coupled fragments this instant is derived from accumulated
     // pressure damage; the validated reference keeps its original .60 start.
