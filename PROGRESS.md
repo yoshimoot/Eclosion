@@ -10,12 +10,13 @@ Acquis explicitement validés, à préserver :
 - Lèvre fixe validée : géométrie, exposition, épaisseur `2.5`, occlusions et matériau actuel à préserver.
 - Cavité intérieure validée structurellement le 5 octobre 2026 : une seule surface intérieure globale de l'œuf, indépendante des fragments ; les ouvertures ne font que révéler cette surface. Le polish artistique de matière/éclairage reste différé.
 - Refactor du fragment unique vers une définition générique `_FragmentSpec` validé visuellement le 5 octobre 2026 : aucune régression notable sur la fissure, l'ouverture, le soulèvement, la lèvre fixe, la cavité, la rotation, la chute ou les occlusions. La `seed` est présente comme métadonnée de reproductibilité mais ne modifie encore aucun rendu.
+- Agrégation mono→liste validée visuellement le 5 octobre 2026 : les frames de fragments sont désormais préparées en liste et les apertures sont agrégées pour calculer la coquille fixe, sans changement visuel du fragment de référence.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-La prochaine priorité est de passer du fragment générique de référence à **quelques fragments**, en conservant strictement les systèmes validés et une progression déterministe.
+La prochaine priorité est de supprimer la dernière dépendance mono-fragment du peintre (`frames.single`) afin que le rendu puisse réellement parcourir plusieurs fragments, tout en conservant d'abord un seul fragment actif pour validation.
 
 ## Gelé pour l'itération actuelle
 
@@ -26,7 +27,7 @@ La prochaine priorité est de passer du fragment générique de référence à *
 
 ## Prochaine étape
 
-Instancier **quelques fragments** à partir de définitions `_FragmentSpec`, sans encore générer de variantes aléatoires. Commencer avec des données déterministes et reproductibles afin de valider l'architecture multi-fragments, les unions d'ouvertures, les occlusions et la continuité fissure → ouverture → tranche → fragment pour plusieurs pièces.
+Refactorer le peintre pour parcourir réellement la liste des `_FragmentFrame` au lieu d'utiliser `frames.single`. Garder un seul fragment actif pendant cette étape pour garantir un rendu strictement neutre. Une fois ce passage validé, ajouter un deuxième `_FragmentSpec` déterministe et seulement ensuite valider les interactions entre ouvertures, occlusions et fragments.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
