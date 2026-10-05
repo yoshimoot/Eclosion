@@ -14,12 +14,13 @@ Acquis explicitement validés, à préserver :
 - Introduction du cluster partagé validée visuellement le 5 octobre 2026 avec un seul fragment : les arêtes primaires et les impulsions de pression sont centralisées sans régression du rendu de référence.
 - Premier voisin à arête réellement partagée validé visuellement le 5 octobre 2026 : continuité de la fissure commune, absence de double bord/patch et maintien crédible de la plaque voisine pendant le détachement du fragment principal.
 - Couplage pression commune → flexion/dommage → pivot du voisin validé visuellement comme amélioration le 5 octobre 2026.
+- Détachement complet du voisin validé visuellement le 5 octobre 2026 : dernière charnière rompue par dommage cumulé du cluster, transition continue pivot → libération → chute, trajectoire distincte et fragment conservé jusqu'au sol.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le couplage mécanique du voisin est désormais lisible. La priorité actuelle est son **détachement complet comme conséquence du cluster** : une nouvelle poussée commune après l'ouverture du premier fragment transfère la contrainte vers la dernière charnière ; la chute ne démarre que lorsque toutes les attaches ont réellement perdu leur tenue.
+Le premier couple de fragments est désormais validé de bout en bout : arête réellement partagée, pression commune, dommage local, pivot asymétrique puis détachement complet des deux plaques. La prochaine priorité structurelle est d'étendre ce principe à un **petit cluster de plusieurs fragments voisins** afin de valider la propagation de la fracture et la redistribution des contraintes au-delà d'une seule paire.
 
 ## Gelé pour l'itération actuelle
 
@@ -30,7 +31,7 @@ Le couplage mécanique du voisin est désormais lisible. La priorité actuelle e
 
 ## Prochaine étape
 
-Valider le détachement complet du voisin : après le départ du fragment principal, une nouvelle poussée commune doit finir de rompre la dernière charnière ; le voisin doit alors passer continûment du pivot au vol puis à la chute, sans seuil visuel artificiel. L'instant de départ est dérivé du dommage cumulé du cluster, pas d'une timeline propre au fragment.
+Ajouter ensuite un troisième fragment voisin au même cluster, en lui faisant partager une arête existante ou une nouvelle arête commune avec l'un des deux fragments actuels. La nouvelle étape devra valider une propagation en chaîne : pression commune → redistribution après une première rupture → dommage d'une plaque voisine → rupture éventuelle, sans timelines indépendantes.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -40,7 +41,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé, l'arête commune et le couplage pression → flexion/dommage/pivot sont validés. Le détachement complet du voisin piloté par le dommage cumulé vient d'être introduit et reste à valider visuellement.
+- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot et le détachement complet du voisin sont validés. Il reste à généraliser cette mécanique à plusieurs voisins et à la redistribution des contraintes dans un cluster plus large.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
