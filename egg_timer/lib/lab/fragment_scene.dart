@@ -280,57 +280,90 @@ class _MaterialMesh {
   ui.Vertices cavityMesh(double thickness, bool identify) =>
       _cavityMeshes.putIfAbsent((thickness, identify), () {
         final rx = 115 - thickness, ry = 220 - thickness, rz = 65 - thickness;
+
+        // Build one GLOBAL inner-wall mesh for the egg. It is completely
+        // independent of fragment geometry: openings only clip/reveal it.
+        // A mild perspective projection lets the real concave z coordinate
+        // affect screen position, so depth is carried by geometry as well as
+        // by shading. Future fragments therefore reveal the same continuous
+        // interior surface.
+        const columns = 28;
+        const rows = 44;
+        const cameraDistance = 900.0;
+        final positions = <Offset>[];
         final colors = <Color>[];
+        final cavityIndices = <int>[];
 
-        for (final p in textureCoordinates) {
-          // One continuous inner ellipsoid in EGG coordinates. The fragment
-          // only decides where this surface becomes visible; it never defines
-          // the cavity's center, radius or shading. Future openings from other
-          // fragments therefore reveal the same underlying interior surface.
-          final radialSquared =
-              p.dx * p.dx / (rx * rx) + p.dy * p.dy / (ry * ry);
-          final z = -rz * math.sqrt(math.max(0.0, 1 - radialSquared));
+        for (var row = 0; row <= rows; row++) {
+          final y = -ry + (2 * ry * row / rows);
+          for (var column = 0; column <= columns; column++) {
+            final x = -rx + (2 * rx * column / columns);
+            final radialSquared =
+                x * x / (rx * rx) + y * y / (ry * ry);
+            final inside = radialSquared <= 1.0;
+            final z = inside
+                ? -rz * math.sqrt(math.max(0.0, 1 - radialSquared))
+                : 0.0;
 
-          final nx = -p.dx / (rx * rx),
-              ny = -p.dy / (ry * ry),
-              nz = -z / (rz * rz);
-          final normalLength = math.sqrt(nx * nx + ny * ny + nz * nz);
-          final diffuse =
-              ((-.35 * nx - .45 * ny + .82 * nz) / normalLength).clamp(
-                0.0,
-                1.0,
+            final perspective = cameraDistance / (cameraDistance - z);
+            positions.add(Offset(x * perspective, y * perspective));
+
+            if (!inside) {
+              colors.add(
+                identify
+                    ? FragmentSurfaceColors.cavity
+                    : const Color(0xff9b7060),
               );
+              continue;
+            }
 
-          // Global concavity cue, independent of every fracture outline.
-          // The visible patch can occupy a narrow depth range, so amplify the
-          // shallow side of the SAME inner ellipsoid non-linearly instead of
-          // normalizing per opening. This preserves one continuous cavity for
-          // future multi-fragments while making depth readable in small holes.
-          final depth = (-z / rz).clamp(0.0, 1.0);
-          final shallow = math.pow((1 - depth).clamp(0.0, 1.0), .38);
-          final deep = math.pow(depth, 1.7);
-          final directionalRelief = .035 * (diffuse - .5);
-          final exposure =
-              (.42 + .30 * shallow - .10 * deep + directionalRelief).clamp(
-                .20,
-                .62,
-              );
+            final nx = -x / (rx * rx),
+                ny = -y / (ry * ry),
+                nz = -z / (rz * rz);
+            final normalLength = math.sqrt(nx * nx + ny * ny + nz * nz);
+            final diffuse =
+                ((-.35 * nx - .45 * ny + .82 * nz) / normalLength).clamp(
+                  0.0,
+                  1.0,
+                );
 
-          final innerShell = Color.lerp(
-            const Color(0xff9b7060),
-            const Color(0xfff0d8c0),
-            exposure,
-          )!;
-          colors.add(
-            identify ? FragmentSurfaceColors.cavity : innerShell,
-          );
+            final depth = (-z / rz).clamp(0.0, 1.0);
+            final shallow = math.pow((1 - depth).clamp(0.0, 1.0), .45);
+            final deep = math.pow(depth, 1.5);
+            final directionalRelief = .035 * (diffuse - .5);
+            final exposure =
+                (.40 + .24 * shallow - .12 * deep + directionalRelief).clamp(
+                  .20,
+                  .58,
+                );
+
+            final innerShell = Color.lerp(
+              const Color(0xff9b7060),
+              const Color(0xfff0d8c0),
+              exposure,
+            )!;
+            colors.add(
+              identify ? FragmentSurfaceColors.cavity : innerShell,
+            );
+          }
+        }
+
+        final stride = columns + 1;
+        for (var row = 0; row < rows; row++) {
+          for (var column = 0; column < columns; column++) {
+            final a = row * stride + column;
+            final b = a + 1;
+            final c = a + stride;
+            final d = c + 1;
+            cavityIndices.addAll([a, c, b, b, c, d]);
+          }
         }
 
         return ui.Vertices(
           ui.VertexMode.triangles,
-          textureCoordinates,
+          positions,
           colors: colors,
-          indices: indices,
+          indices: cavityIndices,
         );
       });
 
