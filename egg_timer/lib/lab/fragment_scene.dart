@@ -578,7 +578,7 @@ class _FractureEdgeSpec {
 }
 
 class _FragmentEdgeRef {
-  const _FragmentEdgeRef(this.edgeId, {this.reversed = false});
+  const _FragmentEdgeRef(this.edgeId, {required this.reversed});
 
   final int edgeId;
   final bool reversed;
@@ -912,7 +912,8 @@ class FragmentScene extends CustomPainter {
   );
 
   static final _referenceEdgeRefs = [
-    for (var i = 0; i < _fractureEdges.length; i++) _FragmentEdgeRef(i),
+    for (var i = 0; i < _fractureEdges.length; i++)
+      _FragmentEdgeRef(i, reversed: false),
   ];
 
   // Exact validated single-fragment reference, now expressed as data.
@@ -1465,7 +1466,10 @@ class FragmentScene extends CustomPainter {
       final j = (i + 1) % outer.length;
       final edgePoint = _V.lerp(outer[i], outer[j], .5);
       // Intact material has no free rim. Buried thickness is not visible.
-      if (_retention(fragment, edgePoint.xy) == 1 || lift == 0) continue;
+      if (_retention(fragment, edgePoint.xy, fragmentProgress) == 1 ||
+          lift == 0) {
+        continue;
+      }
       _V visibleInner(int index) {
         final top = projectedOuter[index];
         final bottom = projectedInner[index];
