@@ -565,6 +565,47 @@ class _MaterialVisibility {
   late final Path fixed, mobile;
 }
 
+class _FragmentSpec {
+  const _FragmentSpec({
+    required this.seed,
+    required this.boundary,
+    required this.fractureEdges,
+    required this.fractureBoundary,
+    required this.crackAdvances,
+    required this.branchAdvances,
+    required this.branches,
+    required this.microAdvances,
+    required this.microBranches,
+    required this.liftPushes,
+    required this.attachments,
+    required this.materialBoundary,
+    required this.centerOnShell,
+    required this.impactPitch,
+    required this.impactYaw,
+    required this.impactRoll,
+    required this.flightShiftX,
+    required this.settleShiftX,
+  });
+
+  // Reserved for future deterministic generation. It is metadata only for the
+  // reference fragment today: no random value is sampled during animation.
+  final int seed;
+  final List<Offset> boundary;
+  final List<List<Offset>> fractureEdges;
+  final List<Offset> fractureBoundary;
+  final List<_CrackAdvance> crackAdvances;
+  final List<_CrackAdvance> branchAdvances;
+  final List<List<Offset>> branches;
+  final List<_CrackAdvance> microAdvances;
+  final List<List<Offset>> microBranches;
+  final List<_LiftPush> liftPushes;
+  final List<_ShellAttachment> attachments;
+  final List<_V> materialBoundary;
+  final Offset centerOnShell;
+  final double impactPitch, impactYaw, impactRoll;
+  final double flightShiftX, settleShiftX;
+}
+
 class FragmentScene extends CustomPainter {
   FragmentScene({
     required this.progress,
@@ -775,6 +816,30 @@ class FragmentScene extends CustomPainter {
       ),
   ];
 
+  // Exact validated single-fragment reference, now expressed as data.
+  // Future deterministic generation will create additional _FragmentSpec
+  // instances; the mechanics below must not depend on these particular values.
+  static final _referenceFragment = _FragmentSpec(
+    seed: 1,
+    boundary: _boundary,
+    fractureEdges: _fractureEdges,
+    fractureBoundary: _fractureBoundary,
+    crackAdvances: _crackAdvances,
+    branchAdvances: _branchAdvances,
+    branches: _branches,
+    microAdvances: _microAdvances,
+    microBranches: _microBranches,
+    liftPushes: _liftPushes,
+    attachments: _attachments,
+    materialBoundary: _materialBoundary,
+    centerOnShell: const Offset(35, -78),
+    impactPitch: .55,
+    impactYaw: .55,
+    impactRoll: .35,
+    flightShiftX: 55,
+    settleShiftX: 4,
+  );
+
   static List<_V> _edgeSamples(Offset a, Offset b) {
     final count = ((b - a).distance / 2).ceil();
     return [
@@ -783,10 +848,11 @@ class FragmentScene extends CustomPainter {
     ];
   }
 
-  double _retention(Offset point) {
+  double _retention(_FragmentSpec fragment, Offset point) {
     var retained = 0.0;
-    for (final attachment in _attachments) {
-      final distance = (point - _boundary[attachment.vertex]).distance;
+    for (final attachment in fragment.attachments) {
+      final distance =
+          (point - fragment.boundary[attachment.vertex]).distance;
       // A surviving ligament pins its core until its actual rupture, including
       // during the release episode. On rupture its elastic deformation cannot
       // disappear instantaneously: relax it C1 over that ligament's loading
@@ -807,10 +873,10 @@ class FragmentScene extends CustomPainter {
     return retained;
   }
 
-  _FragmentGeometry _geometry() {
+  _FragmentGeometry _geometry(_FragmentSpec fragment) {
     // Local material constraints bend the region around its established pose.
     final lift =
-        (_liftPushes.fold(0.0, (sum, push) => sum + push.at(progress)) -
+        (fragment.liftPushes.fold(0.0, (sum, push) => sum + push.at(progress)) -
                 .025 * _pulse(progress, .519, .005) -
                 .02 * _pulse(progress, .547, .005) -
                 .015 * _pulse(progress, .576, .006))
@@ -823,39 +889,41 @@ class FragmentScene extends CustomPainter {
     final settle = _smooth(_part(progress, .88, 1));
     final recoil = math.sin(2 * math.pi * settle) * (1 - settle) * (1 - settle);
     final bounce = 4 * math.sin(math.pi * settle) * (1 - settle);
-    final center = _surface(const Offset(35, -78));
+    final center = _surface(fragment.centerOnShell);
     var heldWeight = 0.0;
     var heldPoint = Offset.zero;
-    for (final attachment in _attachments) {
+    for (final attachment in fragment.attachments) {
       final hold = attachment.hold(progress);
       heldWeight += hold;
-      heldPoint += _boundary[attachment.vertex] * hold;
+      heldPoint += fragment.boundary[attachment.vertex] * hold;
     }
     final remainingPivot = heldWeight > 0
         ? heldPoint / heldWeight
-        : const Offset(35, -78);
-    final releasedShare = 1 - heldWeight / _attachments.length;
+        : fragment.centerOnShell;
+    final releasedShare = 1 - heldWeight / fragment.attachments.length;
     final attachmentBlend = _smooth(_part(releasedShare, .55, 1));
     final pivotOnShell = Offset.lerp(
       remainingPivot,
-      const Offset(35, -78),
+      fragment.centerOnShell,
       attachmentBlend,
     )!;
     final pivot = _surface(pivotOnShell);
     // Off-center pressure changes only the early pose. Its small torque fades
     // during flight, leaving the established fall and landing unchanged.
-    final pressureRoll = _liftPushes.fold(
+    final pressureRoll = fragment.liftPushes.fold(
       0.0,
       (sum, push) => sum + push.at(progress) * (push.point.dx - center.x) / 45,
     );
-    final pressurePitch = _liftPushes.fold(
+    final pressurePitch = fragment.liftPushes.fold(
       0.0,
       (sum, push) => sum + push.at(progress) * (push.point.dy - center.y) / 45,
     );
     final initialTorqueFade = 1 - turn;
     // Rotation never reaches an edge-on projection. The small damped roll and
     // lift after impact let the light shell settle on a broad face.
-    const impactPitch = .55, impactYaw = .55, impactRoll = .35;
+    final impactPitch = fragment.impactPitch;
+    final impactYaw = fragment.impactYaw;
+    final impactRoll = fragment.impactRoll;
     final rotationX =
         -.38 * lift +
         (impactPitch + .38) * turn +
@@ -870,7 +938,7 @@ class FragmentScene extends CustomPainter {
         (.14 + .025 * releasedShare) * pressureRoll * initialTorqueFade;
     _V rotate(_V v) =>
         (v - pivot).rotate(rotationX, rotationY, rotationZ) + pivot - center;
-    final outer = _materialBoundary;
+    final outer = fragment.materialBoundary;
     final inner = outer.map((v) => _V(v.x, v.y, v.z - thickness)).toList();
     final rotated = [...outer, ...inner].map(rotate).toList();
     final bottom = rotated.map((v) => v.y).reduce(math.max);
@@ -886,7 +954,7 @@ class FragmentScene extends CustomPainter {
         (impactLandingY + 20) * flight * flight;
     final groundedY = 220 - center.y - bottom;
     final shift = _V(
-      55 * flight + 4 * settle,
+      fragment.flightShiftX * flight + fragment.settleShiftX * settle,
       (settle > 0 ? groundedY : ballisticY) - bounce,
       22 * lift * lift,
     );
@@ -899,7 +967,8 @@ class FragmentScene extends CustomPainter {
           shift;
     }
 
-    _V transform(_V v) => _V.lerp(rigidTransform(v), v, _retention(v.xy));
+    _V transform(_V v) =>
+        _V.lerp(rigidTransform(v), v, _retention(fragment, v.xy));
     final projectedOuter = outer.map(transform).toList();
     final projectedInner = inner.map(transform).toList();
     return _FragmentGeometry(
@@ -917,7 +986,7 @@ class FragmentScene extends CustomPainter {
   }
 
   @visibleForTesting
-  List<double> debugOcclusionDepths() => _geometry().occlusionDepths(_surface);
+  List<double> debugOcclusionDepths() => _geometry(_referenceFragment).occlusionDepths(_surface);
 
   // Growth is measured in material coordinates, never in the deformed pose.
   // Use the exact boundary vertices of the mobile mesh. A growing endpoint
@@ -956,7 +1025,8 @@ class FragmentScene extends CustomPainter {
 
   @visibleForTesting
   FragmentGeometrySnapshot debugGeometry() {
-    final g = _geometry();
+    final fragment = _referenceFragment;
+    final g = _geometry(fragment);
     var minimumAreaRatio = double.infinity;
     for (var i = 0; i < g.mesh.length; i += 3) {
       double area(List<_V> points) {
@@ -974,8 +1044,8 @@ class FragmentScene extends CustomPainter {
     return FragmentGeometrySnapshot(
       g.outer.map((v) => (v.x, v.y, v.z)).toList(),
       g.projectedOuter.map((v) => (v.x, v.y, v.z)).toList(),
-      g.outer.map((v) => _retention(v.xy)).toList(),
-      _attachments.map((a) => a.hold(progress)).toList(),
+      g.outer.map((v) => _retention(fragment, v.xy)).toList(),
+      fragment.attachments.map((a) => a.hold(progress)).toList(),
       g.outer.map((v) {
         final p = g.rigidTransform(v);
         return (p.x, p.y, p.z);
@@ -1079,7 +1149,8 @@ class FragmentScene extends CustomPainter {
       ..cubicTo(-75, 220, -115, 181, -115, 75)
       ..cubicTo(-115, -52, -69, -220, 0, -220)
       ..close();
-    final geometry = _geometry();
+    final fragment = _referenceFragment;
+    final geometry = _geometry(fragment);
     final outer = geometry.outer;
     final projectedOuter = geometry.projectedOuter;
     final projectedInner = geometry.projectedInner;
@@ -1112,7 +1183,7 @@ class FragmentScene extends CustomPainter {
         aperture,
         lift,
         maxGap,
-        _attachments.map((a) => a.hold(progress)).toList(),
+        fragment.attachments.map((a) => a.hold(progress)).toList(),
         size,
       );
       if (initialTransform != null) {
@@ -1184,11 +1255,11 @@ class FragmentScene extends CustomPainter {
     ).createShader(const Rect.fromLTWH(-115, -220, 230, 440));
     final faces = <_Face>[];
     // Preserve the validated lighting samples despite boundary subdivision.
-    final third = _fractureBoundary.length ~/ 3;
+    final third = fragment.fractureBoundary.length ~/ 3;
     final lightSamples = [
-      _surface(_fractureBoundary[0]),
-      _surface(_fractureBoundary[third]),
-      _surface(_fractureBoundary[2 * third]),
+      _surface(fragment.fractureBoundary[0]),
+      _surface(fragment.fractureBoundary[third]),
+      _surface(fragment.fractureBoundary[2 * third]),
     ];
     final outerLight = _diffuse(lightSamples.map(geometry.transform).toList());
     final restingLight = _diffuse(lightSamples);
@@ -1246,7 +1317,7 @@ class FragmentScene extends CustomPainter {
       final j = (i + 1) % outer.length;
       final edgePoint = _V.lerp(outer[i], outer[j], .5);
       // Intact material has no free rim. Buried thickness is not visible.
-      if (_retention(edgePoint.xy) == 1 || lift == 0) continue;
+      if (_retention(fragment, edgePoint.xy) == 1 || lift == 0) continue;
       _V visibleInner(int index) {
         final top = projectedOuter[index];
         final bottom = projectedInner[index];
@@ -1612,11 +1683,11 @@ class FragmentScene extends CustomPainter {
     }
 
     if (progress > .25) {
-      for (var i = 0; i < _fractureEdges.length; i++) {
-        final growth = _crackAdvances[i].at(progress, _pressureEvents);
+      for (var i = 0; i < fragment.fractureEdges.length; i++) {
+        final growth = fragment.crackAdvances[i].at(progress, _pressureEvents);
         if (growth == 0) continue;
         final crackClip = materialVisibility.mobile;
-        final crackPath = _mobileCrack(_fractureEdges[i], growth, geometry);
+        final crackPath = _mobileCrack(fragment.fractureEdges[i], growth, geometry);
         final crackPaint = Paint()
           ..color = const Color(0xff6c4430)
           ..style = PaintingStyle.stroke
@@ -1641,10 +1712,10 @@ class FragmentScene extends CustomPainter {
     if (showEgg && progress > .25) {
       canvas.save();
       canvas.clipPath(materialVisibility.fixed);
-      for (var i = 0; i < _branches.length; i++) {
-        final growth = _branchAdvances[i].at(progress, _pressureEvents);
+      for (var i = 0; i < fragment.branches.length; i++) {
+        final growth = fragment.branchAdvances[i].at(progress, _pressureEvents);
         if (growth == 0) continue;
-        final branch = Path()..addPolygon(_branches[i], false);
+        final branch = Path()..addPolygon(fragment.branches[i], false);
         final metric = branch.computeMetrics().first;
         final branchPath = metric.extractPath(0, metric.length * growth);
         final branchPaint = Paint()
@@ -1662,10 +1733,10 @@ class FragmentScene extends CustomPainter {
         );
         canvas.drawPath(branchPath, branchPaint);
       }
-      for (var i = 0; i < _microBranches.length; i++) {
-        final growth = _microAdvances[i].at(progress, _pressureEvents);
+      for (var i = 0; i < fragment.microBranches.length; i++) {
+        final growth = fragment.microAdvances[i].at(progress, _pressureEvents);
         if (growth == 0) continue;
-        final branch = Path()..addPolygon(_microBranches[i], false);
+        final branch = Path()..addPolygon(fragment.microBranches[i], false);
         final metric = branch.computeMetrics().first;
         final branchPath = metric.extractPath(0, metric.length * growth);
         final branchPaint = Paint()
@@ -1688,10 +1759,10 @@ class FragmentScene extends CustomPainter {
     if (showEgg && lift > 0) {
       canvas.save();
       canvas.clipPath(materialVisibility.fixed);
-      for (final attachment in _attachments) {
+      for (final attachment in fragment.attachments) {
         final broken = 1 - attachment.hold(progress);
         if (broken <= 0) continue;
-        final shellPoint = _boundary[attachment.vertex];
+        final shellPoint = fragment.boundary[attachment.vertex];
         final scarEnd = Offset.lerp(shellPoint, attachment.scarEnd, broken)!;
         final scarPaint = Paint()
           ..color = const Color(0xff765038)
