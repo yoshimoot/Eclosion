@@ -22,7 +22,7 @@ Acquis explicitement validés, à préserver :
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. Un prototype de **trajectoire interne du poussin** vient d'être introduit pour la phase tardive : deux épisodes de contact continus se chevauchent, le point d'appui se déplace progressivement vers la gauche et la surface de contact s'élargit de tête/cou vers tête/corps. Ces contacts pilotent désormais la pression, le dommage cumulé et un couple de rotation dépendant de la position du fragment. Les anciens points tardifs restent seulement comme repères temporels de propagation des fissures. Cette nouvelle mécanique reste à valider visuellement.
+Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. La vidéo de test confirme que la trajectoire interne du poussin produit une chronologie cohérente : le fragment 2 réagit d'abord, puis le fragment 3 entre dans le mouvement lorsque l'appui s'élargit, avec chevauchement des deux réponses. Une incohérence physique résiduelle a toutefois été corrigée : le couple de la pression commune est désormais calculé autour de la charnière encore active et interprété comme un couple 3D dû à une force normale à la coquille, plutôt que comme une rotation autour du centre du fragment. Cette correction reste à valider visuellement.
 
 ## Gelé pour l'itération actuelle
 
@@ -33,7 +33,7 @@ Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuel
 
 ## Prochaine étape
 
-Valider visuellement la trajectoire de contact interne : entre environ 62,5 % et 73,5 %, l'appui doit migrer continûment vers les fragments 2–3 et s'élargir. Les deux plaques doivent pouvoir pivoter dans des sens différents sous le même effort parce que leur centre et leurs charnières diffèrent, puis se libérer dans des fenêtres proches sans séquence artificielle. Vérifier en particulier l'absence de saut de mouvement au chevauchement des deux épisodes de contact.
+Valider visuellement le nouveau couple autour des charnières survivantes : entre environ 62,5 % et 73,5 %, les fragments 2 et 3 doivent continuer à réagir au même trajet de contact, mais leur basculement 3D doit maintenant découler de la position réelle de leur charnière. Vérifier que le mouvement reste doux, que les deux plaques ne pivotent pas mécaniquement de la même façon et qu'aucun saut n'apparaît lors du passage vers le vol libre.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
