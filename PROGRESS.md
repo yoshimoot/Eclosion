@@ -14,13 +14,13 @@ Acquis explicitement validés, à préserver :
 - Introduction du cluster partagé validée visuellement le 5 octobre 2026 avec un seul fragment : les arêtes primaires et les impulsions de pression sont centralisées sans régression du rendu de référence.
 - Premier voisin à arête réellement partagée validé visuellement le 5 octobre 2026 : continuité de la fissure commune, absence de double bord/patch et maintien crédible de la plaque voisine pendant le détachement du fragment principal.
 - Couplage pression commune → flexion/dommage → pivot du voisin validé visuellement comme amélioration le 5 octobre 2026.
-- Détachement complet du voisin validé visuellement le 5 octobre 2026 : dernière charnière rompue par dommage cumulé du cluster, transition continue pivot → libération → chute, trajectoire distincte et fragment conservé jusqu'au sol.
+- Détachement complet du voisin validé mécaniquement le 5 octobre 2026 : dernière charnière rompue par dommage cumulé du cluster et transition continue pivot → libération → chute. Un défaut visuel subsiste toutefois sur son orientation de fin de chute, qui le projette presque sur la tranche.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le premier couple de fragments est désormais validé de bout en bout : arête réellement partagée, pression commune, dommage local, pivot asymétrique puis détachement complet des deux plaques. La prochaine priorité structurelle est d'étendre ce principe à un **petit cluster de plusieurs fragments voisins** afin de valider la propagation de la fracture et la redistribution des contraintes au-delà d'une seule paire.
+Le premier couple de fragments est validé mécaniquement : arête réellement partagée, pression commune, dommage local, pivot asymétrique puis détachement complet. Le défaut prioritaire actuel est visuel et isolé : le deuxième fragment finit presque sur la tranche et perd sa forme apparente. Son orientation de chute a été corrigée pour conserver une surface projetée large ; cette correction reste à valider visuellement avant d'étendre le cluster.
 
 ## Gelé pour l'itération actuelle
 
@@ -31,7 +31,7 @@ Le premier couple de fragments est désormais validé de bout en bout : arête r
 
 ## Prochaine étape
 
-Ajouter ensuite un troisième fragment voisin au même cluster, en lui faisant partager une arête existante ou une nouvelle arête commune avec l'un des deux fragments actuels. La nouvelle étape devra valider une propagation en chaîne : pression commune → redistribution après une première rupture → dommage d'une plaque voisine → rupture éventuelle, sans timelines indépendantes.
+Valider d'abord que le deuxième fragment conserve bien sa forme de plaque irrégulière pendant la chute et au sol après correction de son orientation 3D. Ensuite seulement, ajouter un troisième fragment voisin au même cluster pour tester une propagation en chaîne.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
