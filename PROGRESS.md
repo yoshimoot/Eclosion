@@ -16,12 +16,13 @@ Acquis explicitement validés, à préserver :
 - Couplage pression commune → flexion/dommage → pivot du voisin validé visuellement comme amélioration le 5 octobre 2026.
 - Détachement complet du voisin validé visuellement le 5 octobre 2026 : dernière charnière rompue par dommage cumulé du cluster, transition continue pivot → libération → chute, trajectoire distincte et conservation correcte de la silhouette jusqu'au sol après généralisation du moteur.
 - Tri d'occlusion dynamique validé visuellement le 5 octobre 2026 : l'ordre de peinture dépend désormais de la profondeur 3D courante des fragments et non de leur ordre dans la liste.
+- Modèle de pression interne clarifié le 5 octobre 2026 : les événements représentent des efforts du poussin (appuis locaux puis effort plus large tête/corps sur la zone fragilisée). Un même effort peut affecter plusieurs plaques et produire des détachements simultanés ou quasi simultanés.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. Un fragment déjà détaché reste correctement devant ou derrière un autre fragment selon leur position spatiale réelle, indépendamment de l'ordre de création, de fissuration ou de détachement. La priorité revient maintenant à la propagation mécanique du troisième fragment, avec possibilité de ruptures simultanées ou quasi simultanées selon l'état du cluster.
+Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. La propagation mécanique est désormais organisée autour d'une chorégraphie de pression cohérente avec l'action du poussin : efforts d'abord localisés, puis déplacement des appuis, puis effort plus large de tête/corps contre la zone déjà fragilisée. Ce dernier effort est commun au cluster et peut libérer plusieurs plaques dans des fenêtres qui se chevauchent ; il ne correspond pas à une séquence artificielle fragment 2 → fragment 3.
 
 ## Gelé pour l'itération actuelle
 
@@ -32,7 +33,7 @@ Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuel
 
 ## Prochaine étape
 
-Reprendre la validation de la propagation du troisième fragment en supprimant toute hypothèse de séquence stricte. Plusieurs plaques peuvent perdre leurs attaches dans des fenêtres proches ou se détacher presque simultanément si le champ de pression et le dommage cumulé le justifient. Le troisième fragment doit continuer à partager une vraie arête avec le deuxième et bénéficier du tri de profondeur dynamique déjà validé.
+Valider visuellement la nouvelle phase tardive de pression large : le deuxième et le troisième fragment doivent pouvoir pivoter/se libérer dans des fenêtres proches sous le même effort interne, sans donner l'impression d'une animation l'un après l'autre. Le troisième fragment doit conserver son arête réellement partagée avec le deuxième et bénéficier automatiquement du tri de profondeur et des règles génériques de conservation de forme.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
