@@ -606,6 +606,36 @@ class _FragmentSpec {
   final double flightShiftX, settleShiftX;
 }
 
+class _FragmentFrame {
+  const _FragmentFrame({
+    required this.spec,
+    required this.geometry,
+    required this.aperture,
+    required this.silhouette,
+    required this.gap,
+  });
+
+  final _FragmentSpec spec;
+  final _FragmentGeometry geometry;
+  final Path aperture;
+  final Path silhouette;
+  final Path gap;
+}
+
+Path _unionPaths(Iterable<Path> paths) {
+  final iterator = paths.iterator;
+  if (!iterator.moveNext()) return Path();
+  var result = Path.from(iterator.current)..fillType = PathFillType.evenOdd;
+  while (iterator.moveNext()) {
+    result = combineFragmentOcclusionPaths(
+      PathOperation.union,
+      result,
+      iterator.current,
+    );
+  }
+  return result..fillType = PathFillType.evenOdd;
+}
+
 class FragmentScene extends CustomPainter {
   FragmentScene({
     required this.progress,
@@ -839,6 +869,10 @@ class FragmentScene extends CustomPainter {
     flightShiftX: 55,
     settleShiftX: 4,
   );
+
+  // Painter entry point for future multi-fragment rendering. Keep a single
+  // validated item for this refactor step so the output remains identical.
+  static final List<_FragmentSpec> _fragments = [_referenceFragment];
 
   static List<_V> _edgeSamples(Offset a, Offset b) {
     final count = ((b - a).distance / 2).ceil();
@@ -1149,8 +1183,47 @@ class FragmentScene extends CustomPainter {
       ..cubicTo(-75, 220, -115, 181, -115, 75)
       ..cubicTo(-115, -52, -69, -220, 0, -220)
       ..close();
-    final fragment = _referenceFragment;
-    final geometry = _geometry(fragment);
+    // Build all fragment frames first. Even with a single validated fragment
+    // active today, shell ownership and openings are now aggregated from a
+    // list so adding another fragment does not require changing those rules.
+    final frames = <_FragmentFrame>[
+      for (final fragment in _fragments)
+        (() {
+          final geometry = _geometry(fragment);
+          final aperture = _polygon(geometry.outer.map((v) => v.xy));
+          final silhouette = _polygon(
+            geometry.projectedOuter.map((v) => v.xy),
+          );
+          final gap = combineFragmentOcclusionPaths(
+            PathOperation.difference,
+            aperture,
+            silhouette,
+          );
+          return _FragmentFrame(
+            spec: fragment,
+            geometry: geometry,
+            aperture: aperture,
+            silhouette: silhouette,
+            gap: gap,
+          );
+        })(),
+    ];
+
+    final allApertures = _unionPaths(frames.map((frame) => frame.aperture));
+    // Fixed ownership from rest: subtract every fragment aperture from the
+    // shell exactly once. This is the seam needed by true multi-fragments.
+    final shell = combineFragmentOcclusionPaths(
+      PathOperation.difference,
+      egg,
+      allApertures,
+    );
+
+    // This refactor intentionally keeps one active frame. Downstream rendering
+    // remains untouched until the list-based ownership above is validated.
+    assert(frames.length == 1);
+    final frame = frames.single;
+    final fragment = frame.spec;
+    final geometry = frame.geometry;
     final outer = geometry.outer;
     final projectedOuter = geometry.projectedOuter;
     final projectedInner = geometry.projectedInner;
@@ -1158,16 +1231,9 @@ class FragmentScene extends CustomPainter {
     final shift = geometry.shift;
     final bounce = geometry.bounce;
     final lift = geometry.lift;
-    final aperture = _polygon(outer.map((v) => v.xy));
-    // Fixed ownership from rest: no second surface below the mobile region.
-    final shell = combineFragmentOcclusionPaths(
-      PathOperation.difference,
-      egg,
-      aperture,
-    );
-    final silhouette = _polygon(projectedOuter.map((v) => v.xy));
-    // Only the area actually uncovered by displacement is an opening.
-    final gap = Path.combine(PathOperation.difference, aperture, silhouette);
+    final aperture = frame.aperture;
+    final silhouette = frame.silhouette;
+    final gap = frame.gap;
     FragmentPaintDiagnostics? diagnostics;
     if (onDiagnostics != null) {
       var maxGap = 0.0;
