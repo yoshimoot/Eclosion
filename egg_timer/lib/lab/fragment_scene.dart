@@ -721,6 +721,14 @@ class _FragmentFrame {
   final Path aperture;
   final Path silhouette;
   final Path gap;
+
+  // Painter's algorithm depth for the whole rigid plate. Higher z is closer to
+  // the viewer in the existing shell model, matching the per-face depth sort.
+  // Use the displayed boundary, not creation order, so detached plates can pass
+  // in front of still-attached neighbours.
+  double get paintDepth =>
+      geometry.projectedOuter.fold(0.0, (sum, point) => sum + point.z) /
+      geometry.projectedOuter.length;
 }
 
 Path _unionPaths(Iterable<Path> paths) {
@@ -1835,9 +1843,11 @@ class FragmentScene extends CustomPainter {
             .toList(),
         size,
       );
-      // The public diagnostic callback is still singular. Keep the first frame
-      // as the reference diagnostic while every frame is nevertheless painted.
-      diagnosticsForCallback ??= diagnostics;
+      // The public diagnostic callback remains tied to the validated reference
+      // fragment; render order is now spatial and can change every frame.
+      if (identical(fragment, _referenceFragment)) {
+        diagnosticsForCallback ??= diagnostics;
+      }
       if (initialTransform != null) {
         // Remove parent widget transforms: the probe uses preview-local pixels.
         final eggToCanvas = Matrix4.inverted(initialTransform)
@@ -2468,8 +2478,18 @@ class FragmentScene extends CustomPainter {
 
     }
 
-    for (var i = 0; i < frames.length; i++) {
-      paintFrame(frames[i], paintSharedShell: i == 0);
+    // Render back-to-front from CURRENT 3D depth. Fragment creation order,
+    // fracture order and detachment order must never decide visual occlusion.
+    // Seed is only a deterministic tie-breaker when two plate depths coincide.
+    final paintFrames = [...frames]
+      ..sort((a, b) {
+        final depthOrder = a.paintDepth.compareTo(b.paintDepth);
+        return depthOrder != 0
+            ? depthOrder
+            : a.spec.seed.compareTo(b.spec.seed);
+      });
+    for (var i = 0; i < paintFrames.length; i++) {
+      paintFrame(paintFrames[i], paintSharedShell: i == 0);
     }
 
     canvas.restore();
