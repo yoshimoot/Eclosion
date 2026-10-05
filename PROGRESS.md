@@ -12,12 +12,13 @@ Acquis explicitement validés, à préserver :
 - Refactor du fragment unique vers une définition générique `_FragmentSpec` validé visuellement le 5 octobre 2026 : aucune régression notable sur la fissure, l'ouverture, le soulèvement, la lèvre fixe, la cavité, la rotation, la chute ou les occlusions. La `seed` est présente comme métadonnée de reproductibilité mais ne modifie encore aucun rendu.
 - Agrégation mono→liste validée visuellement le 5 octobre 2026 : les frames de fragments sont désormais préparées en liste et les apertures sont agrégées pour calculer la coquille fixe, sans changement visuel du fragment de référence.
 - Introduction du cluster partagé validée visuellement le 5 octobre 2026 avec un seul fragment : les arêtes primaires et les impulsions de pression sont centralisées sans régression du rendu de référence.
+- Premier voisin à arête réellement partagée validé visuellement le 5 octobre 2026 : continuité de la fissure commune, absence de double bord/patch et maintien crédible de la plaque voisine pendant le détachement du fragment principal.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le cluster partagé est validé avec le fragment de référence. Un premier **fragment voisin réellement couplé** est maintenant implémenté pour validation : il partage exactement l'arête 9 du cluster, en sens inverse, et reste attaché pendant que le fragment principal se détache.
+Le premier voisin à arête réellement partagée est validé. La priorité actuelle est désormais de remplacer son maintien purement temporel par une **réponse mécanique à la pression commune du cluster** : flexion locale et accumulation irréversible de dommage sur les attaches selon leur proximité avec les impulsions.
 
 ## Gelé pour l'itération actuelle
 
@@ -28,7 +29,7 @@ Le cluster partagé est validé avec le fragment de référence. Un premier **fr
 
 ## Prochaine étape
 
-Valider visuellement le premier voisin à arête réellement partagée : continuité de la fissure commune, absence de double bord/patch, maintien crédible de la plaque voisine et détachement du fragment principal sans rupture de matière. Après validation, relier progressivement les ruptures d'attaches du voisin à l'accumulation de contrainte du cluster au lieu de simples seuils temporels.
+Valider la nouvelle réponse couplée du voisin : une impulsion proche doit provoquer un léger soulèvement local, les attaches proches doivent perdre progressivement leur tenue, et l'attache plus éloignée doit rester comme charnière. Le fragment principal doit conserver strictement son comportement validé. Le voisin ne doit pas encore tomber : cette itération valide seulement le couplage pression → dommage → pivot.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -38,7 +39,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé est amorcé : arêtes primaires et impulsions de pression communes sont centralisées. Restent à construire les fragments voisins partageant réellement ces arêtes, puis la redistribution des contraintes et la séquence de rupture couplée.
+- Le cluster partagé et un premier voisin à arête commune sont validés. Le couplage pression → flexion/dommage des attaches vient d'être introduit et reste à valider ; la redistribution des contraintes après rupture et le détachement complet du voisin viendront ensuite.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
