@@ -9,22 +9,26 @@ Acquis explicitement validés, à préserver :
 - Correction CanvasKit validée : après opérations booléennes, réapplication explicite de `PathFillType.evenOdd` pour préserver correctement les trous/occlusions et supprimer la grande zone grise artificielle.
 - Lèvre fixe validée : géométrie, exposition, épaisseur `2.5`, occlusions et matériau actuel à préserver.
 - Cavité intérieure validée structurellement le 5 octobre 2026 : une seule surface intérieure globale de l'œuf, indépendante des fragments ; les ouvertures ne font que révéler cette surface. Le polish artistique de matière/éclairage reste différé.
+- Refactor du fragment unique vers une définition générique `_FragmentSpec` validé visuellement le 5 octobre 2026 : aucune régression notable sur la fissure, l'ouverture, le soulèvement, la lèvre fixe, la cavité, la rotation, la chute ou les occlusions. La `seed` est présente comme métadonnée de reproductibilité mais ne modifie encore aucun rendu.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-La prochaine priorité est de choisir puis traiter le **prochain défaut visuel dominant du fragment unique**, sans rouvrir les systèmes validés sauf nécessité démontrée.
+La prochaine priorité est de passer du fragment générique de référence à **quelques fragments**, en conservant strictement les systèmes validés et une progression déterministe.
 
 ## Gelé pour l'itération actuelle
 
 - Mouvement général, oscillation, épaisseur, pression excentrée, principe des attaches, pivot, rotation, éclairage et chute ; n'y toucher que si la correction prioritaire l'exige directement.
-- Rebond final, polish artistique de la cavité, rendu artistique global et multi-fragments reportés.
+- Rebond final, polish artistique de la cavité et rendu artistique global reportés.
+- Le multi-fragments peut désormais commencer sur la base du `_FragmentSpec` validé ; ne pas introduire encore d'aléatoire libre.
 - L'atelier reste un diagnostic à fragment unique, avec progression déterministe, lecture/pause, ralenti, rejeu et aperçus 9:16 / 9:20 ; ce n'est pas encore le timer produit.
 
 ## Prochaine étape
 
-Faire une revue visuelle ciblée du fragment unique actuel pour identifier **un seul défaut dominant** à traiter ensuite. Ne pas reprendre le polish de la cavité maintenant : sa structure est validée et son rendu fin sera repris lorsque le multi-fragments, l'ouverture globale, le poussin et la lumière finale de la scène seront en place.
+Instancier **quelques fragments** à partir de définitions `_FragmentSpec`, sans encore générer de variantes aléatoires. Commencer avec des données déterministes et reproductibles afin de valider l'architecture multi-fragments, les unions d'ouvertures, les occlusions et la continuité fissure → ouverture → tranche → fragment pour plusieurs pièces.
+
+La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
 Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.md ; la validation visuelle utilisateur reste distincte dans Chrome.
 
