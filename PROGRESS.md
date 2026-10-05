@@ -11,12 +11,13 @@ Acquis explicitement validés, à préserver :
 - Cavité intérieure validée structurellement le 5 octobre 2026 : une seule surface intérieure globale de l'œuf, indépendante des fragments ; les ouvertures ne font que révéler cette surface. Le polish artistique de matière/éclairage reste différé.
 - Refactor du fragment unique vers une définition générique `_FragmentSpec` validé visuellement le 5 octobre 2026 : aucune régression notable sur la fissure, l'ouverture, le soulèvement, la lèvre fixe, la cavité, la rotation, la chute ou les occlusions. La `seed` est présente comme métadonnée de reproductibilité mais ne modifie encore aucun rendu.
 - Agrégation mono→liste validée visuellement le 5 octobre 2026 : les frames de fragments sont désormais préparées en liste et les apertures sont agrégées pour calculer la coquille fixe, sans changement visuel du fragment de référence.
+- Introduction du cluster partagé validée visuellement le 5 octobre 2026 avec un seul fragment : les arêtes primaires et les impulsions de pression sont centralisées sans régression du rendu de référence.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le moteur sait parcourir plusieurs fragments. Le premier essai à deux fragments indépendants a révélé une erreur de modèle physique. Une première topologie de **cluster de fragmentation couplé** est maintenant implémentée : les arêtes primaires et les impulsions de pression appartiennent au cluster, et les fragments les référencent. Cette étape n'est pas encore validée visuellement.
+Le cluster partagé est validé avec le fragment de référence. Un premier **fragment voisin réellement couplé** est maintenant implémenté pour validation : il partage exactement l'arête 9 du cluster, en sens inverse, et reste attaché pendant que le fragment principal se détache.
 
 ## Gelé pour l'itération actuelle
 
@@ -27,7 +28,7 @@ Le moteur sait parcourir plusieurs fragments. Le premier essai à deux fragments
 
 ## Prochaine étape
 
-Valider d'abord que l'introduction du cluster partagé est visuellement neutre avec le fragment de référence. Ensuite, créer un deuxième fragment **voisin** qui référence au moins une arête existante du même cluster (en sens inverse), afin de prouver le partage géométrique réel avant d'étendre le réseau. Les ruptures d'attaches et pivots devront ensuite être reliés à la propagation des contraintes du cluster plutôt qu'à des timelines propres aux fragments.
+Valider visuellement le premier voisin à arête réellement partagée : continuité de la fissure commune, absence de double bord/patch, maintien crédible de la plaque voisine et détachement du fragment principal sans rupture de matière. Après validation, relier progressivement les ruptures d'attaches du voisin à l'accumulation de contrainte du cluster au lieu de simples seuils temporels.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
