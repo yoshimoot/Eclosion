@@ -585,6 +585,8 @@ class _FragmentSpec {
     required this.impactRoll,
     required this.flightShiftX,
     required this.settleShiftX,
+    this.timelineStart = 0,
+    this.timelineEnd = 1,
   });
 
   // Reserved for future deterministic generation. It is metadata only for the
@@ -604,6 +606,11 @@ class _FragmentSpec {
   final Offset centerOnShell;
   final double impactPitch, impactYaw, impactRoll;
   final double flightShiftX, settleShiftX;
+  final double timelineStart, timelineEnd;
+
+  double localProgress(double globalProgress) =>
+      ((globalProgress - timelineStart) / (timelineEnd - timelineStart))
+          .clamp(0.0, 1.0);
 }
 
 class _FragmentFrame {
@@ -950,6 +957,8 @@ class FragmentScene extends CustomPainter {
     impactRoll: -.28,
     flightShiftX: -42,
     settleShiftX: -3,
+    timelineStart: .035,
+    timelineEnd: .97,
   );
 
   static final List<_FragmentSpec> _fragments = [
@@ -965,7 +974,11 @@ class FragmentScene extends CustomPainter {
     ];
   }
 
-  double _retention(_FragmentSpec fragment, Offset point) {
+  double _retention(
+    _FragmentSpec fragment,
+    Offset point,
+    double fragmentProgress,
+  ) {
     var retained = 0.0;
     for (final attachment in fragment.attachments) {
       final distance =
@@ -979,7 +992,7 @@ class FragmentScene extends CustomPainter {
           1 -
           _smooth(
             _part(
-              progress,
+              fragmentProgress,
               attachment.releaseEnd,
               attachment.releaseEnd + responseDuration,
             ),
@@ -991,26 +1004,30 @@ class FragmentScene extends CustomPainter {
   }
 
   _FragmentGeometry _geometry(_FragmentSpec fragment) {
+    final fragmentProgress = fragment.localProgress(progress);
     // Local material constraints bend the region around its established pose.
     final lift =
-        (fragment.liftPushes.fold(0.0, (sum, push) => sum + push.at(progress)) -
-                .025 * _pulse(progress, .519, .005) -
-                .02 * _pulse(progress, .547, .005) -
-                .015 * _pulse(progress, .576, .006))
+        (fragment.liftPushes.fold(
+              0.0,
+              (sum, push) => sum + push.at(fragmentProgress),
+            ) -
+                .025 * _pulse(fragmentProgress, .519, .005) -
+                .02 * _pulse(fragmentProgress, .547, .005) -
+                .015 * _pulse(fragmentProgress, .576, .006))
             .clamp(0.0, 1.0);
-    final linearFlight = _part(progress, .6, .88);
+    final linearFlight = _part(fragmentProgress, .6, .88);
     // C1 departure; recover the existing trajectory after 5% of flight.
     final u = (linearFlight / .05).clamp(0.0, 1.0);
     final flight = linearFlight < .05 ? .05 * u * u * (2 - u) : linearFlight;
     final turn = flight * (1.12 - .12 * flight);
-    final settle = _smooth(_part(progress, .88, 1));
+    final settle = _smooth(_part(fragmentProgress, .88, 1));
     final recoil = math.sin(2 * math.pi * settle) * (1 - settle) * (1 - settle);
     final bounce = 4 * math.sin(math.pi * settle) * (1 - settle);
     final center = _surface(fragment.centerOnShell);
     var heldWeight = 0.0;
     var heldPoint = Offset.zero;
     for (final attachment in fragment.attachments) {
-      final hold = attachment.hold(progress);
+      final hold = attachment.hold(fragmentProgress);
       heldWeight += hold;
       heldPoint += fragment.boundary[attachment.vertex] * hold;
     }
@@ -1029,11 +1046,11 @@ class FragmentScene extends CustomPainter {
     // during flight, leaving the established fall and landing unchanged.
     final pressureRoll = fragment.liftPushes.fold(
       0.0,
-      (sum, push) => sum + push.at(progress) * (push.point.dx - center.x) / 45,
+      (sum, push) => sum + push.at(fragmentProgress) * (push.point.dx - center.x) / 45,
     );
     final pressurePitch = fragment.liftPushes.fold(
       0.0,
-      (sum, push) => sum + push.at(progress) * (push.point.dy - center.y) / 45,
+      (sum, push) => sum + push.at(fragmentProgress) * (push.point.dy - center.y) / 45,
     );
     final initialTorqueFade = 1 - turn;
     // Rotation never reaches an edge-on projection. The small damped roll and
@@ -1085,7 +1102,7 @@ class FragmentScene extends CustomPainter {
     }
 
     _V transform(_V v) =>
-        _V.lerp(rigidTransform(v), v, _retention(fragment, v.xy));
+        _V.lerp(rigidTransform(v), v, _retention(fragment, v.xy, fragmentProgress));
     final projectedOuter = outer.map(transform).toList();
     final projectedInner = inner.map(transform).toList();
     return _FragmentGeometry(
@@ -1161,8 +1178,12 @@ class FragmentScene extends CustomPainter {
     return FragmentGeometrySnapshot(
       g.outer.map((v) => (v.x, v.y, v.z)).toList(),
       g.projectedOuter.map((v) => (v.x, v.y, v.z)).toList(),
-      g.outer.map((v) => _retention(fragment, v.xy)).toList(),
-      fragment.attachments.map((a) => a.hold(progress)).toList(),
+      g.outer
+          .map((v) => _retention(fragment, v.xy, fragment.localProgress(progress)))
+          .toList(),
+      fragment.attachments
+          .map((a) => a.hold(fragment.localProgress(progress)))
+          .toList(),
       g.outer.map((v) {
         final p = g.rigidTransform(v);
         return (p.x, p.y, p.z);
@@ -1305,6 +1326,7 @@ class FragmentScene extends CustomPainter {
 
     void paintFrame(_FragmentFrame frame, {required bool paintSharedShell}) {
       final fragment = frame.spec;
+      final fragmentProgress = fragment.localProgress(progress);
     final geometry = frame.geometry;
     final outer = geometry.outer;
     final projectedOuter = geometry.projectedOuter;
@@ -1331,7 +1353,7 @@ class FragmentScene extends CustomPainter {
         aperture,
         lift,
         maxGap,
-        fragment.attachments.map((a) => a.hold(progress)).toList(),
+        fragment.attachments.map((a) => a.hold(fragmentProgress)).toList(),
         size,
       );
       // The public diagnostic callback is still singular. Keep the first frame
@@ -1838,9 +1860,9 @@ class FragmentScene extends CustomPainter {
       }
     }
 
-    if (progress > .25) {
+    if (fragmentProgress > .25) {
       for (var i = 0; i < fragment.fractureEdges.length; i++) {
-        final growth = fragment.crackAdvances[i].at(progress, _pressureEvents);
+        final growth = fragment.crackAdvances[i].at(fragmentProgress, _pressureEvents);
         if (growth == 0) continue;
         final crackClip = materialVisibility.mobile;
         final crackPath = _mobileCrack(fragment.fractureEdges[i], growth, geometry);
@@ -1865,11 +1887,11 @@ class FragmentScene extends CustomPainter {
         canvas.restore();
       }
     }
-    if (showEgg && progress > .25) {
+    if (showEgg && fragmentProgress > .25) {
       canvas.save();
       canvas.clipPath(materialVisibility.fixed);
       for (var i = 0; i < fragment.branches.length; i++) {
-        final growth = fragment.branchAdvances[i].at(progress, _pressureEvents);
+        final growth = fragment.branchAdvances[i].at(fragmentProgress, _pressureEvents);
         if (growth == 0) continue;
         final branch = Path()..addPolygon(fragment.branches[i], false);
         final metric = branch.computeMetrics().first;
@@ -1890,7 +1912,7 @@ class FragmentScene extends CustomPainter {
         canvas.drawPath(branchPath, branchPaint);
       }
       for (var i = 0; i < fragment.microBranches.length; i++) {
-        final growth = fragment.microAdvances[i].at(progress, _pressureEvents);
+        final growth = fragment.microAdvances[i].at(fragmentProgress, _pressureEvents);
         if (growth == 0) continue;
         final branch = Path()..addPolygon(fragment.microBranches[i], false);
         final metric = branch.computeMetrics().first;
@@ -1916,7 +1938,7 @@ class FragmentScene extends CustomPainter {
       canvas.save();
       canvas.clipPath(materialVisibility.fixed);
       for (final attachment in fragment.attachments) {
-        final broken = 1 - attachment.hold(progress);
+        final broken = 1 - attachment.hold(fragmentProgress);
         if (broken <= 0) continue;
         final shellPoint = fragment.boundary[attachment.vertex];
         final scarEnd = Offset.lerp(shellPoint, attachment.scarEnd, broken)!;
