@@ -31,8 +31,15 @@ double _pulse(double t, double center, double halfWidth) {
 }
 
 class _PressureEvent {
-  const _PressureEvent(this.center, this.halfWidth, this.strength, this.point);
-  final double center, halfWidth, strength;
+  const _PressureEvent(
+    this.center,
+    this.halfWidth,
+    this.strength,
+    this.point, {
+    this.radius = 65,
+  });
+
+  final double center, halfWidth, strength, radius;
   final Offset point;
   double at(double t) => strength * _pulse(t, center, halfWidth);
   double advance(double t) => _part(t, center - halfWidth, center + halfWidth);
@@ -634,7 +641,8 @@ class _FractureClusterSpec {
     var pressure = 0.0;
     for (final event in pressureEvents) {
       pressure +=
-          event.at(t) * _spatialWeight(event.point, point, radius: 70);
+          event.at(t) *
+          _spatialWeight(event.point, point, radius: event.radius + 5);
     }
     return pressure;
   }
@@ -645,7 +653,11 @@ class _FractureClusterSpec {
   double responseAt(double t, Offset point) {
     var response = 0.0;
     for (final event in pressureEvents) {
-      final weight = _spatialWeight(event.point, point, radius: 70);
+      final weight = _spatialWeight(
+        event.point,
+        point,
+        radius: event.radius + 5,
+      );
       final end = event.center + event.halfWidth;
       final relaxation =
           t <= end
@@ -666,7 +678,7 @@ class _FractureClusterSpec {
       damage +=
           event.strength *
           _smooth(event.advance(t)) *
-          _spatialWeight(event.point, point);
+          _spatialWeight(event.point, point, radius: event.radius);
     }
     return damage;
   }
@@ -937,10 +949,17 @@ class FragmentScene extends CustomPainter {
     // weak zone. This shared impulse transfers load toward the neighbour's last
     // hinge and can finish its release through accumulated cluster damage.
     _PressureEvent(.665, .024, .95, Offset(-34, -52)),
-    // Propagation step: once the neighbour has opened, the next common push
-    // reaches the plate immediately to its left. This remains a cluster event,
-    // not a fragment-local trigger.
-    _PressureEvent(.755, .026, .9, Offset(-58, -56)),
+    // Once an opening exists, the chick can brace more of its head/body
+    // against the weakened zone. Model that as ONE broader common effort rather
+    // than "fragment 2 then fragment 3": neighbouring plates can therefore
+    // release in overlapping windows under the same physical action.
+    _PressureEvent(
+      .69,
+      .035,
+      1.4,
+      Offset(-48, -56),
+      radius: 120,
+    ),
   ];
   static const _liftPushes = [
     _LiftPush(.495, .514, .16, Offset(63, -81)),
@@ -1104,8 +1123,8 @@ class FragmentScene extends CustomPainter {
 
   // Third plate in the SAME fracture cluster. It shares neighbour outer edge 3
   // exactly (reversed), proving that topology can propagate beyond one pair.
-  // This iteration keeps one far-side ligament alive so we validate shared-edge
-  // propagation and pivot before adding another free-flight event.
+  // Its release is allowed to overlap the neighbour's: both react to the same
+  // broad late chick effort rather than to a strict fragment sequence.
   static final _thirdBoundary = <Offset>[
     _neighborBoundary[5],
     _neighborBoundary[4],
@@ -1194,8 +1213,8 @@ class FragmentScene extends CustomPainter {
       damageStart: .85,
       damageEnd: 1.15,
     ),
-    // This far-side ligament intentionally survives the current sequence and
-    // acts as the final hinge for topology/pivot validation.
+    // Stronger far-side ligament: it acts as the final hinge until the broader
+    // body/head effort redistributes enough load across the weakened cluster.
     _ShellAttachment(
       4,
       1.10,
@@ -1318,8 +1337,8 @@ class FragmentScene extends CustomPainter {
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
     centerOnShell: const Offset(-61, -57),
-    // Not exercised while the final hinge survives; keep the generic broad-face
-    // fallback rather than tuning a third landing pose in this iteration.
+    // Keep the same broad-face fallback used by the neighbour; no special
+    // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
     impactYaw: .5,
     impactRoll: .25,
