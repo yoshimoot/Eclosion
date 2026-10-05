@@ -1132,6 +1132,23 @@ class FragmentScene extends CustomPainter {
         ),
   );
 
+  static _V _surfaceNormal(Offset p) {
+    final surface = _surface(p);
+    final normal = _V(
+      surface.x / (115 * 115),
+      surface.y / (220 * 220),
+      surface.z / (65 * 65),
+    );
+    final length = math.sqrt(
+      normal.x * normal.x + normal.y * normal.y + normal.z * normal.z,
+    );
+    return _V(
+      normal.x / length,
+      normal.y / length,
+      normal.z / length,
+    );
+  }
+
   // Subdivision preserves the original polygon and its piecewise linear depth.
   static final _materialBoundary = <_V>[
     for (var i = 0; i < _fractureBoundary.length; i++)
@@ -1742,15 +1759,29 @@ class FragmentScene extends CustomPainter {
         .map((v) => (v - center).rotate(impactPitch, impactYaw, impactRoll).y)
         .reduce(math.max);
     final impactLandingY = 220 - center.y - impactBottom;
+    final shellNormal = _surfaceNormal(fragment.centerOnShell);
+    final coupledFlight = fragment.pressureCoupling > 0;
+    // Detached coupled plates inherit their launch direction from the local
+    // egg normal. This removes fragment-specific sideways "rail" motion:
+    // curvature supplies only the lateral component that a real outward push
+    // would have, then gravity dominates the vertical trajectory.
+    const ejectionTravel = 65.0;
+    final initialFlightX = coupledFlight
+        ? shellNormal.x * ejectionTravel
+        : fragment.flightShiftX;
+    final initialFlightY = coupledFlight
+        ? shellNormal.y * ejectionTravel
+        : -20.0;
     // A fixed landing target gives the airborne piece a quadratic gravity arc.
     // After impact, the lowest vertex remains on the floor as the shell rocks.
     final ballisticY =
-        -12 * lift * lift * (1 - flight) -
-        20 * flight +
-        (impactLandingY + 20) * flight * flight;
+        -12 * lift * lift * (1 - flight) +
+        initialFlightY * flight +
+        (impactLandingY - initialFlightY) * flight * flight;
     final groundedY = 220 - center.y - bottom;
     final shift = _V(
-      fragment.flightShiftX * flight + fragment.settleShiftX * settle,
+      initialFlightX * flight +
+          (coupledFlight ? 0.0 : fragment.settleShiftX * settle),
       (settle > 0 ? groundedY : ballisticY) - bounce,
       22 * lift * lift,
     );
