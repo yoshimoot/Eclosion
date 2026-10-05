@@ -20,7 +20,7 @@ Acquis explicitement validés, à préserver :
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le premier couple de fragments est désormais validé visuellement et mécaniquement. La continuité de forme est généralisée. Un **troisième fragment** vient d'être ajouté au même cluster pour validation : il partage réellement une arête du deuxième fragment, reçoit les mêmes impulsions communes et utilise sans adaptation les règles génériques de retenue, pivot et conservation de forme. Pour cette itération, sa dernière attache reste volontairement intacte afin d'isoler la propagation topologique et le pivot avant un nouveau détachement libre.
+Le troisième fragment a révélé un défaut architectural d'occlusion : l'ordre visuel suivait encore l'ordre de la liste des fragments, ce qui pouvait faire passer un fragment déjà détaché derrière une plaque encore attachée. Le rendu vient d'être généralisé : les fragments sont désormais triés à chaque frame par leur profondeur 3D courante, du plus éloigné au plus proche. L'ordre de création, de fissuration ou de détachement ne décide plus de l'occlusion. Cette correction reste à valider visuellement.
 
 ## Gelé pour l'itération actuelle
 
@@ -31,7 +31,7 @@ Le premier couple de fragments est désormais validé visuellement et mécanique
 
 ## Prochaine étape
 
-Valider visuellement le troisième fragment : sa fissure commune avec le deuxième doit rester une seule cassure géométrique, la propagation doit atteindre cette nouvelle plaque après l'ouverture précédente, et la plaque doit pivoter sous le dommage cumulé tout en conservant sa forme. Sa dernière attache doit rester comme charnière pour cette étape ; aucun réglage spécifique de forme ou d'occlusion ne doit être nécessaire.
+Valider d'abord le tri de profondeur dynamique : lorsqu'un fragment détaché passe spatialement devant un fragment encore attaché, il doit être peint devant, indépendamment de leur ordre dans le cluster. Vérifier aussi qu'aucun saut d'occlusion n'apparaît lors d'un croisement de profondeur. Ensuite seulement, reprendre la validation de la propagation du troisième fragment et autoriser des détachements simultanés ou quasi simultanés selon l'état mécanique du cluster.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -41,7 +41,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin et la continuité de forme post-libération sont validés visuellement. Un troisième fragment à arête réellement partagée est maintenant présent pour valider l'extension du même moteur à un petit réseau de trois plaques.
+- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin et la continuité de forme post-libération sont validés visuellement. Un troisième fragment à arête réellement partagée est présent. Le tri d'occlusion inter-fragments est maintenant basé sur la profondeur 3D courante et reste à valider visuellement.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
