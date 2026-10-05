@@ -16,7 +16,7 @@ Acquis explicitement validés, à préserver :
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le moteur sait désormais parcourir plusieurs fragments, mais le premier essai à deux fragments indépendants a révélé une erreur de modèle physique : une éclosion crédible doit être construite comme un **cluster de fragmentation couplé**, issu d'un réseau de fissures partagé et de zones de pression communes.
+Le moteur sait parcourir plusieurs fragments. Le premier essai à deux fragments indépendants a révélé une erreur de modèle physique. Une première topologie de **cluster de fragmentation couplé** est maintenant implémentée : les arêtes primaires et les impulsions de pression appartiennent au cluster, et les fragments les référencent. Cette étape n'est pas encore validée visuellement.
 
 ## Gelé pour l'itération actuelle
 
@@ -27,7 +27,7 @@ Le moteur sait désormais parcourir plusieurs fragments, mais le premier essai �
 
 ## Prochaine étape
 
-Construire la topologie d'un **réseau de fissures partagé** avant de réactiver plusieurs fragments. Les fragments voisins devront partager exactement les mêmes arêtes de cassure ; les ouvertures devront former un cluster continu ; les ruptures d'attaches et pivots devront découler d'impulsions de pression communes et de la résistance locale. Le deuxième fragment indépendant reste uniquement une fixture diagnostique et n'est plus rendu.
+Valider d'abord que l'introduction du cluster partagé est visuellement neutre avec le fragment de référence. Ensuite, créer un deuxième fragment **voisin** qui référence au moins une arête existante du même cluster (en sens inverse), afin de prouver le partage géométrique réel avant d'étendre le réseau. Les ruptures d'attaches et pivots devront ensuite être reliés à la propagation des contraintes du cluster plutôt qu'à des timelines propres aux fragments.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -37,7 +37,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le moteur multi-fragments est opérationnel, mais le modèle physique couplé reste à construire : réseau partagé, arêtes communes, redistribution des contraintes et séquence de rupture.
+- Le cluster partagé est amorcé : arêtes primaires et impulsions de pression communes sont centralisées. Restent à construire les fragments voisins partageant réellement ces arêtes, puis la redistribution des contraintes et la séquence de rupture couplée.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
