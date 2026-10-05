@@ -1310,6 +1310,7 @@ class FragmentScene extends CustomPainter {
       'restingDiffuse': restingLight,
       'outerShade': outerFace.shade,
       'outerHighlight': outerFace.highlight,
+      'fragmentSeed': fragment.seed.toDouble(),
       'meshVertices': geometry.material.vertices.length.toDouble(),
       'meshTriangles': geometry.material.indices.length / 3,
     });
