@@ -15,12 +15,13 @@ Acquis explicitement validés, à préserver :
 - Premier voisin à arête réellement partagée validé visuellement le 5 octobre 2026 : continuité de la fissure commune, absence de double bord/patch et maintien crédible de la plaque voisine pendant le détachement du fragment principal.
 - Couplage pression commune → flexion/dommage → pivot du voisin validé visuellement comme amélioration le 5 octobre 2026.
 - Détachement complet du voisin validé visuellement le 5 octobre 2026 : dernière charnière rompue par dommage cumulé du cluster, transition continue pivot → libération → chute, trajectoire distincte et conservation correcte de la silhouette jusqu'au sol après généralisation du moteur.
+- Tri d'occlusion dynamique validé visuellement le 5 octobre 2026 : l'ordre de peinture dépend désormais de la profondeur 3D courante des fragments et non de leur ordre dans la liste.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le troisième fragment a révélé un défaut architectural d'occlusion : l'ordre visuel suivait encore l'ordre de la liste des fragments, ce qui pouvait faire passer un fragment déjà détaché derrière une plaque encore attachée. Le rendu vient d'être généralisé : les fragments sont désormais triés à chaque frame par leur profondeur 3D courante, du plus éloigné au plus proche. L'ordre de création, de fissuration ou de détachement ne décide plus de l'occlusion. Cette correction reste à valider visuellement.
+Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. Un fragment déjà détaché reste correctement devant ou derrière un autre fragment selon leur position spatiale réelle, indépendamment de l'ordre de création, de fissuration ou de détachement. La priorité revient maintenant à la propagation mécanique du troisième fragment, avec possibilité de ruptures simultanées ou quasi simultanées selon l'état du cluster.
 
 ## Gelé pour l'itération actuelle
 
@@ -31,7 +32,7 @@ Le troisième fragment a révélé un défaut architectural d'occlusion : l'ordr
 
 ## Prochaine étape
 
-Valider d'abord le tri de profondeur dynamique : lorsqu'un fragment détaché passe spatialement devant un fragment encore attaché, il doit être peint devant, indépendamment de leur ordre dans le cluster. Vérifier aussi qu'aucun saut d'occlusion n'apparaît lors d'un croisement de profondeur. Ensuite seulement, reprendre la validation de la propagation du troisième fragment et autoriser des détachements simultanés ou quasi simultanés selon l'état mécanique du cluster.
+Reprendre la validation de la propagation du troisième fragment en supprimant toute hypothèse de séquence stricte. Plusieurs plaques peuvent perdre leurs attaches dans des fenêtres proches ou se détacher presque simultanément si le champ de pression et le dommage cumulé le justifient. Le troisième fragment doit continuer à partager une vraie arête avec le deuxième et bénéficier du tri de profondeur dynamique déjà validé.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -41,7 +42,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin et la continuité de forme post-libération sont validés visuellement. Un troisième fragment à arête réellement partagée est présent. Le tri d'occlusion inter-fragments est maintenant basé sur la profondeur 3D courante et reste à valider visuellement.
+- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin, la continuité de forme post-libération et le tri d'occlusion inter-fragments par profondeur 3D courante sont validés visuellement.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
