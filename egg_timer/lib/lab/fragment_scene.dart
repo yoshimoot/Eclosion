@@ -1291,6 +1291,22 @@ class FragmentScene extends CustomPainter {
         BlendMode.modulate,
         Paint()..color = Colors.white,
       );
+
+      // Soft inner-rim occlusion: the shell edge blocks part of the light
+      // entering the egg, so the far inner wall is slightly darker close to
+      // the visible opening boundary. This is an OPENING-lighting effect, not
+      // fragment geometry; future multi-fragment rendering can apply the same
+      // treatment to the union of all visible openings.
+      if (!identifySurfaces) {
+        canvas.drawPath(
+          gap,
+          Paint()
+            ..color = const Color(0x2b2f1d14)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 11
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
+        );
+      }
       canvas.restore();
       canvas.save();
       canvas.clipPath(egg);
