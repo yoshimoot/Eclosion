@@ -748,6 +748,22 @@ class FragmentScene extends CustomPainter {
     });
   }
 
+  static List<Offset> _buildSingleFractureEdge(
+    Offset a,
+    Offset b,
+    List<Offset> steps,
+  ) {
+    final direction = b - a;
+    final length = direction.distance;
+    final normal = Offset(-direction.dy / length, direction.dx / length);
+    return [
+      a,
+      for (final step in steps)
+        a + direction * step.dx + normal * step.dy,
+      b,
+    ];
+  }
+
   // Disconnected starts grow and pause independently; the last links close
   // only immediately before the plate can move. Each edge is still part of
   // the one contour shared by the hole and the rigid fragment.
@@ -843,6 +859,13 @@ class FragmentScene extends CustomPainter {
     _PressureEvent(.554, .013, .66, Offset(28, -48)),
     _PressureEvent(.59, .01, .9, Offset(70, -70)),
   ];
+  static const _clusterPressureEvents = [
+    ..._pressureEvents,
+    // Common local push close to the future shared seam. Existing reference
+    // edges keep their original pressure indices; neighbouring edges can react
+    // to this same physical impulse without owning an independent timer.
+    _PressureEvent(.515, .022, .7, Offset(-4, -67)),
+  ];
   static const _liftPushes = [
     _LiftPush(.495, .514, .16, Offset(63, -81)),
     _LiftPush(.524, .542, .25, Offset(66, -62)),
@@ -887,18 +910,115 @@ class FragmentScene extends CustomPainter {
       ),
   ];
 
-  // Shared fracture topology. The current validated fragment owns all primary
-  // edges, but future neighbouring fragments will reference the SAME edge ids
-  // (reversed where necessary) instead of copying their own crack geometry.
-  static final _referenceCluster = _FractureClusterSpec(
+  // First coupled neighbour. It shares reference edge 9 exactly, reversed,
+  // and closes its remaining perimeter with new edges in the same cluster.
+  // The plate stays attached for this topology-validation step: one fragment
+  // detaches while its neighbour remains part of the shell.
+  static final _neighborBoundary = <Offset>[
+    _boundary[10],
+    _boundary[9],
+    const Offset(-9, -43),
+    const Offset(-28, -35),
+    const Offset(-43, -47),
+    const Offset(-39, -66),
+    const Offset(-24, -80),
+  ];
+
+  static const _neighborSteps = <List<Offset>>[
+    [Offset(.31, .5), Offset(.67, -.6)],
+    [Offset(.22, -.5), Offset(.54, .8), Offset(.81, -.4)],
+    [Offset(.28, .7), Offset(.62, -.5)],
+    [Offset(.2, -.6), Offset(.47, .5), Offset(.78, -.7)],
+    [Offset(.3, .5), Offset(.66, -.6)],
+    [Offset(.25, -.5), Offset(.57, .7), Offset(.82, -.4)],
+  ];
+
+  static final _neighborOuterEdges = <List<Offset>>[
+    _buildSingleFractureEdge(
+      _neighborBoundary[1],
+      _neighborBoundary[2],
+      _neighborSteps[0],
+    ),
+    _buildSingleFractureEdge(
+      _neighborBoundary[2],
+      _neighborBoundary[3],
+      _neighborSteps[1],
+    ),
+    _buildSingleFractureEdge(
+      _neighborBoundary[3],
+      _neighborBoundary[4],
+      _neighborSteps[2],
+    ),
+    _buildSingleFractureEdge(
+      _neighborBoundary[4],
+      _neighborBoundary[5],
+      _neighborSteps[3],
+    ),
+    _buildSingleFractureEdge(
+      _neighborBoundary[5],
+      _neighborBoundary[6],
+      _neighborSteps[4],
+    ),
+    _buildSingleFractureEdge(
+      _neighborBoundary[6],
+      _neighborBoundary[0],
+      _neighborSteps[5],
+    ),
+  ];
+
+  static const _neighborOuterAdvances = <_CrackAdvance>[
+    _CrackAdvance(9, .05, .72),
+    _CrackAdvance(9, .22, .9),
+    _CrackAdvance(7, .35, .95),
+    _CrackAdvance(8, .25, .9),
+    _CrackAdvance(9, .42, 1),
+    _CrackAdvance(8, .55, 1),
+  ];
+
+  static final _neighborFractureEdges = <List<Offset>>[
+    _fractureEdges[9].reversed.toList(growable: false),
+    ..._neighborOuterEdges,
+  ];
+
+  static final _neighborFractureBoundary = <Offset>[
+    for (final edge in _neighborFractureEdges) ...edge.take(edge.length - 1),
+  ];
+
+  static final _neighborMaterialBoundary = <_V>[
+    for (var i = 0; i < _neighborFractureBoundary.length; i++)
+      ..._edgeSamples(
+        _neighborFractureBoundary[i],
+        _neighborFractureBoundary[
+            (i + 1) % _neighborFractureBoundary.length],
+      ),
+  ];
+
+  // These attachments intentionally survive beyond this diagnostic animation.
+  // They model a neighbouring plate that cracks under the common pressure but
+  // has not yet accumulated enough damage to detach.
+  static const _neighborAttachments = <_ShellAttachment>[
+    _ShellAttachment(2, 1.05, 1.08, Offset(-8, -31)),
+    _ShellAttachment(4, 1.10, 1.13, Offset(-49, -45)),
+    _ShellAttachment(6, 1.15, 1.18, Offset(-27, -87)),
+  ];
+
+  // Shared fracture topology. Fragments reference edge ids from this cluster;
+  // edge 9 is therefore literally one crack used by both neighbouring plates.
+  static final _fractureCluster = _FractureClusterSpec(
     seed: 1,
-    pressureEvents: _pressureEvents,
+    pressureEvents: _clusterPressureEvents,
     edges: [
       for (var i = 0; i < _fractureEdges.length; i++)
         _FractureEdgeSpec(
           id: i,
           points: _fractureEdges[i],
           advance: _crackAdvances[i],
+        ),
+      for (var i = 0; i < _neighborOuterEdges.length; i++)
+        _FractureEdgeSpec(
+          id: _fractureEdges.length + i,
+          points: _neighborOuterEdges[i],
+          advance: _neighborOuterAdvances[i],
         ),
     ],
     branches: [
@@ -915,13 +1035,18 @@ class FragmentScene extends CustomPainter {
     for (var i = 0; i < _fractureEdges.length; i++)
       _FragmentEdgeRef(i, reversed: false),
   ];
+  static final _neighborEdgeRefs = <_FragmentEdgeRef>[
+    const _FragmentEdgeRef(9, reversed: true),
+    for (var i = 0; i < _neighborOuterEdges.length; i++)
+      _FragmentEdgeRef(_fractureEdges.length + i, reversed: false),
+  ];
 
   // Exact validated single-fragment reference, now expressed as data.
   // Future deterministic generation will create additional _FragmentSpec
   // instances; the mechanics below must not depend on these particular values.
   static final _referenceFragment = _FragmentSpec(
     seed: 1,
-    cluster: _referenceCluster,
+    cluster: _fractureCluster,
     edgeRefs: _referenceEdgeRefs,
     boundary: _boundary,
     fractureBoundary: _fractureBoundary,
@@ -936,9 +1061,27 @@ class FragmentScene extends CustomPainter {
     settleShiftX: 4,
   );
 
-  // One fragment remains rendered while shared-edge cluster topology is
-  // introduced. The next fragment must reference this cluster, not duplicate it.
-  static final List<_FragmentSpec> _fragments = [_referenceFragment];
+  static final _neighborFragment = _FragmentSpec(
+    seed: 2,
+    cluster: _fractureCluster,
+    edgeRefs: _neighborEdgeRefs,
+    boundary: _neighborBoundary,
+    fractureBoundary: _neighborFractureBoundary,
+    liftPushes: const [],
+    attachments: _neighborAttachments,
+    materialBoundary: _neighborMaterialBoundary,
+    centerOnShell: const Offset(-22, -58),
+    impactPitch: .48,
+    impactYaw: -.4,
+    impactRoll: -.25,
+    flightShiftX: -40,
+    settleShiftX: -3,
+  );
+
+  static final List<_FragmentSpec> _fragments = [
+    _referenceFragment,
+    _neighborFragment,
+  ];
 
   static List<_V> _edgeSamples(Offset a, Offset b) {
     final count = ((b - a).distance / 2).ceil();
@@ -989,12 +1132,23 @@ class FragmentScene extends CustomPainter {
                 .02 * _pulse(fragmentProgress, .547, .005) -
                 .015 * _pulse(fragmentProgress, .576, .006))
             .clamp(0.0, 1.0);
-    final linearFlight = _part(fragmentProgress, .6, .88);
-    // C1 departure; recover the existing trajectory after 5% of flight.
+    final flightStart = fragment.attachments.fold(
+      0.0,
+      (latest, attachment) => math.max(latest, attachment.releaseEnd),
+    );
+    final flightEnd = flightStart + .28;
+    final linearFlight = flightStart >= 1
+        ? 0.0
+        : _part(fragmentProgress, flightStart, math.min(1.0, flightEnd));
+    // C1 departure; for the validated reference, flightStart=.60 and
+    // flightEnd=.88, so its existing trajectory remains unchanged.
     final u = (linearFlight / .05).clamp(0.0, 1.0);
     final flight = linearFlight < .05 ? .05 * u * u * (2 - u) : linearFlight;
     final turn = flight * (1.12 - .12 * flight);
-    final settle = _smooth(_part(fragmentProgress, .88, 1));
+    final settleStart = math.min(1.0, flightEnd);
+    final settle = settleStart >= 1
+        ? 0.0
+        : _smooth(_part(fragmentProgress, settleStart, 1));
     final recoil = math.sin(2 * math.pi * settle) * (1 - settle) * (1 - settle);
     final bounce = 4 * math.sin(math.pi * settle) * (1 - settle);
     final center = _surface(fragment.centerOnShell);
@@ -1874,7 +2028,7 @@ class FragmentScene extends CustomPainter {
         canvas.restore();
       }
     }
-    if (showEgg && fragmentProgress > .25) {
+    if (showEgg && paintSharedShell && fragmentProgress > .25) {
       canvas.save();
       canvas.clipPath(materialVisibility.fixed);
       for (var i = 0; i < fragment.cluster.branches.length; i++) {
