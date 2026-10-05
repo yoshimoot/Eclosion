@@ -1218,6 +1218,8 @@ class FragmentScene extends CustomPainter {
       allApertures,
     );
 
+    FragmentPaintDiagnostics? diagnosticsForCallback;
+
     void paintFrame(_FragmentFrame frame) {
       final fragment = frame.spec;
     final geometry = frame.geometry;
@@ -1249,6 +1251,9 @@ class FragmentScene extends CustomPainter {
         fragment.attachments.map((a) => a.hold(progress)).toList(),
         size,
       );
+      // The public diagnostic callback is still singular. Keep the first frame
+      // as the reference diagnostic while every frame is nevertheless painted.
+      diagnosticsForCallback ??= diagnostics;
       if (initialTransform != null) {
         // Remove parent widget transforms: the probe uses preview-local pixels.
         final eggToCanvas = Matrix4.inverted(initialTransform)
@@ -1875,7 +1880,9 @@ class FragmentScene extends CustomPainter {
     )..layout(maxWidth: 350);
     text.paint(canvas, Offset((390 - text.width) / 2, 32));
     canvas.restore();
-    if (diagnostics != null) onDiagnostics!(diagnostics);
+    if (diagnosticsForCallback != null) {
+      onDiagnostics!(diagnosticsForCallback!);
+    }
   }
 
   @override
