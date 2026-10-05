@@ -921,10 +921,14 @@ class FragmentScene extends CustomPainter {
   ];
   static const _clusterPressureEvents = [
     ..._pressureEvents,
-    // Common local push close to the future shared seam. Existing reference
-    // edges keep their original pressure indices; neighbouring edges can react
-    // to this same physical impulse without owning an independent timer.
+    // Common local push close to the shared seam. Existing reference edges keep
+    // their original pressure indices; neighbouring edges can react to this
+    // same physical impulse without owning an independent timer.
     _PressureEvent(.515, .022, .7, Offset(-4, -67)),
+    // After the first plate opens, the chick pushes again through the enlarged
+    // weak zone. This shared impulse transfers load toward the neighbour's last
+    // hinge and can finish its release through accumulated cluster damage.
+    _PressureEvent(.665, .024, .95, Offset(-34, -52)),
   ];
   static const _liftPushes = [
     _LiftPush(.495, .514, .16, Offset(63, -81)),
@@ -1189,6 +1193,36 @@ class FragmentScene extends CustomPainter {
     return attachment.hold(fragmentProgress, damage: damage);
   }
 
+  double _detachmentProgress(_FragmentSpec fragment) {
+    final usesClusterDamage = fragment.attachments.any(
+      (attachment) => attachment.damageStart != null,
+    );
+    if (!usesClusterDamage) {
+      return fragment.attachments.fold(
+        0.0,
+        (latest, attachment) => math.max(latest, attachment.releaseEnd),
+      );
+    }
+
+    bool fullyReleased(double t) => fragment.attachments.every(
+      (attachment) => _attachmentHold(fragment, attachment, t) <= .001,
+    );
+
+    if (!fullyReleased(1)) return 1.0;
+
+    var low = 0.0;
+    var high = 1.0;
+    for (var i = 0; i < 22; i++) {
+      final mid = (low + high) / 2;
+      if (fullyReleased(mid)) {
+        high = mid;
+      } else {
+        low = mid;
+      }
+    }
+    return high;
+  }
+
   double _retention(
     _FragmentSpec fragment,
     Offset point,
@@ -1258,10 +1292,10 @@ class FragmentScene extends CustomPainter {
                 .02 * _pulse(fragmentProgress, .547, .005) -
                 .015 * _pulse(fragmentProgress, .576, .006))
             .clamp(0.0, 1.0);
-    final flightStart = fragment.attachments.fold(
-      0.0,
-      (latest, attachment) => math.max(latest, attachment.releaseEnd),
-    );
+    // Free flight begins only after all attachments have actually released.
+    // For cluster-coupled fragments this instant is derived from accumulated
+    // pressure damage; the validated reference keeps its original .60 start.
+    final flightStart = _detachmentProgress(fragment);
     final flightEnd = flightStart + .28;
     final linearFlight = flightStart >= 1
         ? 0.0
