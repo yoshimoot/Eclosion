@@ -327,15 +327,21 @@ class _MaterialMesh {
                   1.0,
                 );
 
-            final depth = (-z / rz).clamp(0.0, 1.0);
-            final shallow = math.pow((1 - depth).clamp(0.0, 1.0), .45);
-            final deep = math.pow(depth, 1.5);
+            // Optical depth through the hollow egg: at this screen point,
+            // the ray travels from the front inner shell to the rear inner
+            // wall. That chord length is a GLOBAL property of the egg and is
+            // independent of every fragment/opening. Longer travel means less
+            // light reaches the far wall; nearer side regions remain lighter.
+            final opticalDepth = (-z / rz).clamp(0.0, 1.0);
+            final sideExposure =
+                math.pow((1 - opticalDepth).clamp(0.0, 1.0), .22);
             final directionalRelief = .035 * (diffuse - .5);
             final exposure =
-                (.40 + .24 * shallow - .12 * deep + directionalRelief).clamp(
-                  .20,
-                  .58,
-                );
+                (.22 +
+                        .46 * sideExposure -
+                        .08 * opticalDepth +
+                        directionalRelief)
+                    .clamp(.20, .56);
 
             final innerShell = Color.lerp(
               const Color(0xff9b7060),
