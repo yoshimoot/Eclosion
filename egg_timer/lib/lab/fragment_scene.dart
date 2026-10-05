@@ -961,10 +961,11 @@ class FragmentScene extends CustomPainter {
     timelineEnd: .97,
   );
 
-  static final List<_FragmentSpec> _fragments = [
-    _referenceFragment,
-    _secondaryFragment,
-  ];
+  // The independent second fragment proved the list renderer, but it is not
+  // a physically valid hatch model: real fragments must emerge from one shared
+  // fracture network and common pressure field. Keep the secondary spec as a
+  // diagnostic fixture, but do not render it until shared-edge topology exists.
+  static final List<_FragmentSpec> _fragments = [_referenceFragment];
 
   static List<_V> _edgeSamples(Offset a, Offset b) {
     final count = ((b - a).distance / 2).ceil();
