@@ -1686,25 +1686,29 @@ class FragmentScene extends CustomPainter {
     final pivot = _surface(pivotOnShell);
     // Off-center pressure changes only the early pose. Its small torque fades
     // during flight, leaving the established fall and landing unchanged.
+    // For coupled fragments, measure the chick force around the CURRENT
+    // surviving hinge, not around the fragment center. Internal pressure is
+    // predominantly normal to the shell (+z), so r × Fz produces pitch/yaw
+    // torque (x/y), not an arbitrary in-plane roll.
     final clusterMoment = fragment.pressureCoupling == 0
         ? Offset.zero
-        : fragment.cluster.momentAt(fragmentProgress, fragment.centerOnShell);
-    final pressureRoll =
-        fragment.liftPushes.fold(
-          0.0,
-          (sum, push) =>
-              sum +
-              push.at(fragmentProgress) * (push.point.dx - center.x) / 45,
-        ) +
-        fragment.pressureCoupling * clusterMoment.dx / 45;
-    final pressurePitch =
-        fragment.liftPushes.fold(
-          0.0,
-          (sum, push) =>
-              sum +
-              push.at(fragmentProgress) * (push.point.dy - center.y) / 45,
-        ) +
+        : fragment.cluster.momentAt(fragmentProgress, pivotOnShell);
+    final clusterTorqueX =
         fragment.pressureCoupling * clusterMoment.dy / 45;
+    final clusterTorqueY =
+        -fragment.pressureCoupling * clusterMoment.dx / 45;
+    final pressureRoll = fragment.liftPushes.fold(
+      0.0,
+      (sum, push) =>
+          sum +
+          push.at(fragmentProgress) * (push.point.dx - center.x) / 45,
+    );
+    final pressurePitch = fragment.liftPushes.fold(
+      0.0,
+      (sum, push) =>
+          sum +
+          push.at(fragmentProgress) * (push.point.dy - center.y) / 45,
+    );
     final initialTorqueFade = 1 - turn;
     // Rotation never reaches an edge-on projection. The small damped roll and
     // lift after impact let the light shell settle on a broad face.
@@ -1715,9 +1719,14 @@ class FragmentScene extends CustomPainter {
         -.38 * lift +
         (impactPitch + .38) * turn +
         .25 * settle +
-        (.03 + .01 * releasedShare) * pressurePitch * initialTorqueFade;
+        (.03 + .01 * releasedShare) * pressurePitch * initialTorqueFade +
+        .14 * clusterTorqueX * initialTorqueFade;
     final rotationY =
-        .45 * lift + (impactYaw - .45) * turn - .4 * settle + .03 * recoil;
+        .45 * lift +
+        (impactYaw - .45) * turn -
+        .4 * settle +
+        .03 * recoil +
+        .14 * clusterTorqueY * initialTorqueFade;
     final rotationZ =
         impactRoll * turn -
         .5 * settle +
