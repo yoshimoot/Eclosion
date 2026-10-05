@@ -1159,9 +1159,12 @@ class FragmentScene extends CustomPainter {
     attachments: _neighborAttachments,
     materialBoundary: _neighborMaterialBoundary,
     centerOnShell: const Offset(-22, -58),
-    impactPitch: .48,
-    impactYaw: -.4,
-    impactRoll: -.25,
+    // Keep the detached neighbour on a broad face. The previous landing
+    // orientation projected it almost edge-on and made the same plate look like
+    // a thin sliver despite unchanged geometry.
+    impactPitch: .25,
+    impactYaw: .5,
+    impactRoll: .25,
     flightShiftX: -40,
     settleShiftX: -3,
     pressureCoupling: .45,
