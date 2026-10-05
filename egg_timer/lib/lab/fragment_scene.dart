@@ -301,19 +301,18 @@ class _MaterialMesh {
                 1.0,
               );
 
-          // Global concavity cue, independent of every fracture outline:
-          // deeper points of the egg interior recede, while points approaching
-          // the inner side wall receive a modest lift. Directional light stays
-          // subtle so it cannot turn the cavity into a flat lateral gradient.
+          // Global concavity cue, independent of every fracture outline.
+          // The visible patch can occupy a narrow depth range, so amplify the
+          // shallow side of the SAME inner ellipsoid non-linearly instead of
+          // normalizing per opening. This preserves one continuous cavity for
+          // future multi-fragments while making depth readable in small holes.
           final depth = (-z / rz).clamp(0.0, 1.0);
-          final globalDepth = _smoother(depth);
-          final radial = math.sqrt(radialSquared.clamp(0.0, 1.0));
-          final sideLift = .12 * _smoother(radial);
-          final depthFalloff = .20 * globalDepth;
-          final directionalRelief = .04 * (diffuse - .5);
+          final shallow = math.pow((1 - depth).clamp(0.0, 1.0), .38);
+          final deep = math.pow(depth, 1.7);
+          final directionalRelief = .035 * (diffuse - .5);
           final exposure =
-              (.46 + sideLift - depthFalloff + directionalRelief).clamp(
-                .22,
+              (.42 + .30 * shallow - .10 * deep + directionalRelief).clamp(
+                .20,
                 .62,
               );
 
