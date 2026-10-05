@@ -870,9 +870,92 @@ class FragmentScene extends CustomPainter {
     settleShiftX: 4,
   );
 
-  // Painter entry point for future multi-fragment rendering. Keep a single
-  // validated item for this refactor step so the output remains identical.
-  static final List<_FragmentSpec> _fragments = [_referenceFragment];
+  static const _referenceCenter = Offset(35, -78);
+  static const _secondaryCenter = Offset(-35, -23);
+  static const _secondaryScale = .65;
+
+  static Offset _secondaryPoint(Offset point) =>
+      _secondaryCenter + (point - _referenceCenter) * _secondaryScale;
+
+  static final _secondaryBoundary = [
+    for (final point in _boundary) _secondaryPoint(point),
+  ];
+
+  static final _secondaryFractureEdges = [
+    for (final edge in _fractureEdges)
+      [for (final point in edge) _secondaryPoint(point)],
+  ];
+
+  static final _secondaryFractureBoundary = [
+    for (final edge in _secondaryFractureEdges) ...edge.take(edge.length - 1),
+  ];
+
+  static final _secondaryBranches = [
+    for (final branch in _branches)
+      [for (final point in branch) _secondaryPoint(point)],
+  ];
+
+  static final _secondaryMicroBranches = [
+    for (final branch in _microBranches)
+      [for (final point in branch) _secondaryPoint(point)],
+  ];
+
+  static final _secondaryLiftPushes = [
+    for (final push in _liftPushes)
+      _LiftPush(
+        push.start,
+        push.end,
+        push.amount,
+        _secondaryPoint(push.point),
+      ),
+  ];
+
+  static final _secondaryAttachments = [
+    for (final attachment in _attachments)
+      _ShellAttachment(
+        attachment.vertex,
+        attachment.releaseStart,
+        attachment.releaseEnd,
+        _secondaryPoint(attachment.scarEnd),
+      ),
+  ];
+
+  static final _secondaryMaterialBoundary = <_V>[
+    for (var i = 0; i < _secondaryFractureBoundary.length; i++)
+      ..._edgeSamples(
+        _secondaryFractureBoundary[i],
+        _secondaryFractureBoundary[
+            (i + 1) % _secondaryFractureBoundary.length],
+      ),
+  ];
+
+  // First true multi-fragment configuration. Values are fixed and reproducible;
+  // the seed is metadata only until procedural generation is introduced.
+  static final _secondaryFragment = _FragmentSpec(
+    seed: 2,
+    boundary: _secondaryBoundary,
+    fractureEdges: _secondaryFractureEdges,
+    fractureBoundary: _secondaryFractureBoundary,
+    crackAdvances: _crackAdvances,
+    branchAdvances: _branchAdvances,
+    branches: _secondaryBranches,
+    microAdvances: _microAdvances,
+    microBranches: _secondaryMicroBranches,
+    liftPushes: _secondaryLiftPushes,
+    attachments: _secondaryAttachments,
+    materialBoundary: _secondaryMaterialBoundary,
+    centerOnShell: _secondaryCenter,
+    impactPitch: .48,
+    impactYaw: -.42,
+    impactRoll: -.28,
+    flightShiftX: -42,
+    settleShiftX: -3,
+  );
+
+  static final List<_FragmentSpec> _fragments = [
+    _referenceFragment,
+    _secondaryFragment,
+  ];
 
   static List<_V> _edgeSamples(Offset a, Offset b) {
     final count = ((b - a).distance / 2).ceil();
@@ -1220,7 +1303,7 @@ class FragmentScene extends CustomPainter {
 
     FragmentPaintDiagnostics? diagnosticsForCallback;
 
-    void paintFrame(_FragmentFrame frame) {
+    void paintFrame(_FragmentFrame frame, {required bool paintSharedShell}) {
       final fragment = frame.spec;
     final geometry = frame.geometry;
     final outer = geometry.outer;
@@ -1448,22 +1531,24 @@ class FragmentScene extends CustomPainter {
         );
       }
       canvas.restore();
-      canvas.save();
-      canvas.clipPath(egg);
-      canvas.drawVertices(
-        ui.Vertices(
-          ui.VertexMode.triangles,
-          geometry.shellMesh,
-          textureCoordinates: geometry.shellMesh,
-        ),
-        BlendMode.srcOver,
-        Paint()
-          ..color = identifySurfaces
-              ? FragmentSurfaceColors.shell
-              : Colors.white
-          ..shader = identifySurfaces ? null : shellShader,
-      );
-      canvas.restore();
+      if (paintSharedShell) {
+        canvas.save();
+        canvas.clipPath(shell);
+        canvas.drawVertices(
+          ui.Vertices(
+            ui.VertexMode.triangles,
+            geometry.shellMesh,
+            textureCoordinates: geometry.shellMesh,
+          ),
+          BlendMode.srcOver,
+          Paint()
+            ..color = identifySurfaces
+                ? FragmentSurfaceColors.shell
+                : Colors.white
+            ..shader = identifySurfaces ? null : shellShader,
+        );
+        canvas.restore();
+      }
     }
     void paintFixedGrain(Path visibleMaterial) {
       canvas.save();
@@ -1490,7 +1575,9 @@ class FragmentScene extends CustomPainter {
       canvas.restore();
     }
 
-    if (showEgg) paintFixedGrain(materialVisibility.fixed);
+    if (showEgg && paintSharedShell) {
+      paintFixedGrain(materialVisibility.fixed);
+    }
     if (shadow && flight > 0) {
       diagnostics?.probe?.shadows.add((
         Path()..addOval(
@@ -1858,8 +1945,8 @@ class FragmentScene extends CustomPainter {
 
     }
 
-    for (final frame in frames) {
-      paintFrame(frame);
+    for (var i = 0; i < frames.length; i++) {
+      paintFrame(frames[i], paintSharedShell: i == 0);
     }
 
     canvas.restore();
