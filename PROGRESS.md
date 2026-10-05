@@ -14,13 +14,13 @@ Acquis explicitement validés, à préserver :
 - Introduction du cluster partagé validée visuellement le 5 octobre 2026 avec un seul fragment : les arêtes primaires et les impulsions de pression sont centralisées sans régression du rendu de référence.
 - Premier voisin à arête réellement partagée validé visuellement le 5 octobre 2026 : continuité de la fissure commune, absence de double bord/patch et maintien crédible de la plaque voisine pendant le détachement du fragment principal.
 - Couplage pression commune → flexion/dommage → pivot du voisin validé visuellement comme amélioration le 5 octobre 2026.
-- Détachement complet du voisin validé mécaniquement le 5 octobre 2026 : dernière charnière rompue par dommage cumulé du cluster et transition continue pivot → libération → chute. Un défaut visuel subsiste toutefois sur son orientation de fin de chute, qui le projette presque sur la tranche.
+- Détachement complet du voisin validé visuellement le 5 octobre 2026 : dernière charnière rompue par dommage cumulé du cluster, transition continue pivot → libération → chute, trajectoire distincte et conservation correcte de la silhouette jusqu'au sol après généralisation du moteur.
 
 ## Défaut prioritaire actuel
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le premier couple de fragments est validé mécaniquement. La normalisation de la zone d'influence des attaches a corrigé une cause de déformation, mais la capture à 80 % a révélé un second défaut générique : le voisin perdait sa séparation normale dès que l'impulsion de pression cessait. Après détachement, il retombait donc vers la surface de l'œuf et était partiellement masqué par le clip de profondeur, donnant l'impression que sa forme se réduisait. La mécanique est maintenant généralisée : l'état de libération fournit un plancher de séparation extérieure persistant en vol. Le fragment de référence conserve son comportement existant.
+Le premier couple de fragments est désormais validé visuellement et mécaniquement. La continuité de forme des fragments est généralisée : influence des attaches normalisée par la taille et séparation extérieure persistante après libération. Le deuxième fragment conserve maintenant correctement sa silhouette pendant le pivot, le détachement et la chute, sans réglage spécifique par fragment.
 
 ## Gelé pour l'itération actuelle
 
@@ -31,7 +31,7 @@ Le premier couple de fragments est validé mécaniquement. La normalisation de l
 
 ## Prochaine étape
 
-Valider d'abord que le deuxième fragment reste entièrement lisible après libération : il ne doit plus rentrer visuellement dans la coquille ni être tronqué par l'occlusion pendant sa chute. Le fragment de référence doit rester visuellement inchangé. Ensuite seulement, ajouter un troisième fragment voisin ; la continuité de forme doit être garantie par le moteur commun, sans réglage manuel par fragment.
+Ajouter maintenant un troisième fragment voisin au même cluster afin de valider une propagation en chaîne sur plus d'une liaison : pression commune → redistribution après rupture → dommage d'une nouvelle plaque → pivot/détachement éventuel. Le troisième fragment doit bénéficier automatiquement des règles génériques déjà validées, sans correction manuelle de forme ou d'occlusion.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
@@ -41,7 +41,7 @@ Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.
 
 - Rebond final légèrement trop marqué pour une coquille légère.
 - Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot et le détachement complet du voisin sont validés mécaniquement. La continuité de forme est désormais traitée à deux niveaux génériques : influence des attaches normalisée par la taille, puis séparation extérieure persistante après libération pour éviter qu'un fragment retombe derrière la surface de l'œuf.
+- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin et la continuité de forme post-libération sont validés visuellement. Les règles de conservation de forme sont désormais génériques et doivent s'appliquer automatiquement aux prochains fragments.
 - Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
 - Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
 - Réglages d'affichage non persistants après rechargement.
