@@ -1181,11 +1181,11 @@ class FragmentScene extends CustomPainter {
   static final _neighborBoundary = <Offset>[
     _boundary[10],
     _boundary[9],
-    const Offset(-9, -43),
-    const Offset(-28, -35),
-    const Offset(-43, -47),
-    const Offset(-39, -66),
-    const Offset(-24, -80),
+    const Offset(-6, -45),
+    const Offset(-24, -39),
+    const Offset(-39, -49),
+    const Offset(-37, -67),
+    const Offset(-22, -81),
   ];
 
   static const _neighborSteps = <List<Offset>>[
@@ -1297,11 +1297,11 @@ class FragmentScene extends CustomPainter {
   static final _thirdBoundary = <Offset>[
     _neighborBoundary[5],
     _neighborBoundary[4],
-    const Offset(-57, -34),
-    const Offset(-75, -40),
-    const Offset(-82, -56),
-    const Offset(-73, -72),
-    const Offset(-55, -80),
+    const Offset(-52, -39),
+    const Offset(-70, -44),
+    const Offset(-79, -60),
+    const Offset(-72, -78),
+    const Offset(-54, -84),
   ];
 
   static const _thirdSteps = <List<Offset>>[
@@ -1486,7 +1486,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _neighborAttachments,
     materialBoundary: _neighborMaterialBoundary,
-    centerOnShell: const Offset(-22, -58),
+    centerOnShell: const Offset(-19, -59),
     // Keep the detached neighbour on a broad face. The previous landing
     // orientation projected it almost edge-on and made the same plate look like
     // a thin sliver despite unchanged geometry.
@@ -1507,7 +1507,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-61, -57),
+    centerOnShell: const Offset(-57, -61),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
