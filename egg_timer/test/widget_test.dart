@@ -847,6 +847,39 @@ void main() {
     }
   });
 
+  test('Vol couple: rotation continue au passage en vol libre', () {
+    const epsilon = 1e-6;
+    for (final index in [1, 2]) {
+      final start = frame(0).debugFragmentFlight(index).detachmentProgress;
+      final before = frame(start - epsilon).debugFragmentFlight(index).rotation;
+      final after = frame(start + epsilon).debugFragmentFlight(index).rotation;
+      expect(
+        distance3d(before, after),
+        lessThan(.01),
+        reason: 'Angular continuity fragment ${index + 1}',
+      );
+    }
+  });
+
+  test('Vol couple: les plaques gardent des rotations distinctes en chute', () {
+    final starts = [
+      frame(0).debugFragmentFlight(1).detachmentProgress,
+      frame(0).debugFragmentFlight(2).detachmentProgress,
+    ];
+    final release2 = frame(starts[0]).debugFragmentFlight(1).rotation;
+    final release3 = frame(starts[1]).debugFragmentFlight(2).rotation;
+    final falling2 = frame(starts[0] + .12).debugFragmentFlight(1).rotation;
+    final falling3 = frame(starts[1] + .12).debugFragmentFlight(2).rotation;
+
+    expect(distance3d(release2, falling2), greaterThan(1e-4));
+    expect(distance3d(release3, falling3), greaterThan(1e-4));
+    expect(
+      distance3d(falling2, falling3),
+      greaterThan(.02),
+      reason: 'Coupled plates must not converge to one shared fall angle',
+    );
+  });
+
   test(
     'Les zones intactes restent soudees; les ruptures liberent la meme matiere',
     () {
