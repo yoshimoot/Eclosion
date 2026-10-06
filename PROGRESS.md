@@ -22,7 +22,7 @@ Acquis explicitement validés, à préserver :
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. La trajectoire interne du poussin produit une chronologie cohérente, mais la vidéo suivante a montré un mouvement encore artificiel après rupture : les fragments 2 et 3 glissaient latéralement sur des translations X manuelles (-40/-48), comme sur un rail. La trajectoire de vol des fragments couplés est désormais dérivée de la normale locale de la coquille : la poussée les éjecte d'abord vers l'extérieur avec seulement la composante latérale imposée par la courbure, puis la gravité domine. Le fragment de référence conserve sa trajectoire validée.
+Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. La trajectoire interne du poussin produit une chronologie cohérente, mais une vidéo a montré un mouvement encore artificiel après rupture : les fragments 2 et 3 glissaient latéralement comme sur un rail. Leur vol a donc été repris pour utiliser la normale locale complète 3D de la coquille, puis laisser la gravité dominer. La transition attache → vol a aussi été corrigée pour supprimer un snap artificiel à 0,001 : le vol libre ne commence plus qu'au zéro réel de la courbe d'attache. Les 4 tests ciblés « Vol couple » passent localement le 6 octobre 2026 : direction initiale, accélération de la chute, continuité à la rupture et conservation de la forme/épaisseur. La validation visuelle de ce nouveau mouvement reste à faire.
 
 ## Gelé pour l'itération actuelle
 
@@ -33,7 +33,7 @@ Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuel
 
 ## Prochaine étape
 
-Valider visuellement le départ en vol des fragments 2 et 3 : après rupture, ils ne doivent plus dériver latéralement en parallèle. Leur premier déplacement doit être cohérent avec la normale locale de la coquille, puis leur trajectoire doit devenir principalement gravitaire. Vérifier aussi que la transition pivot → vol libre reste continue et que le fragment 1 reste inchangé.
+Valider visuellement le départ en vol des fragments 2 et 3 après la réussite des 4 tests ciblés. Ils ne doivent plus dériver latéralement en parallèle ; leur premier déplacement doit sortir de la coquille selon la normale locale complète 3D, puis devenir principalement gravitaire. Vérifier que la transition pivot → vol libre paraît continue, que les deux fragments gardent des trajectoires distinctes et que le fragment 1 reste inchangé.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
