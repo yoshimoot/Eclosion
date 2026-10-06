@@ -22,18 +22,20 @@ Acquis explicitement validés, à préserver :
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
-Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. La trajectoire interne du poussin produit une chronologie cohérente, mais une vidéo a montré un mouvement encore artificiel après rupture : les fragments 2 et 3 glissaient latéralement comme sur un rail. Leur vol a donc été repris pour utiliser la normale locale complète 3D de la coquille, puis laisser la gravité dominer. La transition attache → vol a aussi été corrigée pour supprimer un snap artificiel à 0,001 : le vol libre ne commence plus qu'au zéro réel de la courbe d'attache. Les 4 tests ciblés « Vol couple » passent localement le 6 octobre 2026 : direction initiale, accélération de la chute, continuité à la rupture et conservation de la forme/épaisseur. La validation visuelle de ce nouveau mouvement reste à faire.
+Le tri d'occlusion inter-fragments par profondeur 3D courante est validé visuellement. Les fragments 2 et 3 ont été redessinés pour former un cluster plus naturel tout en conservant leurs arêtes réellement partagées. Leur départ en vol suit maintenant la normale locale complète 3D de la coquille, puis la gravité domine, et la transition attache → vol ne comporte plus de snap artificiel à 0,001.
+
+La dernière vidéo a montré un défaut plus précis : malgré des trajectoires latérales devenues distinctes, les fragments 2 et 3 tendaient encore vers des orientations de chute trop semblables. La rotation du vol couplé a donc été reprise : chaque plaque conserve désormais l'angle et la vitesse angulaire acquis au moment de la rupture de sa dernière attache, puis cette vitesse est amortie progressivement. La pression du poussin ne continue plus à piloter leur rotation après libération, et la hauteur d'atterrissage est calculée avec leur orientation réelle d'arrivée. Les 6 tests ciblés « Vol couple » passent le 6 octobre 2026, dont continuité angulaire et rotations distinctes. La suite complète conserve 5 échecs de tests déjà présents hors de ce changement (22 tests passent, 5 échouent) ; aucun nouvel échec ciblé n'est introduit. La validation visuelle de cette rotation inertielle reste à faire.
 
 ## Gelé pour l'itération actuelle
 
-- Mouvement général, oscillation, épaisseur, pression excentrée, principe des attaches, pivot, rotation, éclairage et chute ; n'y toucher que si la correction prioritaire l'exige directement.
+- Mouvement général, oscillation, épaisseur, pression excentrée, principe des attaches, pivot, éclairage et chute ; préserver ces acquis. Pour l'itération actuelle, seule la rotation de vol des fragments couplés 2 et 3 est en validation.
 - Rebond final, polish artistique de la cavité et rendu artistique global reportés.
 - Le multi-fragments peut désormais commencer sur la base du `_FragmentSpec` validé ; ne pas introduire encore d'aléatoire libre.
 - L'atelier reste un diagnostic à fragment unique, avec progression déterministe, lecture/pause, ralenti, rejeu et aperçus 9:16 / 9:20 ; ce n'est pas encore le timer produit.
 
 ## Prochaine étape
 
-Valider visuellement le départ en vol des fragments 2 et 3 après la réussite des 4 tests ciblés. Ils ne doivent plus dériver latéralement en parallèle ; leur premier déplacement doit sortir de la coquille selon la normale locale complète 3D, puis devenir principalement gravitaire. Vérifier que la transition pivot → vol libre paraît continue, que les deux fragments gardent des trajectoires distinctes et que le fragment 1 reste inchangé.
+Valider visuellement sous Chrome la nouvelle rotation inertielle des fragments 2 et 3. Après rupture, chaque plaque doit poursuivre naturellement le basculement acquis sur sa propre charnière, sans être ramenée vers un angle d'arrivée commun. Vérifier en priorité : continuité au détachement, rotations clairement distinctes pendant la chute, absence de reprise de contrôle par la pression interne après libération, atterrissage cohérent avec l'orientation réelle de chaque fragment, et fragment 1 inchangé.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
