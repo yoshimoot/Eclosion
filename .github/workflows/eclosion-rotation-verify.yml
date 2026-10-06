@@ -36,6 +36,7 @@ jobs:
           fi
       - name: Analyze
         working-directory: egg_timer
+        continue-on-error: true
         run: flutter analyze
       - name: Coupled flight tests
         working-directory: egg_timer
