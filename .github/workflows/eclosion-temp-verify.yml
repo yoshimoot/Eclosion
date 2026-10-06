@@ -1,0 +1,78 @@
+name: Eclosion temporary verification
+
+on:
+  push:
+    branches:
+      - prototype/fragment-lab-v1
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter 3.35.7
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Resolve current dependencies
+        working-directory: egg_timer
+        run: flutter pub get
+
+      - name: Format check
+        working-directory: egg_timer
+        run: dart format --output=none --set-exit-if-changed lib/lab/fragment_scene.dart test/widget_test.dart
+
+      - name: Analyze current
+        id: analyze_current
+        continue-on-error: true
+        working-directory: egg_timer
+        run: flutter analyze
+
+      - name: Targeted coupled-flight tests
+        working-directory: egg_timer
+        run: flutter test --no-pub test/widget_test.dart --plain-name "Vol couple:"
+
+      - name: Full current widget tests
+        id: full_current
+        continue-on-error: true
+        working-directory: egg_timer
+        run: flutter test --no-pub test/widget_test.dart
+
+      - name: Checkout baseline f0e19e5
+        uses: actions/checkout@v4
+        with:
+          ref: f0e19e517b8bd996b236983d9f9d232c4de5bf0f
+          path: baseline
+
+      - name: Resolve baseline dependencies
+        working-directory: baseline/egg_timer
+        run: flutter pub get
+
+      - name: Analyze baseline
+        id: analyze_baseline
+        continue-on-error: true
+        working-directory: baseline/egg_timer
+        run: flutter analyze
+
+      - name: Full baseline widget tests
+        id: full_baseline
+        continue-on-error: true
+        working-directory: baseline/egg_timer
+        run: flutter test --no-pub test/widget_test.dart
+
+      - name: Summary
+        run: |
+          echo "current_analyze=${{ steps.analyze_current.outcome }}"
+          echo "current_full=${{ steps.full_current.outcome }}"
+          echo "baseline_analyze=${{ steps.analyze_baseline.outcome }}"
+          echo "baseline_full=${{ steps.full_baseline.outcome }}"
