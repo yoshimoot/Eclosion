@@ -1626,10 +1626,7 @@ class FragmentScene extends CustomPainter {
         fragment.cluster.responseAt(t, fragment.centerOnShell) *
         (1 + .65 * coupledReleasedShare);
     final drivenLift =
-        (fragment.liftPushes.fold(
-                  0.0,
-                  (sum, push) => sum + push.at(t),
-                ) +
+        (fragment.liftPushes.fold(0.0, (sum, push) => sum + push.at(t)) +
                 pressureLift -
                 .025 * _pulse(t, .519, .005) -
                 .02 * _pulse(t, .547, .005) -
@@ -1703,10 +1700,7 @@ class FragmentScene extends CustomPainter {
     // the same hand-authored impact angles.
     const damping = 7.5;
     final impactElapsed = math.max(0.0, settleStart - flightStart);
-    final elapsed = math.min(
-      math.max(0.0, t - flightStart),
-      impactElapsed,
-    );
+    final elapsed = math.min(math.max(0.0, t - flightStart), impactElapsed);
     final angularTravel = (1 - math.exp(-damping * elapsed)) / damping;
     return _V(
       released.x + angularVelocity.x * angularTravel,
@@ -1856,16 +1850,17 @@ class FragmentScene extends CustomPainter {
     final rotated = [...outer, ...inner].map(rotate).toList();
     final bottom = rotated.map((v) => v.y).reduce(math.max);
     final landingRotation = coupledFlight
-        ? _coupledFlightRotation(fragment, flightStart, settleStart, settleStart)
+        ? _coupledFlightRotation(
+            fragment,
+            flightStart,
+            settleStart,
+            settleStart,
+          )
         : _V(impactPitch, impactYaw, impactRoll);
     final impactBottom = [...outer, ...inner]
         .map(
           (v) => (v - center)
-              .rotate(
-                landingRotation.x,
-                landingRotation.y,
-                landingRotation.z,
-              )
+              .rotate(landingRotation.x, landingRotation.y, landingRotation.z)
               .y,
         )
         .reduce(math.max);

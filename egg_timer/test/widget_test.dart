@@ -746,10 +746,7 @@ void main() {
   double distance((double, double, double) a, (double, double, double) b) =>
       (a.$1 - b.$1).abs() + (a.$2 - b.$2).abs() + (a.$3 - b.$3).abs();
 
-  double distance3d(
-    (double, double, double) a,
-    (double, double, double) b,
-  ) {
+  double distance3d((double, double, double) a, (double, double, double) b) {
     final dx = a.$1 - b.$1;
     final dy = a.$2 - b.$2;
     final dz = a.$3 - b.$3;
