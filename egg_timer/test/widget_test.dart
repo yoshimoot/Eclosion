@@ -746,6 +746,107 @@ void main() {
   double distance((double, double, double) a, (double, double, double) b) =>
       (a.$1 - b.$1).abs() + (a.$2 - b.$2).abs() + (a.$3 - b.$3).abs();
 
+  double distance3d(
+    (double, double, double) a,
+    (double, double, double) b,
+  ) {
+    final dx = a.$1 - b.$1;
+    final dy = a.$2 - b.$2;
+    final dz = a.$3 - b.$3;
+    return math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+
+  test('Vol couple: le depart suit la normale locale en 3D', () {
+    final lateral = <double>[];
+    for (final index in [1, 2]) {
+      final start = frame(0).debugFragmentFlight(index).detachmentProgress;
+      final at = frame(start).debugFragmentFlight(index);
+      final after = frame(start + .01).debugFragmentFlight(index);
+      final dx = after.shift.$1 - at.shift.$1;
+      final dz = after.shift.$3 - at.shift.$3;
+      final nx = at.shellNormal.$1;
+      final nz = at.shellNormal.$3;
+      final dot = dx * nx + dz * nz;
+      final cross = dx * nz - dz * nx;
+      expect(dot, greaterThan(0), reason: 'Fragment ${index + 1}');
+      expect(
+        cross.abs(),
+        lessThan(1e-8 + dot.abs() * 1e-8),
+        reason: 'XZ launch must follow shell normal for fragment ${index + 1}',
+      );
+      expect(dz, greaterThan(0), reason: 'Outward Z for fragment ${index + 1}');
+      lateral.add(dx.abs());
+    }
+    expect(
+      lateral[1],
+      greaterThan(lateral[0]),
+      reason: 'The farther-left third plate inherits more lateral curvature',
+    );
+  });
+
+  test('Vol couple: la gravite accelere progressivement la chute', () {
+    for (final index in [1, 2]) {
+      final start = frame(0).debugFragmentFlight(index).detachmentProgress;
+      final a = frame(start + .06).debugFragmentFlight(index).shift.$2;
+      final b = frame(start + .09).debugFragmentFlight(index).shift.$2;
+      final c = frame(start + .12).debugFragmentFlight(index).shift.$2;
+      expect(
+        c - 2 * b + a,
+        greaterThan(0),
+        reason: 'Downward acceleration for fragment ${index + 1}',
+      );
+    }
+  });
+
+  test('Vol couple: position continue au passage de la derniere attache', () {
+    const epsilon = 1e-6;
+    for (final index in [1, 2]) {
+      final start = frame(0).debugFragmentFlight(index).detachmentProgress;
+      final before = frame(start - epsilon).debugFragmentFlight(index);
+      final at = frame(start).debugFragmentFlight(index);
+      final after = frame(start + epsilon).debugFragmentFlight(index);
+      expect(
+        distance(before.shift, after.shift),
+        lessThan(.01),
+        reason: 'Flight origin shift for fragment ${index + 1}',
+      );
+      expect(before.geometry.positions.length, at.geometry.positions.length);
+      expect(at.geometry.positions.length, after.geometry.positions.length);
+      for (var i = 0; i < at.geometry.positions.length; i++) {
+        expect(
+          distance(before.geometry.positions[i], after.geometry.positions[i]),
+          lessThan(.02),
+          reason: 'Release continuity fragment ${index + 1}, vertex $i',
+        );
+      }
+    }
+  });
+
+  test('Vol couple: forme et epaisseur restent rigides apres rupture', () {
+    for (final index in [1, 2]) {
+      final start = frame(0).debugFragmentFlight(index).detachmentProgress;
+      for (final offset in [.04, .10, .16]) {
+        final snapshot = frame(start + offset).debugFragmentFlight(index);
+        final g = snapshot.geometry;
+        expect(g.retention, everyElement(0.0));
+        expect(g.positions.length, g.innerPositions.length);
+        for (var i = 0; i < g.positions.length; i++) {
+          expect(
+            distance3d(g.positions[i], g.innerPositions[i]),
+            closeTo(2.5, 1e-8),
+            reason: 'Thickness fragment ${index + 1}, vertex $i',
+          );
+          final j = (i + 1) % g.positions.length;
+          expect(
+            distance3d(g.positions[i], g.positions[j]),
+            closeTo(distance3d(g.material[i], g.material[j]), 1e-8),
+            reason: 'Rigid outline fragment ${index + 1}, edge $i',
+          );
+        }
+      }
+    }
+  });
+
   test(
     'Les zones intactes restent soudees; les ruptures liberent la meme matiere',
     () {
