@@ -1566,21 +1566,6 @@ class FragmentScene extends CustomPainter {
     return attachment.hold(fragmentProgress, damage: damage);
   }
 
-  static const _releasedAttachmentThreshold = .001;
-
-  double _effectiveAttachmentHold(
-    _FragmentSpec fragment,
-    _ShellAttachment attachment,
-    double fragmentProgress,
-  ) {
-    final hold = _attachmentHold(fragment, attachment, fragmentProgress);
-    // Preserve the validated time-authored reference exactly. Cluster-coupled
-    // ligaments use the same release threshold as _detachmentProgress so the
-    // free-flight origin cannot keep drifting after release has begun.
-    if (attachment.damageStart == null) return hold;
-    return hold <= _releasedAttachmentThreshold ? 0.0 : hold;
-  }
-
   double _detachmentProgress(_FragmentSpec fragment) {
     final usesClusterDamage = fragment.attachments.any(
       (attachment) => attachment.damageStart != null,
@@ -1594,7 +1579,7 @@ class FragmentScene extends CustomPainter {
 
     bool fullyReleased(double t) => fragment.attachments.every(
       (attachment) =>
-          _effectiveAttachmentHold(fragment, attachment, t) == 0,
+          _attachmentHold(fragment, attachment, t) == 0,
     );
 
     if (!fullyReleased(1)) return 1.0;
@@ -1633,7 +1618,7 @@ class FragmentScene extends CustomPainter {
       // disappear instantaneously: relax it C1 over that ligament's loading
       // duration, without changing the free rigid pose or switching meshes.
       final responseDuration = attachment.releaseEnd - attachment.releaseStart;
-      final attachmentHold = _effectiveAttachmentHold(
+      final attachmentHold = _attachmentHold(
         fragment,
         attachment,
         fragmentProgress,
@@ -1665,7 +1650,7 @@ class FragmentScene extends CustomPainter {
                 (sum, attachment) =>
                     sum +
                     (1 -
-                        _effectiveAttachmentHold(
+                        _attachmentHold(
                           fragment,
                           attachment,
                           fragmentProgress,
@@ -1718,7 +1703,7 @@ class FragmentScene extends CustomPainter {
     var heldWeight = 0.0;
     var heldPoint = Offset.zero;
     for (final attachment in fragment.attachments) {
-      final hold = _effectiveAttachmentHold(
+      final hold = _attachmentHold(
         fragment,
         attachment,
         fragmentProgress,
@@ -1922,7 +1907,7 @@ class FragmentScene extends CustomPainter {
           .toList(),
       fragment.attachments
           .map(
-            (a) => _effectiveAttachmentHold(fragment, a, progress),
+            (a) => _attachmentHold(fragment, a, progress),
           )
           .toList(),
       g.outer.map((v) {
