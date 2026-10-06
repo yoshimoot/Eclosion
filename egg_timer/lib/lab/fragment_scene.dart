@@ -6,6 +6,10 @@ import 'package:flutter/material.dart';
 import 'fragment_surface_probe.dart';
 export 'fragment_surface_probe.dart' show FragmentSurfaceColors;
 
+const double _eggHalfWidth = 128;
+const double _eggHalfHeight = 220;
+const double _eggDepth = 65;
+
 // Boolean operations produce non-overlapping contours, potentially with holes.
 // CanvasKit can reset Skia's even-odd result to the FIRST operand's winding
 // rule. Explicit parity preserves those holes independently of contour winding:
@@ -360,7 +364,9 @@ class _MaterialMesh {
     double thickness,
     bool identify,
   ) => _cavityMeshes.putIfAbsent((thickness, identify), () {
-    final rx = 115 - thickness, ry = 220 - thickness, rz = 65 - thickness;
+    final rx = _eggHalfWidth - thickness,
+        ry = _eggHalfHeight - thickness,
+        rz = _eggDepth - thickness;
 
     // Build one GLOBAL inner-wall mesh for the egg. It is completely
     // independent of fragment geometry: openings only clip/reveal it.
@@ -1076,23 +1082,24 @@ class FragmentScene extends CustomPainter {
       start: .625,
       peak: .652,
       end: .682,
-      startPoint: Offset(-18, -60),
-      peakPoint: Offset(-31, -55),
-      endPoint: Offset(-38, -56),
+      startPoint: Offset(-10, -64),
+      peakPoint: Offset(-17, -56),
+      endPoint: Offset(-24, -52),
       startRadius: 28,
       peakRadius: 36,
       endRadius: 42,
       strength: .9,
     ),
-    // The head/body then bears more broadly on the weakened cluster. This
-    // overlaps the first effort and can load fragments 2 and 3 together.
+    // The head/body support then widens diagonally down-left across the already
+    // weakened shell. The pressure path now follows the cluster rather than
+    // placing fragments 1, 2 and 3 on a horizontal visual row.
     _ChickContactEpisode(
       start: .655,
       peak: .692,
       end: .735,
-      startPoint: Offset(-31, -56),
-      peakPoint: Offset(-44, -56),
-      endPoint: Offset(-50, -58),
+      startPoint: Offset(-22, -52),
+      peakPoint: Offset(-38, -44),
+      endPoint: Offset(-50, -38),
       startRadius: 45,
       peakRadius: 70,
       endRadius: 80,
@@ -1119,8 +1126,8 @@ class FragmentScene extends CustomPainter {
     return List.generate(
       520,
       (_) => Offset(
-        -115 + 230 * random.nextDouble(),
-        -220 + 440 * random.nextDouble(),
+        -_eggHalfWidth + 2 * _eggHalfWidth * random.nextDouble(),
+        -_eggHalfHeight + 2 * _eggHalfHeight * random.nextDouble(),
       ),
     );
   }
@@ -1128,18 +1135,23 @@ class FragmentScene extends CustomPainter {
   static _V _surface(Offset p) => _V(
     p.dx,
     p.dy,
-    65 *
+    _eggDepth *
         math.sqrt(
-          math.max(0, 1 - math.pow(p.dx / 115, 2) - math.pow(p.dy / 220, 2)),
+          math.max(
+            0,
+            1 -
+                math.pow(p.dx / _eggHalfWidth, 2) -
+                math.pow(p.dy / _eggHalfHeight, 2),
+          ),
         ),
   );
 
   static _V _surfaceNormal(Offset p) {
     final surface = _surface(p);
     final normal = _V(
-      surface.x / (115 * 115),
-      surface.y / (220 * 220),
-      surface.z / (65 * 65),
+      surface.x / (_eggHalfWidth * _eggHalfWidth),
+      surface.y / (_eggHalfHeight * _eggHalfHeight),
+      surface.z / (_eggDepth * _eggDepth),
     );
     final length = math.sqrt(
       normal.x * normal.x + normal.y * normal.y + normal.z * normal.z,
@@ -1163,15 +1175,14 @@ class FragmentScene extends CustomPainter {
   static final _neighborBoundary = <Offset>[
     _boundary[10],
     _boundary[9],
-    // Compact satellite plate immediately beside the primary opening. Its
-    // narrow right side sits in the first head/neck contact zone; the broader
-    // left side carries the load toward the next plate instead of reading as
-    // an isolated decorative hole.
-    const Offset(-3, -47),
-    const Offset(-19, -41),
-    const Offset(-34, -49),
-    const Offset(-31, -68),
-    const Offset(-16, -82),
+    // Fragment 2 is intentionally the smallest plate: a compact satellite
+    // formed immediately beside the primary opening by the first head/neck
+    // pressure. Its lower-left edge becomes the literal shared seam with F3.
+    const Offset(-2, -49),
+    const Offset(-13, -44),
+    const Offset(-25, -49),
+    const Offset(-28, -61),
+    const Offset(-19, -73),
   ];
 
   static const _neighborSteps = <List<Offset>>[
@@ -1252,7 +1263,7 @@ class FragmentScene extends CustomPainter {
       2,
       1.05,
       1.08,
-      Offset(-8, -31),
+      Offset(5, -42),
       damageStart: .45,
       damageEnd: .75,
     ),
@@ -1261,7 +1272,7 @@ class FragmentScene extends CustomPainter {
       4,
       1.10,
       1.13,
-      Offset(-49, -45),
+      Offset(-38, -43),
       damageStart: .55,
       damageEnd: .85,
     ),
@@ -1269,7 +1280,7 @@ class FragmentScene extends CustomPainter {
       6,
       1.15,
       1.18,
-      Offset(-27, -87),
+      Offset(-25, -84),
       damageStart: .35,
       damageEnd: .60,
     ),
@@ -1282,14 +1293,14 @@ class FragmentScene extends CustomPainter {
   static final _thirdBoundary = <Offset>[
     _neighborBoundary[5],
     _neighborBoundary[4],
-    // Secondary plate follows the widening head/body support to the left and
-    // slightly downward. The shared seam with fragment 2 remains literal, so
-    // all three plates still read as one pressure-driven fracture cluster.
-    const Offset(-46, -43),
-    const Offset(-64, -48),
-    const Offset(-74, -62),
-    const Offset(-68, -79),
-    const Offset(-49, -86),
+    // Fragment 3 is a broader secondary plate, visibly different from F2.
+    // It continues the same break diagonally down-left instead of repeating a
+    // second compact polygon on the same horizontal line.
+    const Offset(-35, -36),
+    const Offset(-49, -19),
+    const Offset(-65, -25),
+    const Offset(-70, -43),
+    const Offset(-53, -60),
   ];
 
   static const _thirdSteps = <List<Offset>>[
@@ -1365,7 +1376,7 @@ class FragmentScene extends CustomPainter {
       2,
       1.05,
       1.08,
-      Offset(-58, -27),
+      Offset(-38, -22),
       damageStart: .55,
       damageEnd: .85,
     ),
@@ -1376,7 +1387,7 @@ class FragmentScene extends CustomPainter {
       4,
       1.10,
       1.13,
-      Offset(-89, -57),
+      Offset(-82, -18),
       damageStart: .40,
       damageEnd: .58,
     ),
@@ -1384,7 +1395,7 @@ class FragmentScene extends CustomPainter {
       6,
       1.15,
       1.18,
-      Offset(-53, -87),
+      Offset(-62, -72),
       damageStart: .45,
       damageEnd: .70,
     ),
@@ -1473,7 +1484,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _neighborAttachments,
     materialBoundary: _neighborMaterialBoundary,
-    centerOnShell: const Offset(-17, -60),
+    centerOnShell: const Offset(-13, -59),
     // Keep the detached neighbour on a broad face. The previous landing
     // orientation projected it almost edge-on and made the same plate look like
     // a thin sliver despite unchanged geometry.
@@ -1494,7 +1505,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-52, -64),
+    centerOnShell: const Offset(-49, -39),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
@@ -2087,7 +2098,7 @@ class FragmentScene extends CustomPainter {
       canvas.drawOval(
         Rect.fromCenter(
           center: Offset(origin.dx, base + 3),
-          width: 195,
+          width: 214,
           height: 22,
         ),
         Paint()
@@ -2116,11 +2127,15 @@ class FragmentScene extends CustomPainter {
     canvas.rotate(wobble);
     canvas.translate(0, -220);
     final egg = Path()
-      ..moveTo(0, -220)
-      ..cubicTo(69, -220, 115, -52, 115, 75)
-      ..cubicTo(115, 181, 75, 220, 0, 220)
-      ..cubicTo(-75, 220, -115, 181, -115, 75)
-      ..cubicTo(-115, -52, -69, -220, 0, -220)
+      ..moveTo(0, -_eggHalfHeight)
+      // Reference-like egg profile: softer crown, fuller middle/lower body,
+      // rounded base. Height and floor contact stay unchanged.
+      ..cubicTo(56, -220, 100, -150, 122, -60)
+      ..cubicTo(134, 0, 132, 105, 112, 168)
+      ..cubicTo(94, 208, 58, 220, 0, 220)
+      ..cubicTo(-58, 220, -94, 208, -112, 168)
+      ..cubicTo(-132, 105, -134, 0, -122, -60)
+      ..cubicTo(-100, -150, -56, -220, 0, -_eggHalfHeight)
       ..close();
     // Build all fragment frames first. Even with a single validated fragment
     // active today, shell ownership and openings are now aggregated from a
