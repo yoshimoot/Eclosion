@@ -1163,11 +1163,15 @@ class FragmentScene extends CustomPainter {
   static final _neighborBoundary = <Offset>[
     _boundary[10],
     _boundary[9],
-    const Offset(-6, -45),
-    const Offset(-24, -39),
-    const Offset(-39, -49),
-    const Offset(-37, -67),
-    const Offset(-22, -81),
+    // Compact satellite plate immediately beside the primary opening. Its
+    // narrow right side sits in the first head/neck contact zone; the broader
+    // left side carries the load toward the next plate instead of reading as
+    // an isolated decorative hole.
+    const Offset(-3, -47),
+    const Offset(-19, -41),
+    const Offset(-34, -49),
+    const Offset(-31, -68),
+    const Offset(-16, -82),
   ];
 
   static const _neighborSteps = <List<Offset>>[
@@ -1278,11 +1282,14 @@ class FragmentScene extends CustomPainter {
   static final _thirdBoundary = <Offset>[
     _neighborBoundary[5],
     _neighborBoundary[4],
-    const Offset(-52, -39),
-    const Offset(-70, -44),
-    const Offset(-79, -60),
-    const Offset(-72, -78),
-    const Offset(-54, -84),
+    // Secondary plate follows the widening head/body support to the left and
+    // slightly downward. The shared seam with fragment 2 remains literal, so
+    // all three plates still read as one pressure-driven fracture cluster.
+    const Offset(-46, -43),
+    const Offset(-64, -48),
+    const Offset(-74, -62),
+    const Offset(-68, -79),
+    const Offset(-49, -86),
   ];
 
   static const _thirdSteps = <List<Offset>>[
@@ -1466,7 +1473,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _neighborAttachments,
     materialBoundary: _neighborMaterialBoundary,
-    centerOnShell: const Offset(-19, -59),
+    centerOnShell: const Offset(-17, -60),
     // Keep the detached neighbour on a broad face. The previous landing
     // orientation projected it almost edge-on and made the same plate look like
     // a thin sliver despite unchanged geometry.
@@ -1487,7 +1494,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-57, -61),
+    centerOnShell: const Offset(-52, -64),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
