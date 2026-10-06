@@ -230,6 +230,22 @@ class FragmentGeometrySnapshot {
   final List<(double, double, double)> innerPositions;
 }
 
+@visibleForTesting
+class FragmentFlightSnapshot {
+  const FragmentFlightSnapshot(
+    this.geometry,
+    this.flight,
+    this.lift,
+    this.shift,
+    this.detachmentProgress,
+    this.shellNormal,
+  );
+
+  final FragmentGeometrySnapshot geometry;
+  final double flight, lift, detachmentProgress;
+  final (double, double, double) shift, shellNormal;
+}
+
 /// Captured from paint itself, so browser diagnostics describe the displayed
 /// frame rather than a separately reconstructed timeline or opening.
 class FragmentPaintDiagnostics {
@@ -1550,6 +1566,21 @@ class FragmentScene extends CustomPainter {
     return attachment.hold(fragmentProgress, damage: damage);
   }
 
+  static const _releasedAttachmentThreshold = .001;
+
+  double _effectiveAttachmentHold(
+    _FragmentSpec fragment,
+    _ShellAttachment attachment,
+    double fragmentProgress,
+  ) {
+    final hold = _attachmentHold(fragment, attachment, fragmentProgress);
+    // Preserve the validated time-authored reference exactly. Cluster-coupled
+    // ligaments use the same release threshold as _detachmentProgress so the
+    // free-flight origin cannot keep drifting after release has begun.
+    if (attachment.damageStart == null) return hold;
+    return hold <= _releasedAttachmentThreshold ? 0.0 : hold;
+  }
+
   double _detachmentProgress(_FragmentSpec fragment) {
     final usesClusterDamage = fragment.attachments.any(
       (attachment) => attachment.damageStart != null,
@@ -1562,7 +1593,8 @@ class FragmentScene extends CustomPainter {
     }
 
     bool fullyReleased(double t) => fragment.attachments.every(
-      (attachment) => _attachmentHold(fragment, attachment, t) <= .001,
+      (attachment) =>
+          _effectiveAttachmentHold(fragment, attachment, t) == 0,
     );
 
     if (!fullyReleased(1)) return 1.0;
@@ -1601,7 +1633,7 @@ class FragmentScene extends CustomPainter {
       // disappear instantaneously: relax it C1 over that ligament's loading
       // duration, without changing the free rigid pose or switching meshes.
       final responseDuration = attachment.releaseEnd - attachment.releaseStart;
-      final attachmentHold = _attachmentHold(
+      final attachmentHold = _effectiveAttachmentHold(
         fragment,
         attachment,
         fragmentProgress,
@@ -1633,7 +1665,7 @@ class FragmentScene extends CustomPainter {
                 (sum, attachment) =>
                     sum +
                     (1 -
-                        _attachmentHold(
+                        _effectiveAttachmentHold(
                           fragment,
                           attachment,
                           fragmentProgress,
@@ -1686,7 +1718,11 @@ class FragmentScene extends CustomPainter {
     var heldWeight = 0.0;
     var heldPoint = Offset.zero;
     for (final attachment in fragment.attachments) {
-      final hold = _attachmentHold(fragment, attachment, fragmentProgress);
+      final hold = _effectiveAttachmentHold(
+        fragment,
+        attachment,
+        fragmentProgress,
+      );
       heldWeight += hold;
       heldPoint += fragment.boundary[attachment.vertex] * hold;
     }
@@ -1761,29 +1797,41 @@ class FragmentScene extends CustomPainter {
     final impactLandingY = 220 - center.y - impactBottom;
     final shellNormal = _surfaceNormal(fragment.centerOnShell);
     final coupledFlight = fragment.pressureCoupling > 0;
-    // Detached coupled plates inherit their launch direction from the local
-    // egg normal. This removes fragment-specific sideways "rail" motion:
-    // curvature supplies only the lateral component that a real outward push
-    // would have, then gravity dominates the vertical trajectory.
+    // Coupled plates leave the shell along the complete local 3D normal.
+    // The launch starts from the exact attached pose: x=0, y=-12*lift² and
+    // z=22*lift² at flight=0. Gravity then curves only y toward the floor.
+    // The reference fragment keeps its validated historical equations verbatim.
     const ejectionTravel = 65.0;
-    final initialFlightX = coupledFlight
-        ? shellNormal.x * ejectionTravel
-        : fragment.flightShiftX;
-    final initialFlightY = coupledFlight
-        ? shellNormal.y * ejectionTravel
-        : -20.0;
-    // A fixed landing target gives the airborne piece a quadratic gravity arc.
-    // After impact, the lowest vertex remains on the floor as the shell rocks.
-    final ballisticY =
-        -12 * lift * lift * (1 - flight) +
-        initialFlightY * flight +
-        (impactLandingY - initialFlightY) * flight * flight;
+    late final double flightX, ballisticY, flightZ;
+    if (coupledFlight) {
+      final departureY = -12 * lift * lift;
+      final departureZ = 22 * lift * lift;
+      final normalTravelX = shellNormal.x * ejectionTravel;
+      final normalTravelY = shellNormal.y * ejectionTravel;
+      final normalTravelZ = shellNormal.z * ejectionTravel;
+      flightX = normalTravelX * flight;
+      ballisticY =
+          departureY +
+          normalTravelY * flight +
+          (impactLandingY - departureY - normalTravelY) *
+              flight *
+              flight;
+      flightZ = departureZ + normalTravelZ * flight;
+    } else {
+      final initialFlightY = -20.0;
+      flightX =
+          fragment.flightShiftX * flight + fragment.settleShiftX * settle;
+      ballisticY =
+          -12 * lift * lift * (1 - flight) +
+          initialFlightY * flight +
+          (impactLandingY - initialFlightY) * flight * flight;
+      flightZ = 22 * lift * lift;
+    }
     final groundedY = 220 - center.y - bottom;
     final shift = _V(
-      initialFlightX * flight +
-          (coupledFlight ? 0.0 : fragment.settleShiftX * settle),
+      flightX,
       (settle > 0 ? groundedY : ballisticY) - bounce,
-      22 * lift * lift,
+      flightZ,
     );
     // Express the pose as a displacement. A zero rotation/translation must
     // preserve material coordinates exactly, without pivot round-trip error.
@@ -1850,9 +1898,7 @@ class FragmentScene extends CustomPainter {
     return path;
   }
 
-  @visibleForTesting
-  FragmentGeometrySnapshot debugGeometry() {
-    final fragment = _referenceFragment;
+  FragmentGeometrySnapshot _debugGeometryFor(_FragmentSpec fragment) {
     final g = _geometry(fragment);
     var minimumAreaRatio = double.infinity;
     for (var i = 0; i < g.mesh.length; i += 3) {
@@ -1875,7 +1921,9 @@ class FragmentScene extends CustomPainter {
           .map((v) => _retention(fragment, v.xy, progress))
           .toList(),
       fragment.attachments
-          .map((a) => _attachmentHold(fragment, a, progress))
+          .map(
+            (a) => _effectiveAttachmentHold(fragment, a, progress),
+          )
           .toList(),
       g.outer.map((v) {
         final p = g.rigidTransform(v);
@@ -1883,6 +1931,25 @@ class FragmentScene extends CustomPainter {
       }).toList(),
       minimumAreaRatio,
       g.projectedInner.map((v) => (v.x, v.y, v.z)).toList(),
+    );
+  }
+
+  @visibleForTesting
+  FragmentGeometrySnapshot debugGeometry() =>
+      _debugGeometryFor(_referenceFragment);
+
+  @visibleForTesting
+  FragmentFlightSnapshot debugFragmentFlight(int index) {
+    final fragment = _fragments[index];
+    final g = _geometry(fragment);
+    final normal = _surfaceNormal(fragment.centerOnShell);
+    return FragmentFlightSnapshot(
+      _debugGeometryFor(fragment),
+      g.flight,
+      g.lift,
+      (g.shift.x, g.shift.y, g.shift.z),
+      _detachmentProgress(fragment),
+      (normal.x, normal.y, normal.z),
     );
   }
 
