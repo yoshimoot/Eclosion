@@ -237,13 +237,14 @@ class FragmentFlightSnapshot {
     this.flight,
     this.lift,
     this.shift,
+    this.rotation,
     this.detachmentProgress,
     this.shellNormal,
   );
 
   final FragmentGeometrySnapshot geometry;
   final double flight, lift, detachmentProgress;
-  final (double, double, double) shift, shellNormal;
+  final (double, double, double) shift, rotation, shellNormal;
 }
 
 /// Captured from paint itself, so browser diagnostics describe the displayed
@@ -467,6 +468,7 @@ class _FragmentGeometry {
     required this.rigidTransform,
     required this.flight,
     required this.shift,
+    required this.rotation,
     required this.bounce,
     required this.lift,
   }) : material = _materials[outer] ??= _MaterialMesh(outer, center);
@@ -475,7 +477,7 @@ class _FragmentGeometry {
   static final _materials = Expando<_MaterialMesh>();
   final _MaterialMesh material;
   final List<_V> outer, projectedOuter, projectedInner;
-  final _V center, shift;
+  final _V center, shift, rotation;
   final _V Function(_V) transform, rigidTransform;
   final double flight, bounce, lift;
   List<_V> get mesh => material.triangles;
@@ -1610,6 +1612,109 @@ class FragmentScene extends CustomPainter {
     return retained;
   }
 
+  _V _attachedRotationAt(_FragmentSpec fragment, double t) {
+    final coupledReleasedShare = fragment.attachments.isEmpty
+        ? 0.0
+        : fragment.attachments.fold(
+                0.0,
+                (sum, attachment) =>
+                    sum + (1 - _attachmentHold(fragment, attachment, t)),
+              ) /
+              fragment.attachments.length;
+    final pressureLift =
+        fragment.pressureCoupling *
+        fragment.cluster.responseAt(t, fragment.centerOnShell) *
+        (1 + .65 * coupledReleasedShare);
+    final drivenLift =
+        (fragment.liftPushes.fold(
+                  0.0,
+                  (sum, push) => sum + push.at(t),
+                ) +
+                pressureLift -
+                .025 * _pulse(t, .519, .005) -
+                .02 * _pulse(t, .547, .005) -
+                .015 * _pulse(t, .576, .006))
+            .clamp(0.0, 1.0);
+    final releaseLift = _smooth(_part(coupledReleasedShare, .72, 1));
+    final lift = math.max(drivenLift, releaseLift);
+    final center = _surface(fragment.centerOnShell);
+
+    var heldWeight = 0.0;
+    var heldPoint = Offset.zero;
+    for (final attachment in fragment.attachments) {
+      final hold = _attachmentHold(fragment, attachment, t);
+      heldWeight += hold;
+      heldPoint += fragment.boundary[attachment.vertex] * hold;
+    }
+    final remainingPivot = heldWeight > 0
+        ? heldPoint / heldWeight
+        : fragment.centerOnShell;
+    final releasedShare = 1 - heldWeight / fragment.attachments.length;
+    final attachmentBlend = _smooth(_part(releasedShare, .55, 1));
+    final pivotOnShell = Offset.lerp(
+      remainingPivot,
+      fragment.centerOnShell,
+      attachmentBlend,
+    )!;
+
+    final clusterMoment = fragment.pressureCoupling == 0
+        ? Offset.zero
+        : fragment.cluster.momentAt(t, pivotOnShell);
+    final clusterTorqueX = fragment.pressureCoupling * clusterMoment.dy / 45;
+    final clusterTorqueY = -fragment.pressureCoupling * clusterMoment.dx / 45;
+    final pressureRoll = fragment.liftPushes.fold(
+      0.0,
+      (sum, push) => sum + push.at(t) * (push.point.dx - center.x) / 45,
+    );
+    final pressurePitch = fragment.liftPushes.fold(
+      0.0,
+      (sum, push) => sum + push.at(t) * (push.point.dy - center.y) / 45,
+    );
+
+    return _V(
+      -.38 * lift +
+          (.03 + .01 * releasedShare) * pressurePitch +
+          .14 * clusterTorqueX,
+      .45 * lift + .14 * clusterTorqueY,
+      -(.14 + .025 * releasedShare) * pressureRoll,
+    );
+  }
+
+  _V _coupledFlightRotation(
+    _FragmentSpec fragment,
+    double flightStart,
+    double settleStart,
+    double t,
+  ) {
+    final released = _attachedRotationAt(fragment, flightStart);
+    const velocityWindow = .012;
+    final beforeT = math.max(0.0, flightStart - velocityWindow);
+    final before = _attachedRotationAt(fragment, beforeT);
+    final dt = math.max(1e-6, flightStart - beforeT);
+    final angularVelocity = _V(
+      (released.x - before.x) / dt,
+      (released.y - before.y) / dt,
+      (released.z - before.z) / dt,
+    );
+
+    // Preserve the angular velocity carried through the last hinge rupture,
+    // then damp it continuously. Once the plate reaches the floor, freeze the
+    // resulting landing orientation rather than steering every plate toward
+    // the same hand-authored impact angles.
+    const damping = 7.5;
+    final impactElapsed = math.max(0.0, settleStart - flightStart);
+    final elapsed = math.min(
+      math.max(0.0, t - flightStart),
+      impactElapsed,
+    );
+    final angularTravel = (1 - math.exp(-damping * elapsed)) / damping;
+    return _V(
+      released.x + angularVelocity.x * angularTravel,
+      released.y + angularVelocity.y * angularTravel,
+      released.z + angularVelocity.z * angularTravel,
+    );
+  }
+
   _FragmentGeometry _geometry(_FragmentSpec fragment) {
     final fragmentProgress = progress;
     // Local material constraints bend the region around its established pose.
@@ -1707,40 +1812,65 @@ class FragmentScene extends CustomPainter {
           sum + push.at(fragmentProgress) * (push.point.dy - center.y) / 45,
     );
     final initialTorqueFade = 1 - turn;
-    // Rotation never reaches an edge-on projection. The small damped roll and
-    // lift after impact let the light shell settle on a broad face.
+    final coupledFlight = fragment.pressureCoupling > 0;
+    // The reference fragment keeps its validated target-based fall. Coupled
+    // fragments instead inherit the angle and angular velocity present at the
+    // exact rupture of their last ligament.
     final impactPitch = fragment.impactPitch;
     final impactYaw = fragment.impactYaw;
     final impactRoll = fragment.impactRoll;
-    final rotationX =
-        -.38 * lift +
-        (impactPitch + .38) * turn +
-        .25 * settle +
-        (.03 + .01 * releasedShare) * pressurePitch * initialTorqueFade +
-        .14 * clusterTorqueX * initialTorqueFade;
-    final rotationY =
-        .45 * lift +
-        (impactYaw - .45) * turn -
-        .4 * settle +
-        .03 * recoil +
-        .14 * clusterTorqueY * initialTorqueFade;
-    final rotationZ =
-        impactRoll * turn -
-        .5 * settle +
-        .05 * recoil -
-        (.14 + .025 * releasedShare) * pressureRoll * initialTorqueFade;
+    late final double rotationX, rotationY, rotationZ;
+    if (coupledFlight && flight > 0) {
+      final inertialRotation = _coupledFlightRotation(
+        fragment,
+        flightStart,
+        settleStart,
+        fragmentProgress,
+      );
+      rotationX = inertialRotation.x;
+      rotationY = inertialRotation.y;
+      rotationZ = inertialRotation.z;
+    } else {
+      rotationX =
+          -.38 * lift +
+          (impactPitch + .38) * turn +
+          .25 * settle +
+          (.03 + .01 * releasedShare) * pressurePitch * initialTorqueFade +
+          .14 * clusterTorqueX * initialTorqueFade;
+      rotationY =
+          .45 * lift +
+          (impactYaw - .45) * turn -
+          .4 * settle +
+          .03 * recoil +
+          .14 * clusterTorqueY * initialTorqueFade;
+      rotationZ =
+          impactRoll * turn -
+          .5 * settle +
+          .05 * recoil -
+          (.14 + .025 * releasedShare) * pressureRoll * initialTorqueFade;
+    }
     _V rotate(_V v) =>
         (v - pivot).rotate(rotationX, rotationY, rotationZ) + pivot - center;
     final outer = fragment.materialBoundary;
     final inner = outer.map((v) => _V(v.x, v.y, v.z - thickness)).toList();
     final rotated = [...outer, ...inner].map(rotate).toList();
     final bottom = rotated.map((v) => v.y).reduce(math.max);
+    final landingRotation = coupledFlight
+        ? _coupledFlightRotation(fragment, flightStart, settleStart, settleStart)
+        : _V(impactPitch, impactYaw, impactRoll);
     final impactBottom = [...outer, ...inner]
-        .map((v) => (v - center).rotate(impactPitch, impactYaw, impactRoll).y)
+        .map(
+          (v) => (v - center)
+              .rotate(
+                landingRotation.x,
+                landingRotation.y,
+                landingRotation.z,
+              )
+              .y,
+        )
         .reduce(math.max);
     final impactLandingY = 220 - center.y - impactBottom;
     final shellNormal = _surfaceNormal(fragment.centerOnShell);
-    final coupledFlight = fragment.pressureCoupling > 0;
     // Coupled plates leave the shell along the complete local 3D normal.
     // The launch starts from the exact attached pose: x=0, y=-12*lift² and
     // z=22*lift² at flight=0. Gravity then curves only y toward the floor.
@@ -1799,6 +1929,7 @@ class FragmentScene extends CustomPainter {
       rigidTransform: rigidTransform,
       flight: flight,
       shift: shift,
+      rotation: _V(rotationX, rotationY, rotationZ),
       bounce: bounce,
       lift: lift,
     );
@@ -1889,6 +2020,7 @@ class FragmentScene extends CustomPainter {
       g.flight,
       g.lift,
       (g.shift.x, g.shift.y, g.shift.z),
+      (g.rotation.x, g.rotation.y, g.rotation.z),
       _detachmentProgress(fragment),
       (normal.x, normal.y, normal.z),
     );
