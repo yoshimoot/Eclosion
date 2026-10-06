@@ -1,0 +1,34 @@
+name: Eclosion geometry verification
+
+on:
+  push:
+    branches:
+      - prototype/fragment-lab-v1
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        working-directory: egg_timer
+        run: flutter pub get
+      - name: Format check
+        working-directory: egg_timer
+        run: dart format --output=none --set-exit-if-changed lib/lab/fragment_scene.dart
+      - name: Analyze
+        working-directory: egg_timer
+        run: flutter analyze
+        continue-on-error: true
+      - name: Coupled flight tests
+        working-directory: egg_timer
+        run: flutter test --no-pub test/widget_test.dart --plain-name "Vol couple:"
+      - name: Full widget tests
+        working-directory: egg_timer
+        run: flutter test --no-pub test/widget_test.dart
