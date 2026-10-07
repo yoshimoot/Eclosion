@@ -47,9 +47,9 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-Valider sous Chrome la composition finale de la coquille avant d'ajouter le poussin. F4 et F5 ont maintenant un rôle explicite de parois latérales du bol inférieur : chacune libère ses attaches exposées sous P4 mais conserve une charnière basse persistante. Leur couplage à la pression a été réduit afin qu'elles s'écartent en bascule plutôt qu'elles ne soient projetées ou ne chutent. F1/F2/F3 restent les plaques qui doivent dégager l'ouverture supérieure.
+Valider sous Chrome la nouvelle topologie redessinée à partir du résultat final cible, avant d'ajouter le poussin. F3 est maintenant une grande plaque supérieure/arrière de type « chapeau » qui conserve une charnière de couronne ; F4 et F5 sont devenues de vraies parois latérales basses, beaucoup plus profondes, avec une charnière basse permanente. La coquille fixe sous leur bord reste donc le fond du bol. F1/F2 restent les plaques réellement libérées qui doivent créer les principaux débris.
 
-Critères : à 25 %, la coquille reste fermée ; à 5 %, l'ouverture commence surtout en haut ; à 00:01, F1/F2/F3 dégagent la zone de la tête tandis que F4/F5 et la coquille fixe forment encore un bol jagged et lisible. Le poussin n'est pas encore intégré dans cette passe.
+Critères : à 25 %, la coquille doit encore se lire comme un œuf fermé malgré les fissures ; à 5 %, l'ouverture doit commencer surtout autour du bec/tête ; à 00:01, la zone supérieure doit être largement dégagée tandis que F3 reste en arrière et que F4/F5 + coquille fixe dessinent déjà le bol inférieur destiné au poussin. À 00:00, la silhouette générale doit pouvoir accueillir le poussin de référence sans donner l'impression d'une coquille trouée en plaques indépendantes.
 
 La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
