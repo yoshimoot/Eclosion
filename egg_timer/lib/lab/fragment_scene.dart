@@ -1653,14 +1653,20 @@ class FragmentScene extends CustomPainter {
     )!;
 
     if (fragment.pressureCoupling > 0) {
-      // A coupled plate does not receive a generic upward "lift". Pressure acts
-      // at the shared red point and creates a moment around the surviving
-      // ligament. Plates on opposite sides of that point therefore tip in
-      // different directions while remaining part of the same push.
-      final clusterMoment = fragment.cluster.momentAt(t, pivotOnShell);
-      final torqueX = fragment.pressureCoupling * clusterMoment.dy / 45;
-      final torqueY = -fragment.pressureCoupling * clusterMoment.dx / 45;
-      final compliance = .28 + .42 * _smooth(coupledReleasedShare);
+      // All coupled plates are driven by the SAME dominant pressure point. The
+      // visible opening is the moment of that force around each surviving
+      // ligament, so plates on opposite sides of the point naturally tip in
+      // different directions without any fragment-specific lift.
+      final sharedPressure = fragment.cluster.responseAt(
+        t,
+        _sharedPressurePoint,
+      );
+      final lever = _sharedPressurePoint - pivotOnShell;
+      final torqueX =
+          fragment.pressureCoupling * sharedPressure * lever.dy / 45;
+      final torqueY =
+          -fragment.pressureCoupling * sharedPressure * lever.dx / 45;
+      final compliance = .42 + .58 * _smooth(coupledReleasedShare);
       return _V(compliance * torqueX, compliance * torqueY, 0);
     }
 
