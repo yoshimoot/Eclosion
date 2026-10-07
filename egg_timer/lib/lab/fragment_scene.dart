@@ -2710,7 +2710,7 @@ class FragmentScene extends CustomPainter {
             );
           }
         }
-        final visibleLip = combineFragmentOcclusionPaths(
+        final localVisibleLip = combineFragmentOcclusionPaths(
           PathOperation.difference,
           combineFragmentOcclusionPaths(PathOperation.intersect, proposed, gap),
           combineFragmentOcclusionPaths(
@@ -2718,6 +2718,14 @@ class FragmentScene extends CustomPainter {
             covering,
             visibility,
           ),
+        );
+        // A fixed shell lip belongs behind every mobile plate that is actually
+        // in front of the shell. Without this final global subtraction, a thin
+        // lip sliver can remain painted over F3 at shared-opening crossings.
+        final visibleLip = combineFragmentOcclusionPaths(
+          PathOperation.difference,
+          localVisibleLip,
+          allVisibleFragments,
         );
         diagnostics?.probe?.fixedLip = visibleLip;
         if (identifySurfaces) {
