@@ -1337,9 +1337,9 @@ class FragmentScene extends CustomPainter {
     // the 3D egg instead of living only on the frontal projection.
     const Offset(-46, -98),
     const Offset(-82, -126),
-    const Offset(-108, -154),
-    const Offset(-92, -184),
-    const Offset(-50, -208),
+    const Offset(-88, -154),
+    const Offset(-68, -184),
+    const Offset(-40, -208),
     const Offset(-8, -216),
     const Offset(28, -202),
     const Offset(48, -170),
