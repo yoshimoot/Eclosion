@@ -18,6 +18,16 @@ class FragmentLab extends StatefulWidget {
 class _FragmentLabState extends State<FragmentLab>
     with SingleTickerProviderStateMixin {
   late final FragmentPlayback _time = FragmentPlayback(vsync: this);
+
+  String _previewStage(double t) {
+    if (t < .18) return '100 % → 75 % · premiers mouvements / fissures';
+    if (t < .38) return '75 % → 50 % · propagation des fissures';
+    if (t < .60) return '50 % → 25 % · coquille fragilisée, encore fermée';
+    if (t < .78) return '25 % → 5 % · premières ouvertures en haut';
+    if (t < .90) return '5 % → 00:01 · ouverture progressive';
+    if (t < 1) return '00:01 → 00:00 · libération finale';
+    return '00:00 · fin de l’éclosion';
+  }
   static const double _fragmentThickness = 2.5;
   static const double _eggMotion = 1.5;
   bool _slow = false;
@@ -124,12 +134,16 @@ class _FragmentLabState extends State<FragmentLab>
         ),
         const SizedBox(height: 8),
         const Text(
-          'Test de géométrie et de mouvement.\nDécor et matière provisoires ; aucun poussin à ce stade.',
+          'Aperçu de la chronologie d’éclosion.\nDécor et matière provisoires ; aucun poussin à ce stade.',
         ),
         const SizedBox(height: 20),
         Text(
-          fragmentPhase(_time.value),
+          _previewStage(_time.value),
           style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'État mécanique interne : \${fragmentPhase(hatchingPreviewMechanicalProgress(_time.value))}',
         ),
         _slider(
           'Progression du test · ${(_time.value * 100).round()} %',
@@ -283,6 +297,7 @@ class _FragmentLabState extends State<FragmentLab>
                         showEgg: _egg,
                         shadow: _shadow,
                         identifySurfaces: _identifySurfaces,
+                        hatchingPreview: true,
                         onDiagnostics: (diagnostics) =>
                             _lastPaint = diagnostics,
                       ),
