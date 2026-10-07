@@ -2176,6 +2176,17 @@ class FragmentScene extends CustomPainter {
       egg,
       allApertures,
     );
+    // Fixed-shell details must also obey the live 3D occlusion of ALL mobile
+    // plates. Only the fragment portions that are actually in front of the
+    // shell mask fixed grain/cracks/scars; parts behind the shell do not.
+    final allVisibleFragments = _unionPaths(
+      frames.map((frame) => frame.geometry.visibility(shell, _surface)),
+    );
+    final globalFixedShellVisible = combineFragmentOcclusionPaths(
+      PathOperation.difference,
+      shell,
+      allVisibleFragments,
+    );
 
     // The cavity is one GLOBAL background surface of the egg. Paint the union
     // of all visible openings once, before any mobile plate. Previously every
@@ -2464,7 +2475,7 @@ class FragmentScene extends CustomPainter {
       }
 
       if (showEgg && paintSharedShell) {
-        paintFixedGrain(materialVisibility.fixed);
+        paintFixedGrain(globalFixedShellVisible);
       }
       if (shadow && flight > 0) {
         diagnostics?.probe?.shadows.add((
@@ -2768,7 +2779,7 @@ class FragmentScene extends CustomPainter {
       }
       if (showEgg && paintSharedShell && fragmentProgress > .25) {
         canvas.save();
-        canvas.clipPath(materialVisibility.fixed);
+        canvas.clipPath(globalFixedShellVisible);
         for (var i = 0; i < fragment.cluster.branches.length; i++) {
           final crack = fragment.cluster.branches[i];
           final growth = crack.advance.at(
@@ -2789,7 +2800,7 @@ class FragmentScene extends CustomPainter {
               'shellBranch[$i]',
               branchPath,
               branchPaint,
-              materialVisibility.fixed,
+              globalFixedShellVisible,
             ),
           );
           canvas.drawPath(branchPath, branchPaint);
@@ -2814,7 +2825,7 @@ class FragmentScene extends CustomPainter {
               'microCrack[$i]',
               branchPath,
               branchPaint,
-              materialVisibility.fixed,
+              globalFixedShellVisible,
             ),
           );
           canvas.drawPath(branchPath, branchPaint);
@@ -2823,7 +2834,7 @@ class FragmentScene extends CustomPainter {
       }
       if (showEgg && lift > 0) {
         canvas.save();
-        canvas.clipPath(materialVisibility.fixed);
+        canvas.clipPath(globalFixedShellVisible);
         for (final attachment in fragment.attachments) {
           final broken =
               1 - _attachmentHold(fragment, attachment, fragmentProgress);
@@ -2845,7 +2856,7 @@ class FragmentScene extends CustomPainter {
                 ..strokeWidth = scarPaint.strokeWidth
                 ..strokeCap = scarPaint.strokeCap
                 ..style = PaintingStyle.stroke,
-              materialVisibility.fixed,
+              globalFixedShellVisible,
             ),
           );
           canvas.drawLine(shellPoint, scarEnd, scarPaint);
