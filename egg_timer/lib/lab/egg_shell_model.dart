@@ -361,3 +361,370 @@ class EggShellModelPainter extends CustomPainter {
       oldDelegate.guides != guides ||
       oldDelegate.shadow != shadow;
 }
+
+
+class EggShellF1PreviewPainter extends CustomPainter {
+  const EggShellF1PreviewPainter({
+    this.model = EggShellModel.reference,
+    this.guides = false,
+    this.shadow = true,
+    this.thickness = 2.5,
+    this.openAmount = .55,
+  });
+
+  final EggShellModel model;
+  final bool guides;
+  final bool shadow;
+  final double thickness;
+  final double openAmount;
+
+  static const _shellLight = Color(0xffffd59b);
+  static const _shellBase = Color(0xffe7ab70);
+  static const _shellDark = Color(0xff9c633d);
+  static const _cavity = Color(0xff8f6656);
+  static const _innerShell = Color(0xffd5aa86);
+  static const _edgeShell = Color(0xffbd8257);
+
+  Color _shade(EggShellPoint3 normal) {
+    const light = EggShellPoint3(-.38, -.48, .79);
+    final diffuse =
+        (normal.x * light.x + normal.y * light.y + normal.z * light.z)
+            .clamp(-1.0, 1.0);
+    final amount = ((diffuse + 1) * .5).clamp(0.0, 1.0);
+    if (amount < .48) {
+      return Color.lerp(_shellDark, _shellBase, amount / .48)!;
+    }
+    return Color.lerp(
+      _shellBase,
+      _shellLight,
+      (amount - .48) / .52,
+    )!;
+  }
+
+  double _boundaryY(double angle) {
+    final u = ((angle + math.pi / 2) / math.pi).clamp(0.0, 1.0);
+    final broadShape = -112.0 + 8 * math.sin((u - .12) * math.pi);
+    final irregular =
+        7 * math.sin(u * math.pi * 3.0 + .45) +
+        4 * math.sin(u * math.pi * 7.0 + 1.15);
+    final asymmetry = 14 * (u - .5);
+    return (broadShape + irregular + asymmetry).clamp(-132.0, -88.0);
+  }
+
+  EggShellPoint3 _rotateX(EggShellPoint3 point, double angle) {
+    final c = math.cos(angle);
+    final s = math.sin(angle);
+    return EggShellPoint3(
+      point.x,
+      point.y * c - point.z * s,
+      point.y * s + point.z * c,
+    );
+  }
+
+  EggShellPoint3 _rotateZ(EggShellPoint3 point, double angle) {
+    final c = math.cos(angle);
+    final s = math.sin(angle);
+    return EggShellPoint3(
+      point.x * c - point.y * s,
+      point.x * s + point.y * c,
+      point.z,
+    );
+  }
+
+  EggShellPoint3 _transformPoint(EggShellPoint3 point) {
+    final amount = openAmount.clamp(0.0, 1.0);
+    final hinge = model.surfaceAt(-18, -108);
+    var local = point - hinge;
+    local = _rotateX(local, .28 * amount);
+    local = _rotateZ(local, -.055 * amount);
+    return local +
+        hinge +
+        EggShellPoint3(-7 * amount, -4 * amount, -9 * amount);
+  }
+
+  EggShellPoint3 _transformNormal(EggShellPoint3 normal) {
+    final amount = openAmount.clamp(0.0, 1.0);
+    var result = _rotateX(normal, .28 * amount);
+    result = _rotateZ(result, -.055 * amount);
+    return result.normalized;
+  }
+
+  Path _aperturePath() {
+    const samples = 72;
+    final path = Path();
+    for (var i = 0; i <= samples; i++) {
+      final angle = -math.pi / 2 + math.pi * i / samples;
+      final point = model.pointAt(_boundaryY(angle), angle).xy;
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    final rightBoundaryY = _boundaryY(math.pi / 2);
+    for (var i = 0; i <= 48; i++) {
+      final y = rightBoundaryY +
+          (-model.halfHeight - rightBoundaryY) * i / 48;
+      path.lineTo(model.radiusAt(y), y);
+    }
+
+    final leftBoundaryY = _boundaryY(-math.pi / 2);
+    for (var i = 0; i <= 48; i++) {
+      final y = -model.halfHeight +
+          (leftBoundaryY + model.halfHeight) * i / 48;
+      path.lineTo(-model.radiusAt(y), y);
+    }
+    return path..close();
+  }
+
+  void _drawBody(Canvas canvas) {
+    const rows = 72;
+    const columns = 48;
+    final positions = <Offset>[];
+    final colors = <Color>[];
+    final indices = <int>[];
+
+    for (var row = 0; row <= rows; row++) {
+      final y = -model.halfHeight + 2 * model.halfHeight * row / rows;
+      for (var column = 0; column <= columns; column++) {
+        final angle = -math.pi / 2 + math.pi * column / columns;
+        final point = model.pointAt(y, angle);
+        positions.add(point.xy);
+        colors.add(_shade(model.normalAt(point)));
+      }
+    }
+
+    final stride = columns + 1;
+    for (var row = 0; row < rows; row++) {
+      final y0 = -model.halfHeight + 2 * model.halfHeight * row / rows;
+      final y1 = -model.halfHeight + 2 * model.halfHeight * (row + 1) / rows;
+      final centerY = (y0 + y1) / 2;
+      for (var column = 0; column < columns; column++) {
+        final angle0 = -math.pi / 2 + math.pi * column / columns;
+        final angle1 = -math.pi / 2 + math.pi * (column + 1) / columns;
+        final centerAngle = (angle0 + angle1) / 2;
+        if (centerY < _boundaryY(centerAngle)) continue;
+
+        final a = row * stride + column;
+        final b = a + 1;
+        final c = a + stride;
+        final d = c + 1;
+        indices.addAll([a, c, b, b, c, d]);
+      }
+    }
+
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        positions,
+        colors: colors,
+        indices: indices,
+      ),
+      BlendMode.srcOver,
+      Paint()..color = Colors.white,
+    );
+  }
+
+  void _drawCap(Canvas canvas) {
+    const rows = 34;
+    const columns = 52;
+
+    final outerPositions = <Offset>[];
+    final outerColors = <Color>[];
+    final innerPositions = <Offset>[];
+    final innerColors = <Color>[];
+    final indices = <int>[];
+
+    for (var row = 0; row <= rows; row++) {
+      final t = row / rows;
+      for (var column = 0; column <= columns; column++) {
+        final angle = -math.pi / 2 + math.pi * column / columns;
+        final bottomY = _boundaryY(angle);
+        final y = -model.halfHeight + (bottomY + model.halfHeight) * t;
+        final outer = model.pointAt(y, angle);
+        final normal = model.normalAt(outer);
+        final inner = model.inset(outer, thickness);
+        final movedOuter = _transformPoint(outer);
+        final movedInner = _transformPoint(inner);
+        outerPositions.add(movedOuter.xy);
+        innerPositions.add(movedInner.xy);
+        outerColors.add(_shade(_transformNormal(normal)));
+        innerColors.add(_innerShell);
+      }
+    }
+
+    final stride = columns + 1;
+    for (var row = 0; row < rows; row++) {
+      for (var column = 0; column < columns; column++) {
+        final a = row * stride + column;
+        final b = a + 1;
+        final c = a + stride;
+        final d = c + 1;
+        indices.addAll([a, c, b, b, c, d]);
+      }
+    }
+
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        innerPositions,
+        colors: innerColors,
+        indices: indices,
+      ),
+      BlendMode.srcOver,
+      Paint()..color = Colors.white,
+    );
+
+    final edgePositions = <Offset>[];
+    final edgeColors = <Color>[];
+    final edgeIndices = <int>[];
+    for (var column = 0; column <= columns; column++) {
+      final angle = -math.pi / 2 + math.pi * column / columns;
+      final outer = model.pointAt(_boundaryY(angle), angle);
+      final inner = model.inset(outer, thickness);
+      edgePositions
+        ..add(_transformPoint(outer).xy)
+        ..add(_transformPoint(inner).xy);
+      edgeColors
+        ..add(_edgeShell)
+        ..add(_innerShell);
+    }
+    for (var column = 0; column < columns; column++) {
+      final a = column * 2;
+      final b = a + 1;
+      final c = a + 2;
+      final d = a + 3;
+      edgeIndices.addAll([a, b, c, c, b, d]);
+    }
+
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        edgePositions,
+        colors: edgeColors,
+        indices: edgeIndices,
+      ),
+      BlendMode.srcOver,
+      Paint()..color = Colors.white,
+    );
+
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        outerPositions,
+        colors: outerColors,
+        indices: indices,
+      ),
+      BlendMode.srcOver,
+      Paint()..color = Colors.white,
+    );
+
+    final crack = Path();
+    for (var column = 0; column <= columns; column++) {
+      final angle = -math.pi / 2 + math.pi * column / columns;
+      final point = _transformPoint(
+        model.pointAt(_boundaryY(angle), angle),
+      ).xy;
+      if (column == 0) {
+        crack.moveTo(point.dx, point.dy);
+      } else {
+        crack.lineTo(point.dx, point.dy);
+      }
+    }
+    canvas.drawPath(
+      crack,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round
+        ..color = const Color(0x8a76503a),
+    );
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final background = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xff6f5b49), Color(0xffcbb07d)],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, background);
+
+    final usableWidth = size.width * .76;
+    final usableHeight = size.height * .80;
+    final scale = math.min(
+      usableWidth / (2 * model.maxRadius),
+      usableHeight / (2 * model.halfHeight),
+    );
+    final origin = Offset(size.width / 2, size.height * .51);
+
+    canvas.save();
+    canvas.translate(origin.dx, origin.dy);
+    canvas.scale(scale);
+
+    if (shadow) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(0, model.halfHeight + 7),
+          width: model.maxRadius * 1.55,
+          height: 18,
+        ),
+        Paint()
+          ..color = const Color(0x3d3e2a1c)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
+    }
+
+    canvas.drawPath(
+      _aperturePath(),
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xff775245), _cavity],
+        ).createShader(
+          Rect.fromLTWH(
+            -model.maxRadius,
+            -model.halfHeight,
+            2 * model.maxRadius,
+            model.halfHeight * .75,
+          ),
+        ),
+    );
+
+    _drawBody(canvas);
+    _drawCap(canvas);
+
+    canvas.drawPath(
+      model.silhouettePath(),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = .85 / scale
+        ..color = const Color(0x554f301d),
+    );
+
+    if (guides) {
+      final guidePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = .65 / scale
+        ..color = const Color(0x55ffffff);
+      canvas.drawLine(
+        Offset(0, -model.halfHeight),
+        Offset(0, model.halfHeight),
+        guidePaint,
+      );
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(EggShellF1PreviewPainter oldDelegate) =>
+      oldDelegate.model != model ||
+      oldDelegate.guides != guides ||
+      oldDelegate.shadow != shadow ||
+      oldDelegate.thickness != thickness ||
+      oldDelegate.openAmount != openAmount;
+}
