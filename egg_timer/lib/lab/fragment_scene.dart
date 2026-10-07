@@ -1891,9 +1891,7 @@ class FragmentScene extends CustomPainter {
       final normalTravelX = shellNormal.x * ejectionTravel;
       final normalTravelZ = shellNormal.z * ejectionTravel;
       flightX = normalTravelX * flight;
-      ballisticY =
-          departureY +
-          (impactLandingY - departureY) * flight * flight;
+      ballisticY = departureY + (impactLandingY - departureY) * flight * flight;
       flightZ = departureZ + normalTravelZ * flight;
     } else {
       final initialFlightY = -20.0;
