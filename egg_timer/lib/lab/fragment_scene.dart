@@ -1067,7 +1067,7 @@ class FragmentScene extends CustomPainter {
     // Common local push close to the shared seam. Existing reference edges keep
     // their original pressure indices; neighbouring edges can react to this
     // same physical impulse without owning an independent timer.
-    _PressureEvent(.515, .022, .7, Offset(-4, -67)),
+    _PressureEvent(.515, .022, .45, Offset(-4, -67), radius: 120),
     // Timing references used by fracture propagation only. Their physical
     // force is zero: late shell mechanics now come from the moving chick
     // contact trajectory below rather than from disconnected pressure points.
