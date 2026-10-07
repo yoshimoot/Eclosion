@@ -1076,27 +1076,28 @@ class FragmentScene extends CustomPainter {
   ];
 
   static const _chickContacts = <_ChickContactEpisode>[
-    // Head/neck finds purchase near the first enlarged opening and moves
-    // gradually left while the contact patch widens.
+    // The chick reaches the weakened cluster while fragment 1 is still on its
+    // final hinge. Neighbouring plates therefore start reacting during the same
+    // physical effort instead of waiting for a separate late sequence.
     _ChickContactEpisode(
-      start: .625,
-      peak: .652,
-      end: .682,
-      startPoint: Offset(-10, -64),
-      peakPoint: Offset(-17, -56),
-      endPoint: Offset(-24, -52),
-      startRadius: 28,
-      peakRadius: 36,
-      endRadius: 42,
+      start: .545,
+      peak: .575,
+      end: .615,
+      startPoint: Offset(-8, -70),
+      peakPoint: Offset(-12, -74),
+      endPoint: Offset(-18, -78),
+      startRadius: 30,
+      peakRadius: 39,
+      endRadius: 46,
       strength: .9,
     ),
-    // The broad head/body effort stays anchored around the user-marked
-    // pressure point near (-7,-75), then spreads up-left into F3. The crack
-    // cluster therefore grows around that load instead of below it.
+    // Head/body support widens around the marked pressure zone. F2 and F3 see
+    // this same overlapping load; their slightly different release instants
+    // come only from geometry and distance, not from fragment-specific timers.
     _ChickContactEpisode(
-      start: .655,
-      peak: .692,
-      end: .735,
+      start: .565,
+      peak: .605,
+      end: .655,
       startPoint: Offset(-8, -76),
       peakPoint: Offset(-18, -86),
       endPoint: Offset(-27, -94),
@@ -1254,36 +1255,33 @@ class FragmentScene extends CustomPainter {
       ),
   ];
 
-  // These attachments intentionally survive beyond this diagnostic animation.
-  // They model a neighbouring plate that cracks under the common pressure but
-  // has not yet accumulated enough damage to detach.
+  // Coupled ligaments use the same material-strength bands as F3. Spatial
+  // pressure decides the small timing differences; there is no plate-by-plate
+  // release schedule.
   static const _neighborAttachments = <_ShellAttachment>[
-    // Close to the shared pressure zone: these ligaments accumulate enough
-    // damage to release first.
     _ShellAttachment(
       2,
       1.05,
       1.08,
       Offset(5, -42),
-      damageStart: .45,
-      damageEnd: .75,
+      damageStart: .28,
+      damageEnd: .52,
     ),
-    // Farther from the pressure source: this remains the local hinge.
     _ShellAttachment(
       4,
       1.10,
       1.13,
       Offset(-38, -43),
-      damageStart: .55,
-      damageEnd: .85,
+      damageStart: .36,
+      damageEnd: .66,
     ),
     _ShellAttachment(
       6,
       1.15,
       1.18,
       Offset(-25, -84),
-      damageStart: .35,
-      damageEnd: .60,
+      damageStart: .24,
+      damageEnd: .48,
     ),
   ];
 
@@ -1375,26 +1373,24 @@ class FragmentScene extends CustomPainter {
       1.05,
       1.08,
       Offset(-53, -65),
-      damageStart: .55,
-      damageEnd: .85,
+      damageStart: .28,
+      damageEnd: .52,
     ),
-    // Upper ligament: loaded by the widened head/body support around the
-    // marked pressure point while still acting as the visible hinge.
     _ShellAttachment(
       4,
       1.10,
       1.13,
       Offset(-54, -120),
-      damageStart: .40,
-      damageEnd: .58,
+      damageStart: .36,
+      damageEnd: .66,
     ),
     _ShellAttachment(
       6,
       1.15,
       1.18,
       Offset(-6, -124),
-      damageStart: .45,
-      damageEnd: .70,
+      damageStart: .24,
+      damageEnd: .48,
     ),
   ];
 
