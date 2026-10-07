@@ -180,7 +180,7 @@ class _FragmentLabState extends State<FragmentLab>
         ),
         if (_eggModelOnly && _f1ModelPreview)
           _slider(
-            'Ouverture F1 · \${(_f1Open * 100).round()} %',
+            'Ouverture F1 · ${(_f1Open * 100).round()} %',
             _f1Open,
             0,
             1,
