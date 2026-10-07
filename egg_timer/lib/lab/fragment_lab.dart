@@ -144,7 +144,7 @@ class _FragmentLabState extends State<FragmentLab>
         ),
         const SizedBox(height: 4),
         Text(
-          'État mécanique interne : ${fragmentPhase(hatchingPreviewMechanicalProgress(_time.value))}',
+          'État mécanique interne : ${fragmentPhase(_time.value)}',
         ),
         _slider(
           'Progression de l’aperçu · ${(_time.value * 100).round()} %',
