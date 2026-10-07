@@ -1330,11 +1330,17 @@ class FragmentScene extends CustomPainter {
   static final _thirdBoundary = <Offset>[
     _neighborBoundary[0],
     _neighborBoundary[6],
-    const Offset(-40, -70),
-    const Offset(-49, -88),
-    const Offset(-42, -108),
-    const Offset(-20, -121),
-    const Offset(-10, -111),
+    // F3 is the large upper/back cap from the target composition. It keeps
+    // the small shared seam beside the beak-pressure zone, then wraps over the
+    // crown instead of behaving like another small central chip.
+    const Offset(-42, -92),
+    const Offset(-58, -126),
+    const Offset(-48, -160),
+    const Offset(-20, -184),
+    const Offset(10, -180),
+    const Offset(34, -150),
+    const Offset(38, -114),
+    const Offset(20, -90),
   ];
 
   static const _thirdSteps = <List<Offset>>[
@@ -1344,52 +1350,32 @@ class FragmentScene extends CustomPainter {
     [Offset(.28, .7), Offset(.64, -.6)],
     [Offset(.22, -.6), Offset(.55, .7), Offset(.8, -.4)],
     [Offset(.34, .5), Offset(.7, -.6)],
+    [Offset(.24, -.6), Offset(.56, .7), Offset(.82, -.4)],
+    [Offset(.30, .6), Offset(.66, -.6)],
+    [Offset(.22, -.5), Offset(.52, .7), Offset(.8, -.4)],
   ];
 
   static final _thirdOuterEdges = <List<Offset>>[
-    _buildSingleFractureEdge(
-      _thirdBoundary[1],
-      _thirdBoundary[2],
-      _thirdSteps[0],
-    ),
-    _buildSingleFractureEdge(
-      _thirdBoundary[2],
-      _thirdBoundary[3],
-      _thirdSteps[1],
-    ),
-    _buildSingleFractureEdge(
-      _thirdBoundary[3],
-      _thirdBoundary[4],
-      _thirdSteps[2],
-    ),
-    _buildSingleFractureEdge(
-      _thirdBoundary[4],
-      _thirdBoundary[5],
-      _thirdSteps[3],
-    ),
-    _buildSingleFractureEdge(
-      _thirdBoundary[5],
-      _thirdBoundary[6],
-      _thirdSteps[4],
-    ),
-    _buildSingleFractureEdge(
-      _thirdBoundary[6],
-      _thirdBoundary[0],
-      _thirdSteps[5],
-    ),
+    for (var i = 1; i < _thirdBoundary.length; i++)
+      _buildSingleFractureEdge(
+        _thirdBoundary[i],
+        _thirdBoundary[(i + 1) % _thirdBoundary.length],
+        _thirdSteps[i - 1],
+      ),
   ];
 
   static const _thirdOuterAdvances = <_CrackAdvance>[
-    // F3 must emerge from the SAME material cuts that later become its rigid
-    // contour. The old timings used late bookkeeping events (.665/.690), so
-    // several edges appeared after the plate was already moving. Grow them
-    // progressively from the common pressure episode instead.
-    _CrackAdvance(9, .18, .86),
-    _CrackAdvance(9, .38, .96),
-    _CrackAdvance(7, .15, .88),
-    _CrackAdvance(7, .42, 1),
-    _CrackAdvance(8, .25, .92),
-    _CrackAdvance(8, .48, 1),
+    // The cap is progressively outlined by P3/P4. Its lower seam appears first;
+    // the crown completes only as the head pressure broadens.
+    _CrackAdvance(7, .18, .86),
+    _CrackAdvance(7, .34, .94),
+    _CrackAdvance(8, .12, .86),
+    _CrackAdvance(8, .28, .94),
+    _CrackAdvance(8, .42, 1),
+    _CrackAdvance(9, .14, .86),
+    _CrackAdvance(9, .30, .94),
+    _CrackAdvance(9, .46, 1),
+    _CrackAdvance(8, .52, 1),
   ];
 
   static final _thirdFractureEdges = <List<Offset>>[
@@ -1414,25 +1400,27 @@ class FragmentScene extends CustomPainter {
       2,
       1.05,
       1.08,
-      Offset(-53, -65),
-      damageStart: 1.7,
-      damageEnd: 3.1,
+      Offset(-54, -88),
+      damageStart: 1.4,
+      damageEnd: 2.5,
     ),
     _ShellAttachment(
-      4,
+      8,
       1.10,
       1.13,
-      Offset(-54, -120),
-      damageStart: 1.2,
-      damageEnd: 2.3,
+      Offset(44, -112),
+      damageStart: 1.8,
+      damageEnd: 3.2,
     ),
     _ShellAttachment(
-      6,
+      5,
       1.15,
       1.18,
-      Offset(-6, -124),
-      damageStart: 2.0,
-      damageEnd: 3.6,
+      Offset(-18, -194),
+      // Back/crown hinge deliberately survives the hatch. The cap can swing
+      // behind the future chick's head instead of becoming another floor shard.
+      damageStart: 50,
+      damageEnd: 60,
     ),
   ];
 
@@ -1441,12 +1429,15 @@ class FragmentScene extends CustomPainter {
   static final _fourthBoundary = <Offset>[
     _neighborBoundary[4],
     _neighborBoundary[3],
-    const Offset(-20, -20),
-    const Offset(-38, 6),
-    const Offset(-63, 14),
-    const Offset(-82, -4),
-    const Offset(-80, -30),
-    const Offset(-55, -52),
+    // Left rim of the persistent lower bowl. The inner edge drops toward the
+    // future chick's chest; the outer edge follows the egg wall much lower.
+    const Offset(-10, -12),
+    const Offset(-20, 24),
+    const Offset(-42, 56),
+    const Offset(-72, 72),
+    const Offset(-98, 44),
+    const Offset(-96, 4),
+    const Offset(-72, -34),
   ];
 
   static const _fourthSteps = <List<Offset>>[
@@ -1457,16 +1448,16 @@ class FragmentScene extends CustomPainter {
     [Offset(.27, -.5), Offset(.61, .7)],
     [Offset(.24, .6), Offset(.56, -.5), Offset(.84, .4)],
     [Offset(.34, -.6), Offset(.71, .6)],
+    [Offset(.25, .5), Offset(.58, -.6), Offset(.82, .4)],
   ];
 
   static final _fourthOuterEdges = <List<Offset>>[
-    _buildSingleFractureEdge(_fourthBoundary[1], _fourthBoundary[2], _fourthSteps[0]),
-    _buildSingleFractureEdge(_fourthBoundary[2], _fourthBoundary[3], _fourthSteps[1]),
-    _buildSingleFractureEdge(_fourthBoundary[3], _fourthBoundary[4], _fourthSteps[2]),
-    _buildSingleFractureEdge(_fourthBoundary[4], _fourthBoundary[5], _fourthSteps[3]),
-    _buildSingleFractureEdge(_fourthBoundary[5], _fourthBoundary[6], _fourthSteps[4]),
-    _buildSingleFractureEdge(_fourthBoundary[6], _fourthBoundary[7], _fourthSteps[5]),
-    _buildSingleFractureEdge(_fourthBoundary[7], _fourthBoundary[0], _fourthSteps[6]),
+    for (var i = 1; i < _fourthBoundary.length; i++)
+      _buildSingleFractureEdge(
+        _fourthBoundary[i],
+        _fourthBoundary[(i + 1) % _fourthBoundary.length],
+        _fourthSteps[i - 1],
+      ),
   ];
 
   static const _fourthOuterAdvances = <_CrackAdvance>[
@@ -1477,6 +1468,7 @@ class FragmentScene extends CustomPainter {
     _CrackAdvance(10, .20, .88),
     _CrackAdvance(10, .42, 1),
     _CrackAdvance(9, .58, 1),
+    _CrackAdvance(10, .62, 1),
   ];
 
   static final _fourthFractureEdges = <List<Offset>>[
@@ -1501,7 +1493,7 @@ class FragmentScene extends CustomPainter {
       2,
       1.05,
       1.08,
-      Offset(-16, -8),
+      Offset(-8, -4),
       damageStart: .60,
       damageEnd: 1.80,
     ),
@@ -1509,16 +1501,16 @@ class FragmentScene extends CustomPainter {
       5,
       1.10,
       1.13,
-      Offset(-94, 6),
-      // Permanent late hinge: F4 opens outward but remains part of the bowl.
-      damageStart: .40,
-      damageEnd: .90,
+      Offset(-82, 82),
+      // Permanent lower-left hinge: this plate is a bowl wall, not debris.
+      damageStart: 50,
+      damageEnd: 60,
     ),
     _ShellAttachment(
-      7,
+      8,
       1.15,
       1.18,
-      Offset(-62, -65),
+      Offset(-76, -42),
       damageStart: 1.0,
       damageEnd: 2.5,
     ),
@@ -1529,12 +1521,14 @@ class FragmentScene extends CustomPainter {
   static final _fifthBoundary = <Offset>[
     _boundary[8],
     _boundary[7],
-    const Offset(55, -32),
-    const Offset(76, -8),
-    const Offset(75, 22),
-    const Offset(58, 48),
-    const Offset(28, 54),
-    const Offset(8, 28),
+    // Right/front rim mirrors F4 only in role, not in silhouette.
+    const Offset(62, -28),
+    const Offset(90, -4),
+    const Offset(102, 34),
+    const Offset(82, 68),
+    const Offset(48, 78),
+    const Offset(18, 58),
+    const Offset(2, 22),
   ];
 
   static const _fifthSteps = <List<Offset>>[
@@ -1545,16 +1539,16 @@ class FragmentScene extends CustomPainter {
     [Offset(.29, .5), Offset(.64, -.6)],
     [Offset(.25, -.5), Offset(.57, .7), Offset(.83, -.4)],
     [Offset(.35, .6), Offset(.72, -.6)],
+    [Offset(.24, -.5), Offset(.56, .7), Offset(.82, -.4)],
   ];
 
   static final _fifthOuterEdges = <List<Offset>>[
-    _buildSingleFractureEdge(_fifthBoundary[1], _fifthBoundary[2], _fifthSteps[0]),
-    _buildSingleFractureEdge(_fifthBoundary[2], _fifthBoundary[3], _fifthSteps[1]),
-    _buildSingleFractureEdge(_fifthBoundary[3], _fifthBoundary[4], _fifthSteps[2]),
-    _buildSingleFractureEdge(_fifthBoundary[4], _fifthBoundary[5], _fifthSteps[3]),
-    _buildSingleFractureEdge(_fifthBoundary[5], _fifthBoundary[6], _fifthSteps[4]),
-    _buildSingleFractureEdge(_fifthBoundary[6], _fifthBoundary[7], _fifthSteps[5]),
-    _buildSingleFractureEdge(_fifthBoundary[7], _fifthBoundary[0], _fifthSteps[6]),
+    for (var i = 1; i < _fifthBoundary.length; i++)
+      _buildSingleFractureEdge(
+        _fifthBoundary[i],
+        _fifthBoundary[(i + 1) % _fifthBoundary.length],
+        _fifthSteps[i - 1],
+      ),
   ];
 
   static const _fifthOuterAdvances = <_CrackAdvance>[
@@ -1565,6 +1559,7 @@ class FragmentScene extends CustomPainter {
     _CrackAdvance(10, .48, 1),
     _CrackAdvance(11, .18, .88),
     _CrackAdvance(11, .45, 1),
+    _CrackAdvance(10, .62, 1),
   ];
 
   static final _fifthFractureEdges = <List<Offset>>[
@@ -1589,7 +1584,7 @@ class FragmentScene extends CustomPainter {
       2,
       1.05,
       1.08,
-      Offset(64, -40),
+      Offset(68, -34),
       damageStart: .40,
       damageEnd: .90,
     ),
@@ -1597,18 +1592,18 @@ class FragmentScene extends CustomPainter {
       5,
       1.10,
       1.13,
-      Offset(72, 60),
-      // Persistent lower-right hinge: F5 forms the opposite rim of the bowl.
-      damageStart: .20,
-      damageEnd: .40,
+      Offset(88, 78),
+      // Permanent lower-right hinge: opposite wall of the same bowl.
+      damageStart: 50,
+      damageEnd: 60,
     ),
     _ShellAttachment(
-      7,
+      8,
       1.15,
       1.18,
-      Offset(2, 40),
-      damageStart: .03,
-      damageEnd: .12,
+      Offset(-4, 32),
+      damageStart: .70,
+      damageEnd: 1.30,
     ),
   ];
 
@@ -1761,7 +1756,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-28, -93),
+    centerOnShell: const Offset(-14, -130),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
@@ -1781,7 +1776,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _fourthAttachments,
     materialBoundary: _fourthMaterialBoundary,
-    centerOnShell: const Offset(-49, -14),
+    centerOnShell: const Offset(-55, 18),
     impactPitch: .22,
     impactYaw: -.38,
     impactRoll: -.20,
@@ -1799,7 +1794,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _fifthAttachments,
     materialBoundary: _fifthMaterialBoundary,
-    centerOnShell: const Offset(43, 4),
+    centerOnShell: const Offset(55, 20),
     impactPitch: .20,
     impactYaw: .42,
     impactRoll: .18,
