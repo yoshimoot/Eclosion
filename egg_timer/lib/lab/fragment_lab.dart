@@ -143,10 +143,10 @@ class _FragmentLabState extends State<FragmentLab>
         ),
         const SizedBox(height: 4),
         Text(
-          'État mécanique interne : \${fragmentPhase(hatchingPreviewMechanicalProgress(_time.value))}',
+          'État mécanique interne : ${fragmentPhase(hatchingPreviewMechanicalProgress(_time.value))}',
         ),
         _slider(
-          'Progression du test · ${(_time.value * 100).round()} %',
+          'Progression de l’aperçu · ${(_time.value * 100).round()} %',
           _time.value,
           0,
           1,
@@ -171,8 +171,25 @@ class _FragmentLabState extends State<FragmentLab>
               child: Text(_time.isAnimating ? 'Pause' : 'Lire'),
             ),
             OutlinedButton(
-              onPressed: () => _time.forward(from: .55),
-              child: const Text('Rejouer la chute'),
+              onPressed: () {
+                _time.value = .60;
+                setState(() {});
+              },
+              child: const Text('25 %'),
+            ),
+            OutlinedButton(
+              onPressed: () {
+                _time.value = .78;
+                setState(() {});
+              },
+              child: const Text('5 %'),
+            ),
+            OutlinedButton(
+              onPressed: () {
+                _time.value = .90;
+                setState(() {});
+              },
+              child: const Text('00:01'),
             ),
             OutlinedButton(
               onPressed: () {
