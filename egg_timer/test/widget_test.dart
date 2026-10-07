@@ -810,6 +810,41 @@ void main() {
     }
   });
 
+  test('Vol couple: avant rupture les voisins pivotent sans translation', () {
+    final d2 = frame(0).debugFragmentFlight(1).detachmentProgress;
+    final d3 = frame(0).debugFragmentFlight(2).detachmentProgress;
+    final probe = math.min(d2, d3) - .01;
+
+    for (final index in [1, 2]) {
+      final snapshot = frame(probe).debugFragmentFlight(index);
+      expect(
+        distance3d(snapshot.shift, (0.0, 0.0, 0.0)),
+        lessThan(1e-9),
+        reason:
+            'Attached fragment ${index + 1} must open by hinge rotation, '
+            'not by rigid translation',
+      );
+    }
+  });
+
+  test('Vol couple: F2 et F3 basculent de part et autre de la pression', () {
+    final d2 = frame(0).debugFragmentFlight(1).detachmentProgress;
+    final d3 = frame(0).debugFragmentFlight(2).detachmentProgress;
+    final probe = math.min(d2, d3) - .01;
+    final r2 = frame(probe).debugFragmentFlight(1).rotation;
+    final r3 = frame(probe).debugFragmentFlight(2).rotation;
+
+    expect(r2.$1.abs(), greaterThan(.005));
+    expect(r3.$1.abs(), greaterThan(.005));
+    expect(
+      r2.$1 * r3.$1,
+      lessThan(0),
+      reason:
+          'The common pressure point lies between F2 and F3: their surviving '
+          'hinges must therefore produce opposite pitch directions',
+    );
+  });
+
   test('Vol couple: position continue au passage de la derniere attache', () {
     const epsilon = 1e-6;
     for (final index in [1, 2]) {
