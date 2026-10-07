@@ -112,7 +112,7 @@ class EggShellModel {
   }
 
   double _normalizedRadius(double v) {
-    final value = v.clamp(-1.0, 1.0);
+    final value = v.clamp(-1.0, 1.0).toDouble();
     if (value <= -1 || value >= 1) return 0;
 
     var segment = 0;
@@ -124,7 +124,7 @@ class EggShellModel {
     final a = _profile[segment];
     final b = _profile[segment + 1];
     final span = b.v - a.v;
-    final t = ((value - a.v) / span).clamp(0.0, 1.0);
+    final t = ((value - a.v) / span).clamp(0.0, 1.0).toDouble();
 
     final t2 = t * t;
     final t3 = t2 * t;
@@ -139,7 +139,7 @@ class EggShellModel {
         h01 * b.radius +
         h11 * span * _profileSlope(segment + 1);
 
-    return radius.clamp(0.0, 1.01);
+    return radius.clamp(0.0, 1.01).toDouble();
   }
 
   double radiusAt(double y) =>
@@ -231,7 +231,7 @@ class EggShellModelPainter extends CustomPainter {
     final diffuse =
         (normal.x * light.x + normal.y * light.y + normal.z * light.z)
             .clamp(-1.0, 1.0);
-    final amount = ((diffuse + 1) * .5).clamp(0.0, 1.0);
+    final amount = ((diffuse + 1) * .5).clamp(0.0, 1.0).toDouble();
     if (amount < .48) {
       return Color.lerp(_shellDark, _shellBase, amount / .48)!;
     }
@@ -390,7 +390,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
     final diffuse =
         (normal.x * light.x + normal.y * light.y + normal.z * light.z)
             .clamp(-1.0, 1.0);
-    final amount = ((diffuse + 1) * .5).clamp(0.0, 1.0);
+    final amount = ((diffuse + 1) * .5).clamp(0.0, 1.0).toDouble();
     if (amount < .48) {
       return Color.lerp(_shellDark, _shellBase, amount / .48)!;
     }
@@ -402,13 +402,13 @@ class EggShellF1PreviewPainter extends CustomPainter {
   }
 
   double _boundaryY(double angle) {
-    final u = ((angle + math.pi / 2) / math.pi).clamp(0.0, 1.0);
+    final u = ((angle + math.pi / 2) / math.pi).clamp(0.0, 1.0).toDouble();
     final broadShape = -112.0 + 8 * math.sin((u - .12) * math.pi);
     final irregular =
         7 * math.sin(u * math.pi * 3.0 + .45) +
         4 * math.sin(u * math.pi * 7.0 + 1.15);
     final asymmetry = 14 * (u - .5);
-    return (broadShape + irregular + asymmetry).clamp(-132.0, -88.0);
+    return (broadShape + irregular + asymmetry).clamp(-132.0, -88.0).toDouble();
   }
 
   EggShellPoint3 _rotateX(EggShellPoint3 point, double angle) {
@@ -432,7 +432,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
   }
 
   EggShellPoint3 _transformPoint(EggShellPoint3 point) {
-    final amount = openAmount.clamp(0.0, 1.0);
+    final amount = openAmount.clamp(0.0, 1.0).toDouble();
     final hinge = model.surfaceAt(-18, -108);
     var local = point - hinge;
     local = _rotateX(local, .28 * amount);
@@ -443,7 +443,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
   }
 
   EggShellPoint3 _transformNormal(EggShellPoint3 normal) {
-    final amount = openAmount.clamp(0.0, 1.0);
+    final amount = openAmount.clamp(0.0, 1.0).toDouble();
     var result = _rotateX(normal, .28 * amount);
     result = _rotateZ(result, -.055 * amount);
     return result.normalized;
