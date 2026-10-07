@@ -38,14 +38,18 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Gelé pour l'itération actuelle
 
-- Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis. Pour l'itération actuelle, la priorité est la validation d'une chronologie visuelle complète : 25 % encore fermé, 5 % premières ouvertures surtout en haut, 00:01 ouverture claire, puis libération finale à 00:00. La physique interne existante n'est pas réécrite ; seul son parcours temporel dans l'atelier est remappé pour prévisualiser cette chorégraphie.
+- Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis.
+- Le remapping temporel artificiel a été abandonné. L'itération actuelle valide désormais la vraie chaîne causale : P1 mouvements internes → P2 bec → P3 tête/front → P4 tête + haut du corps → fissures → dommages → pivots → ruptures.
+- Cinq plaques principales sont présentes dans le cluster : F1/F2/F3 existants + F4 latérale gauche + F5 avant/droite. Le bas de la coquille reste structurellement présent parce que F4/F5 conservent des attaches tardives ou persistantes.
 - Rebond final, polish artistique de la cavité et rendu artistique global reportés.
 - Le multi-fragments peut désormais commencer sur la base du `_FragmentSpec` validé ; ne pas introduire encore d'aléatoire libre.
 - L'atelier reste un diagnostic à fragment unique, avec progression déterministe, lecture/pause, ralenti, rejeu et aperçus 9:16 / 9:20 ; ce n'est pas encore le timer produit.
 
 ## Prochaine étape
 
-Valider sous Chrome l'aperçu chronologique remappé. Repères disponibles dans l'atelier : boutons 25 %, 5 % et 00:01. À 25 %, la coquille doit rester fermée malgré un réseau de fissures dense ; à 5 %, seules les premières ouvertures hautes doivent apparaître et le bas doit rester fermé ; à 00:01, l'ouverture doit devenir clairement lisible avant la libération finale. Le poussin n'est pas encore intégré dans cette passe.
+Valider sous Chrome la mécanique basée sur la poussée réelle, sans remapping artificiel. Repères : boutons 25 %, 5 % et 00:01. À 25 %, les fissures doivent définir progressivement les futurs fragments mais la coquille doit encore rester fermée ; à 5 %, F2/F3 peuvent commencer à s'ouvrir tandis que F4/F5 maintiennent surtout le bas ; à 00:01, F1/F2/F3 doivent être nettement ouverts et F4/F5 former encore une partie du bol. Le poussin n'est pas encore intégré dans cette passe.
+
+La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
