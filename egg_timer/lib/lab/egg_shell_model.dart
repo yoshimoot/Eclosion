@@ -402,13 +402,17 @@ class EggShellF1PreviewPainter extends CustomPainter {
   }
 
   double _boundaryY(double angle) {
-    final u = ((angle + math.pi / 2) / math.pi).clamp(0.0, 1.0).toDouble();
-    final broadShape = -112.0 + 8 * math.sin((u - .12) * math.pi);
+    // Full 360° fracture loop on the crown. angle=0 faces the camera,
+    // ±pi/2 are the sides and pi is the rear of the egg.
+    final u = ((angle + math.pi) / (2 * math.pi)) % 1.0;
+    final frontBack = 9 * math.cos(angle);
     final irregular =
-        7 * math.sin(u * math.pi * 3.0 + .45) +
-        4 * math.sin(u * math.pi * 7.0 + 1.15);
-    final asymmetry = 14 * (u - .5);
-    return (broadShape + irregular + asymmetry).clamp(-132.0, -88.0).toDouble();
+        6 * math.sin(u * math.pi * 6 + .45) +
+        3.5 * math.sin(u * math.pi * 14 + 1.15);
+    final lateralBias = 4 * math.sin(angle - .35);
+    return (-114 + frontBack + irregular + lateralBias)
+        .clamp(-132.0, -94.0)
+        .toDouble();
   }
 
   EggShellPoint3 _rotateX(EggShellPoint3 point, double angle) {
@@ -433,13 +437,16 @@ class EggShellF1PreviewPainter extends CustomPainter {
 
   EggShellPoint3 _transformPoint(EggShellPoint3 point) {
     final amount = openAmount.clamp(0.0, 1.0).toDouble();
-    final hinge = model.surfaceAt(-18, -108);
+    // The cap pivots from a rear crown hinge, so opening exposes a true curved
+    // shell volume instead of translating a frontal plate.
+    final hingeY = _boundaryY(math.pi);
+    final hinge = model.pointAt(hingeY, math.pi);
     var local = point - hinge;
-    local = _rotateX(local, .28 * amount);
-    local = _rotateZ(local, -.055 * amount);
+    local = _rotateX(local, .34 * amount);
+    local = _rotateZ(local, -.045 * amount);
     return local +
         hinge +
-        EggShellPoint3(-7 * amount, -4 * amount, -9 * amount);
+        EggShellPoint3(-5 * amount, -3 * amount, -7 * amount);
   }
 
   EggShellPoint3 _transformNormal(EggShellPoint3 normal) {
@@ -528,18 +535,21 @@ class EggShellF1PreviewPainter extends CustomPainter {
 
   void _drawCap(Canvas canvas) {
     const rows = 34;
-    const columns = 52;
+    const columns = 96;
+    final vertexCount = (rows + 1) * (columns + 1);
 
-    final outerPositions = <Offset>[];
-    final outerColors = <Color>[];
-    final innerPositions = <Offset>[];
-    final innerColors = <Color>[];
-    final indices = <int>[];
+    final outer3 = List<EggShellPoint3?>.filled(vertexCount, null);
+    final inner3 = List<EggShellPoint3?>.filled(vertexCount, null);
+    final normals = List<EggShellPoint3?>.filled(vertexCount, null);
+    final outerPositions = List<Offset>.filled(vertexCount, Offset.zero);
+    final innerPositions = List<Offset>.filled(vertexCount, Offset.zero);
+    final outerColors = List<Color>.filled(vertexCount, _shellBase);
+    final innerColors = List<Color>.filled(vertexCount, _innerShell);
 
     for (var row = 0; row <= rows; row++) {
       final t = row / rows;
       for (var column = 0; column <= columns; column++) {
-        final angle = -math.pi / 2 + math.pi * column / columns;
+        final angle = -math.pi + 2 * math.pi * column / columns;
         final bottomY = _boundaryY(angle);
         final y = -model.halfHeight + (bottomY + model.halfHeight) * t;
         final outer = model.pointAt(y, angle);
@@ -547,13 +557,19 @@ class EggShellF1PreviewPainter extends CustomPainter {
         final inner = model.inset(outer, thickness);
         final movedOuter = _transformPoint(outer);
         final movedInner = _transformPoint(inner);
-        outerPositions.add(movedOuter.xy);
-        innerPositions.add(movedInner.xy);
-        outerColors.add(_shade(_transformNormal(normal)));
-        innerColors.add(_innerShell);
+        final movedNormal = _transformNormal(normal);
+        final index = row * (columns + 1) + column;
+        outer3[index] = movedOuter;
+        inner3[index] = movedInner;
+        normals[index] = movedNormal;
+        outerPositions[index] = movedOuter.xy;
+        innerPositions[index] = movedInner.xy;
+        outerColors[index] = _shade(movedNormal);
       }
     }
 
+    final outerIndices = <int>[];
+    final innerIndices = <int>[];
     final stride = columns + 1;
     for (var row = 0; row < rows; row++) {
       for (var column = 0; column < columns; column++) {
@@ -561,68 +577,99 @@ class EggShellF1PreviewPainter extends CustomPainter {
         final b = a + 1;
         final c = a + stride;
         final d = c + 1;
-        indices.addAll([a, c, b, b, c, d]);
+        final nz =
+            (normals[a]!.z + normals[b]!.z + normals[c]!.z + normals[d]!.z) /
+            4;
+
+        // Orthographic camera looks along +Z. Culling on the transformed shell
+        // normal makes F1 a true 360° cap: rear material stays hidden while
+        // closed and can become visible naturally when the cap tilts.
+        if (nz >= -.015) {
+          outerIndices.addAll([a, c, b, b, c, d]);
+        } else if (openAmount > .02) {
+          innerIndices.addAll([a, b, c, b, d, c]);
+        }
       }
     }
 
-    canvas.drawVertices(
-      ui.Vertices(
-        ui.VertexMode.triangles,
-        innerPositions,
-        colors: innerColors,
-        indices: indices,
-      ),
-      BlendMode.srcOver,
-      Paint()..color = Colors.white,
-    );
-
-    final edgePositions = <Offset>[];
-    final edgeColors = <Color>[];
-    final edgeIndices = <int>[];
-    for (var column = 0; column <= columns; column++) {
-      final angle = -math.pi / 2 + math.pi * column / columns;
-      final outer = model.pointAt(_boundaryY(angle), angle);
-      final inner = model.inset(outer, thickness);
-      edgePositions
-        ..add(_transformPoint(outer).xy)
-        ..add(_transformPoint(inner).xy);
-      edgeColors
-        ..add(_edgeShell)
-        ..add(_innerShell);
-    }
-    for (var column = 0; column < columns; column++) {
-      final a = column * 2;
-      final b = a + 1;
-      final c = a + 2;
-      final d = a + 3;
-      edgeIndices.addAll([a, b, c, c, b, d]);
+    if (innerIndices.isNotEmpty) {
+      canvas.drawVertices(
+        ui.Vertices(
+          ui.VertexMode.triangles,
+          innerPositions,
+          colors: innerColors,
+          indices: innerIndices,
+        ),
+        BlendMode.srcOver,
+        Paint()..color = Colors.white,
+      );
     }
 
-    canvas.drawVertices(
-      ui.Vertices(
-        ui.VertexMode.triangles,
-        edgePositions,
-        colors: edgeColors,
-        indices: edgeIndices,
-      ),
-      BlendMode.srcOver,
-      Paint()..color = Colors.white,
-    );
+    if (openAmount > .02) {
+      final edgePositions = <Offset>[];
+      final edgeColors = <Color>[];
+      final edgeIndices = <int>[];
+      for (var column = 0; column <= columns; column++) {
+        final angle = -math.pi + 2 * math.pi * column / columns;
+        final outer = _transformPoint(
+          model.pointAt(_boundaryY(angle), angle),
+        );
+        final inner = _transformPoint(
+          model.inset(model.pointAt(_boundaryY(angle), angle), thickness),
+        );
+        edgePositions
+          ..add(outer.xy)
+          ..add(inner.xy);
+        edgeColors
+          ..add(_edgeShell)
+          ..add(_innerShell);
+      }
+      for (var column = 0; column < columns; column++) {
+        final angle =
+            -math.pi + 2 * math.pi * (column + .5) / columns;
+        final shellNormal = _transformNormal(
+          model.normalAt(model.pointAt(_boundaryY(angle), angle)),
+        );
+        // Keep the visible front and side portions of the cut rim. Rear strips
+        // remain hidden by the cap/body unless the tilt brings them around.
+        if (shellNormal.z < -.35) continue;
+        final a = column * 2;
+        final b = a + 1;
+        final c = a + 2;
+        final d = a + 3;
+        edgeIndices.addAll([a, b, c, c, b, d]);
+      }
 
-    canvas.drawVertices(
-      ui.Vertices(
-        ui.VertexMode.triangles,
-        outerPositions,
-        colors: outerColors,
-        indices: indices,
-      ),
-      BlendMode.srcOver,
-      Paint()..color = Colors.white,
-    );
+      canvas.drawVertices(
+        ui.Vertices(
+          ui.VertexMode.triangles,
+          edgePositions,
+          colors: edgeColors,
+          indices: edgeIndices,
+        ),
+        BlendMode.srcOver,
+        Paint()..color = Colors.white,
+      );
+    }
 
+    if (outerIndices.isNotEmpty) {
+      canvas.drawVertices(
+        ui.Vertices(
+          ui.VertexMode.triangles,
+          outerPositions,
+          colors: outerColors,
+          indices: outerIndices,
+        ),
+        BlendMode.srcOver,
+        Paint()..color = Colors.white,
+      );
+    }
+
+    // Visible front half of the fracture line.
     final crack = Path();
-    for (var column = 0; column <= columns; column++) {
-      final angle = -math.pi / 2 + math.pi * column / columns;
+    const crackColumns = 72;
+    for (var column = 0; column <= crackColumns; column++) {
+      final angle = -math.pi / 2 + math.pi * column / crackColumns;
       final point = _transformPoint(
         model.pointAt(_boundaryY(angle), angle),
       ).xy;
