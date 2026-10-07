@@ -20,13 +20,14 @@ class _FragmentLabState extends State<FragmentLab>
   late final FragmentPlayback _time = FragmentPlayback(vsync: this);
 
   String _previewStage(double t) {
-    if (t < .18) return '100 % → 75 % · premiers mouvements / fissures';
-    if (t < .38) return '75 % → 50 % · propagation des fissures';
-    if (t < .60) return '50 % → 25 % · coquille fragilisée, encore fermée';
-    if (t < .78) return '25 % → 5 % · premières ouvertures en haut';
-    if (t < .90) return '5 % → 00:01 · ouverture progressive';
-    if (t < 1) return '00:01 → 00:00 · libération finale';
-    return '00:00 · fin de l’éclosion';
+    final remaining = 1 - t;
+    if (remaining > .75) return 'P1 · mouvements internes';
+    if (remaining > .50) return 'P2 · bec : pression locale';
+    if (remaining > .25) return 'P3 · tête/front : pression plus large';
+    if (remaining > .05) return 'P4 · tête + haut du corps : ouverture';
+    if (remaining > 1 / 60) return '5 % → 00:01 · ouverture finale';
+    if (remaining > 0) return '00:01 → 00:00 · sortie';
+    return '00:00 · éclosion';
   }
   static const double _fragmentThickness = 2.5;
   static const double _eggMotion = 1.5;
@@ -134,7 +135,7 @@ class _FragmentLabState extends State<FragmentLab>
         ),
         const SizedBox(height: 8),
         const Text(
-          'Aperçu de la chronologie d’éclosion.\nDécor et matière provisoires ; aucun poussin à ce stade.',
+          'Aperçu pression → fissures → fragments → détachement.\nDécor et poussin encore provisoires.',
         ),
         const SizedBox(height: 20),
         Text(
@@ -172,21 +173,21 @@ class _FragmentLabState extends State<FragmentLab>
             ),
             OutlinedButton(
               onPressed: () {
-                _time.value = .60;
+                _time.value = .75;
                 setState(() {});
               },
               child: const Text('25 %'),
             ),
             OutlinedButton(
               onPressed: () {
-                _time.value = .78;
+                _time.value = .95;
                 setState(() {});
               },
               child: const Text('5 %'),
             ),
             OutlinedButton(
               onPressed: () {
-                _time.value = .90;
+                _time.value = 59 / 60;
                 setState(() {});
               },
               child: const Text('00:01'),
@@ -314,7 +315,6 @@ class _FragmentLabState extends State<FragmentLab>
                         showEgg: _egg,
                         shadow: _shadow,
                         identifySurfaces: _identifySurfaces,
-                        hatchingPreview: true,
                         onDiagnostics: (diagnostics) =>
                             _lastPaint = diagnostics,
                       ),
