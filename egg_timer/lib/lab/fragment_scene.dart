@@ -2168,6 +2168,7 @@ class FragmentScene extends CustomPainter {
     ];
 
     final allApertures = _unionPaths(frames.map((frame) => frame.aperture));
+    final allGaps = _unionPaths(frames.map((frame) => frame.gap));
     // Fixed ownership from rest: subtract every fragment aperture from the
     // shell exactly once. This is the seam needed by true multi-fragments.
     final shell = combineFragmentOcclusionPaths(
@@ -2175,6 +2176,32 @@ class FragmentScene extends CustomPainter {
       egg,
       allApertures,
     );
+
+    // The cavity is one GLOBAL background surface of the egg. Paint the union
+    // of all visible openings once, before any mobile plate. Previously every
+    // fragment repainted its own cavity inside paintFrame(); a later fragment
+    // could therefore paint its "hole" over an earlier plate and make that
+    // plate appear to pass behind the opening.
+    if (showEgg && frames.isNotEmpty) {
+      canvas.save();
+      canvas.clipPath(allGaps);
+      canvas.drawVertices(
+        frames.first.geometry.material.cavityMesh(thickness, identifySurfaces),
+        BlendMode.modulate,
+        Paint()..color = Colors.white,
+      );
+      if (!identifySurfaces) {
+        canvas.drawPath(
+          allGaps,
+          Paint()
+            ..color = const Color(0x2b2f1d14)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 11
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
+        );
+      }
+      canvas.restore();
+    }
 
     FragmentPaintDiagnostics? diagnosticsForCallback;
 
@@ -2393,51 +2420,23 @@ class FragmentScene extends CustomPainter {
         faces,
         outerFace,
       );
-      if (showEgg) {
+      if (showEgg && paintSharedShell) {
         canvas.save();
-        // The existing uncovered geometry alone reveals the inner wall. Its
-        // shading is fixed in egg coordinates and does not depend on progress.
-        canvas.clipPath(gap);
+        canvas.clipPath(shell);
         canvas.drawVertices(
-          geometry.material.cavityMesh(thickness, identifySurfaces),
-          BlendMode.modulate,
-          Paint()..color = Colors.white,
+          ui.Vertices(
+            ui.VertexMode.triangles,
+            geometry.shellMesh,
+            textureCoordinates: geometry.shellMesh,
+          ),
+          BlendMode.srcOver,
+          Paint()
+            ..color = identifySurfaces
+                ? FragmentSurfaceColors.shell
+                : Colors.white
+            ..shader = identifySurfaces ? null : shellShader,
         );
-
-        // Soft inner-rim occlusion: the shell edge blocks part of the light
-        // entering the egg, so the far inner wall is slightly darker close to
-        // the visible opening boundary. This is an OPENING-lighting effect, not
-        // fragment geometry; future multi-fragment rendering can apply the same
-        // treatment to the union of all visible openings.
-        if (!identifySurfaces) {
-          canvas.drawPath(
-            gap,
-            Paint()
-              ..color = const Color(0x2b2f1d14)
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 11
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
-          );
-        }
         canvas.restore();
-        if (paintSharedShell) {
-          canvas.save();
-          canvas.clipPath(shell);
-          canvas.drawVertices(
-            ui.Vertices(
-              ui.VertexMode.triangles,
-              geometry.shellMesh,
-              textureCoordinates: geometry.shellMesh,
-            ),
-            BlendMode.srcOver,
-            Paint()
-              ..color = identifySurfaces
-                  ? FragmentSurfaceColors.shell
-                  : Colors.white
-              ..shader = identifySurfaces ? null : shellShader,
-          );
-          canvas.restore();
-        }
       }
       void paintFixedGrain(Path visibleMaterial) {
         canvas.save();
