@@ -29,6 +29,38 @@ double _part(double t, double start, double end) =>
 double _smooth(double t) => t * t * (3 - 2 * t);
 double _smoother(double t) => t * t * t * (t * (t * 6 - 15) + 10);
 
+double _mapPreviewSegment(
+  double t,
+  double t0,
+  double t1,
+  double m0,
+  double m1,
+) {
+  final u = _smoother(_part(t, t0, t1));
+  return m0 + (m1 - m0) * u;
+}
+
+// Visual storyboard timing for the lab only. It does not change the physical
+// fragment model: it only decides when that already-validated mechanical state
+// is visited during the six-second preview.
+//
+// Preview landmarks:
+//   start       -> intact
+//   ~18%        -> 75% remaining / first fissures
+//   ~38%        -> 50% remaining / propagation
+//   ~60%        -> 25% remaining / dense cracks, shell still closed
+//   ~78%        -> 5% remaining / first upper opening, lower shell closed
+//   ~90%        -> 00:01 / clear opening
+//   100%        -> 00:00 / final release
+double hatchingPreviewMechanicalProgress(double t) {
+  if (t <= .18) return _mapPreviewSegment(t, 0, .18, 0, .28);
+  if (t <= .38) return _mapPreviewSegment(t, .18, .38, .28, .40);
+  if (t <= .60) return _mapPreviewSegment(t, .38, .60, .40, .485);
+  if (t <= .78) return _mapPreviewSegment(t, .60, .78, .485, .555);
+  if (t <= .90) return _mapPreviewSegment(t, .78, .90, .555, .63);
+  return _mapPreviewSegment(t, .90, 1, .63, 1);
+}
+
 double _pulse(double t, double center, double halfWidth) {
   final distance = ((t - center) / halfWidth).abs();
   return distance >= 1 ? 0 : _smooth(1 - distance);
@@ -891,10 +923,14 @@ class FragmentScene extends CustomPainter {
     required this.shadow,
     this.onDiagnostics,
     this.identifySurfaces = false,
+    this.hatchingPreview = false,
   });
   final double progress, thickness, motion;
   final bool guides, showEgg, shadow;
-  final bool identifySurfaces;
+  final bool identifySurfaces, hatchingPreview;
+
+  double get _sceneProgress =>
+      hatchingPreview ? hatchingPreviewMechanicalProgress(progress) : progress;
   final ValueChanged<FragmentPaintDiagnostics>? onDiagnostics;
   Color _surfaceColor(Color normal, Color identity) =>
       identifySurfaces ? identity.withValues(alpha: normal.a) : normal;
@@ -1740,7 +1776,7 @@ class FragmentScene extends CustomPainter {
   }
 
   _FragmentGeometry _geometry(_FragmentSpec fragment) {
-    final fragmentProgress = progress;
+    final fragmentProgress = _sceneProgress;
     // Local material constraints bend the region around its established pose.
     final coupledReleasedShare = fragment.attachments.isEmpty
         ? 0.0
@@ -2019,9 +2055,9 @@ class FragmentScene extends CustomPainter {
     return FragmentGeometrySnapshot(
       g.outer.map((v) => (v.x, v.y, v.z)).toList(),
       g.projectedOuter.map((v) => (v.x, v.y, v.z)).toList(),
-      g.outer.map((v) => _retention(fragment, v.xy, progress)).toList(),
+      g.outer.map((v) => _retention(fragment, v.xy, _sceneProgress)).toList(),
       fragment.attachments
-          .map((a) => _attachmentHold(fragment, a, progress))
+          .map((a) => _attachmentHold(fragment, a, _sceneProgress))
           .toList(),
       g.outer.map((v) {
         final p = g.rigidTransform(v);
@@ -2128,11 +2164,11 @@ class FragmentScene extends CustomPainter {
     // local shell pressure remains on its own, quicker schedule.
     final bodyTilt = _bodyEpisodes.fold(
       0.0,
-      (sum, episode) => sum + episode.tilt * episode.weight(progress),
+      (sum, episode) => sum + episode.tilt * episode.weight(_sceneProgress),
     );
     final bodyRise = _bodyEpisodes.fold(
       0.0,
-      (sum, episode) => sum + episode.rise * episode.weight(progress),
+      (sum, episode) => sum + episode.rise * episode.weight(_sceneProgress),
     );
     final wobble = .01 * motion * bodyTilt;
     canvas.translate(0, -1.8 * motion * bodyRise);
@@ -2225,7 +2261,7 @@ class FragmentScene extends CustomPainter {
 
     void paintFrame(_FragmentFrame frame, {required bool paintSharedShell}) {
       final fragment = frame.spec;
-      final fragmentProgress = progress;
+      final fragmentProgress = _sceneProgress;
       final geometry = frame.geometry;
       final outer = geometry.outer;
       final projectedOuter = geometry.projectedOuter;
@@ -2925,5 +2961,6 @@ class FragmentScene extends CustomPainter {
       guides != old.guides ||
       showEgg != old.showEgg ||
       identifySurfaces != old.identifySurfaces ||
+      hatchingPreview != old.hatchingPreview ||
       shadow != old.shadow;
 }
