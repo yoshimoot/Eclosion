@@ -1436,8 +1436,8 @@ class FragmentScene extends CustomPainter {
     ),
   ];
 
-  // F4 — left lateral plate. It grows from F2's lower-left seam and remains
-  // attached longer, helping preserve the lower bowl until the last push.
+  // F4 — left lateral bowl wall. It grows from F2's lower-left seam, releases
+  // two ligaments under P4, then stays on one outer hinge instead of falling.
   static final _fourthBoundary = <Offset>[
     _neighborBoundary[4],
     _neighborBoundary[3],
@@ -1510,8 +1510,9 @@ class FragmentScene extends CustomPainter {
       1.10,
       1.13,
       Offset(-94, 6),
-      damageStart: .02,
-      damageEnd: .15,
+      // Permanent late hinge: F4 opens outward but remains part of the bowl.
+      damageStart: .40,
+      damageEnd: .90,
     ),
     _ShellAttachment(
       7,
@@ -1523,8 +1524,8 @@ class FragmentScene extends CustomPainter {
     ),
   ];
 
-  // F5 — front/right plate. It shares a real F1 edge and opens late, so the
-  // lower front remains present at 25% and is only partially open near 5%.
+  // F5 — front/right bowl wall. It shares a real F1 edge, opens late and keeps
+  // one lower-right hinge, preserving the jagged bowl around the chick.
   static final _fifthBoundary = <Offset>[
     _boundary[8],
     _boundary[7],
@@ -1597,6 +1598,7 @@ class FragmentScene extends CustomPainter {
       1.10,
       1.13,
       Offset(72, 60),
+      // Persistent lower-right hinge: F5 forms the opposite rim of the bowl.
       damageStart: .20,
       damageEnd: .40,
     ),
@@ -1785,7 +1787,7 @@ class FragmentScene extends CustomPainter {
     impactRoll: -.20,
     flightShiftX: -58,
     settleShiftX: -6,
-    pressureCoupling: .36,
+    pressureCoupling: .22,
   );
 
   static final _fifthFragment = _FragmentSpec(
@@ -1803,7 +1805,7 @@ class FragmentScene extends CustomPainter {
     impactRoll: .18,
     flightShiftX: 52,
     settleShiftX: 6,
-    pressureCoupling: .38,
+    pressureCoupling: .24,
   );
 
   static final List<_FragmentSpec> _fragments = [
