@@ -903,23 +903,23 @@ class FragmentScene extends CustomPainter {
 
   // One immutable boundary drives the crack, aperture and moving fragment.
   static const _boundary = [
-    // F1 — large upper-right sector of the shell. Several vertices sit close
-    // to the silhouette, so _surface() gives this plate real side curvature.
-    Offset(0, -160),
-    Offset(34, -174),
-    Offset(70, -156),
-    Offset(100, -126),
-    Offset(118, -88),
-    Offset(116, -48),
-    Offset(102, -16),
+    // F1 — right upper plate. It starts below the crown so F3 can own almost
+    // the entire top of the egg, as in the target decomposition.
+    Offset(78, -126),
+    Offset(98, -108),
+    Offset(114, -82),
+    Offset(120, -54),
+    Offset(116, -28),
+    Offset(104, -6),
+    Offset(88, 10),
     // Edge 7 (7→8) is the literal shared seam with F5.
-    Offset(72, 2),
-    Offset(40, -10),
+    Offset(66, 16),
+    Offset(40, -4),
     // Edge 9 (9→10) is the literal shared seam with F2.
-    Offset(22, -42),
-    Offset(0, -62),
-    // Edge 10 (10→11) is also the literal shared seam with F3.
-    Offset(0, -118),
+    Offset(28, -36),
+    Offset(10, -62),
+    // Edge 10 (10→11) is the long diagonal seam with the crown cap F3.
+    Offset(60, -132),
   ];
 
   // Fixed, small deviations from each structural edge. These are material
@@ -1332,17 +1332,17 @@ class FragmentScene extends CustomPainter {
   static final _thirdBoundary = <Offset>[
     _neighborBoundary[0],
     _neighborBoundary[6],
-    // F3 — crown/back cap. Its left vertices approach the silhouette and its
-    // upper vertices approach the crown, so the same material patch wraps over
-    // the 3D egg instead of living only on the frontal projection.
+    // F3 — the crown cap owns essentially the ENTIRE top of the shell.
+    // It wraps from the beak fracture around the left shoulder, across the
+    // crown and down to the upper-right shoulder before meeting F1.
     const Offset(-46, -98),
     const Offset(-82, -126),
-    const Offset(-88, -154),
-    const Offset(-68, -184),
-    const Offset(-40, -208),
-    const Offset(-8, -216),
-    const Offset(28, -202),
-    const Offset(48, -170),
+    const Offset(-88, -158),
+    const Offset(-58, -190),
+    const Offset(-28, -210),
+    const Offset(12, -218),
+    const Offset(44, -202),
+    const Offset(68, -170),
     _boundary[11],
   ];
 
@@ -1725,7 +1725,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: _liftPushes,
     attachments: _attachments,
     materialBoundary: _materialBoundary,
-    centerOnShell: const Offset(56, -88),
+    centerOnShell: const Offset(78, -62),
     impactPitch: .55,
     impactYaw: .55,
     impactRoll: .35,
@@ -1764,7 +1764,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-24, -150),
+    centerOnShell: const Offset(-14, -154),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
@@ -2436,14 +2436,16 @@ class FragmentScene extends CustomPainter {
     canvas.translate(0, -_eggHalfHeight);
     final egg = Path()
       ..moveTo(0, -_eggHalfHeight)
-      // Reference-like egg profile: soft crown, narrower shoulders, fuller
-      // middle/lower body and rounded base.
-      ..cubicTo(54, -_eggHalfHeight, 98, -154, 120, -68)
-      ..cubicTo(132, -8, 132, 102, 112, 168)
-      ..cubicTo(94, 208, 58, _eggHalfHeight, 0, _eggHalfHeight)
-      ..cubicTo(-58, _eggHalfHeight, -94, 208, -112, 168)
-      ..cubicTo(-132, 102, -132, -8, -120, -68)
-      ..cubicTo(-98, -154, -54, -_eggHalfHeight, 0, -_eggHalfHeight)
+      // Shape rebuilt from the reference: rounded crown, progressive shoulder
+      // widening, fuller lower-middle body, then a clearly narrowing base.
+      ..cubicTo(34, -_eggHalfHeight, 70, -198, 92, -160)
+      ..cubicTo(112, -126, 122, -78, 122, -28)
+      ..cubicTo(122, 38, 116, 106, 98, 158)
+      ..cubicTo(84, 198, 50, _eggHalfHeight, 0, _eggHalfHeight)
+      ..cubicTo(-50, _eggHalfHeight, -84, 198, -98, 158)
+      ..cubicTo(-116, 106, -122, 38, -122, -28)
+      ..cubicTo(-122, -78, -112, -126, -92, -160)
+      ..cubicTo(-70, -198, -34, -_eggHalfHeight, 0, -_eggHalfHeight)
       ..close();
     // Build all fragment frames first. Even with a single validated fragment
     // active today, shell ownership and openings are now aggregated from a
