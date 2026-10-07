@@ -877,6 +877,29 @@ void main() {
     );
   });
 
+  test('Vol couple: les voisins se liberent dans la meme poussee', () {
+    final reference = frame(0).debugFragmentFlight(0).detachmentProgress;
+    final neighbor = frame(0).debugFragmentFlight(1).detachmentProgress;
+    final third = frame(0).debugFragmentFlight(2).detachmentProgress;
+    final coupledSpread = (neighbor - third).abs();
+    final latestCoupled = math.max(neighbor, third);
+
+    expect(
+      coupledSpread,
+      lessThan(.035),
+      reason:
+          'F2 and F3 must overlap under the same chick pressure: '
+          'F2=$neighbor F3=$third',
+    );
+    expect(
+      latestCoupled - reference,
+      lessThan(.07),
+      reason:
+          'Coupled plates must release close to F1, not as a later sequence: '
+          'F1=$reference F2=$neighbor F3=$third',
+    );
+  });
+
   test(
     'Les zones intactes restent soudees; les ruptures liberent la meme matiere',
     () {
