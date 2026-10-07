@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'fragment_surface_probe.dart';
 export 'fragment_surface_probe.dart' show FragmentSurfaceColors;
 
-const double _eggHalfWidth = 146;
+const double _eggHalfWidth = 128;
 const double _eggHalfHeight = 220;
-const double _eggDepth = 72;
+const double _eggDepth = 65;
 
 // Boolean operations produce non-overlapping contours, potentially with holes.
 // CanvasKit can reset Skia's even-odd result to the FIRST operand's winding
@@ -903,22 +903,22 @@ class FragmentScene extends CustomPainter {
 
   // One immutable boundary drives the crack, aperture and moving fragment.
   static const _boundary = [
-    // F1 — broad upper-right shell plate, proportioned from the target
-    // decomposition rather than as an isolated central patch.
-    Offset(10, -170),
-    Offset(42, -166),
-    Offset(74, -146),
-    Offset(101, -118),
-    Offset(116, -84),
-    Offset(113, -48),
-    Offset(96, -18),
+    // F1 — large upper-right sector of the shell. Several vertices sit close
+    // to the silhouette, so _surface() gives this plate real side curvature.
+    Offset(0, -160),
+    Offset(34, -174),
+    Offset(70, -156),
+    Offset(100, -126),
+    Offset(118, -88),
+    Offset(116, -48),
+    Offset(102, -16),
     // Edge 7 (7→8) is the literal shared seam with F5.
-    Offset(70, 2),
-    Offset(40, -8),
+    Offset(72, 2),
+    Offset(40, -10),
     // Edge 9 (9→10) is the literal shared seam with F2.
-    Offset(22, -44),
-    Offset(2, -62),
-    // Edge 10 (10→11) is also the lower-right seam of F3.
+    Offset(22, -42),
+    Offset(0, -62),
+    // Edge 10 (10→11) is also the literal shared seam with F3.
     Offset(0, -118),
   ];
 
@@ -1216,10 +1216,10 @@ class FragmentScene extends CustomPainter {
   static final _neighborBoundary = <Offset>[
     _boundary[10],
     _boundary[9],
-    // F2 — small central chip formed by the first beak pressure.
-    const Offset(15, -28),
-    const Offset(-2, -22),
-    const Offset(-20, -34),
+    // F2 — compact central chip formed by the first beak pressure.
+    const Offset(12, -26),
+    const Offset(-4, -22),
+    const Offset(-22, -34),
     const Offset(-30, -56),
     const Offset(-18, -80),
   ];
@@ -1332,16 +1332,17 @@ class FragmentScene extends CustomPainter {
   static final _thirdBoundary = <Offset>[
     _neighborBoundary[0],
     _neighborBoundary[6],
-    // F3 — one broad crown/back cap, close to the "chapeau" silhouette of
-    // the target final image.
-    const Offset(-44, -96),
-    const Offset(-72, -128),
-    const Offset(-68, -160),
-    const Offset(-46, -188),
-    const Offset(-10, -204),
-    const Offset(28, -194),
-    const Offset(54, -166),
-    const Offset(62, -132),
+    // F3 — crown/back cap. Its left vertices approach the silhouette and its
+    // upper vertices approach the crown, so the same material patch wraps over
+    // the 3D egg instead of living only on the frontal projection.
+    const Offset(-46, -98),
+    const Offset(-82, -126),
+    const Offset(-108, -154),
+    const Offset(-92, -184),
+    const Offset(-50, -208),
+    const Offset(-8, -216),
+    const Offset(28, -202),
+    const Offset(48, -170),
     _boundary[11],
   ];
 
@@ -1434,15 +1435,15 @@ class FragmentScene extends CustomPainter {
   static final _fourthBoundary = <Offset>[
     _neighborBoundary[4],
     _neighborBoundary[3],
-    // F4 — elongated left rim shard. It shapes the bowl edge without carving
-    // a deep independent hole in the lower half.
-    const Offset(-12, 0),
-    const Offset(-28, 18),
-    const Offset(-50, 28),
-    const Offset(-74, 20),
-    const Offset(-96, 2),
-    const Offset(-90, -24),
-    const Offset(-58, -44),
+    // F4 — left rim shard. The outer half follows the egg side, while the inner
+    // half defines the jagged bowl edge around the future chick.
+    const Offset(-12, -2),
+    const Offset(-30, 16),
+    const Offset(-58, 24),
+    const Offset(-88, 14),
+    const Offset(-112, -8),
+    const Offset(-104, -34),
+    const Offset(-66, -48),
   ];
 
   static const _fourthSteps = <List<Offset>>[
@@ -1526,13 +1527,14 @@ class FragmentScene extends CustomPainter {
   static final _fifthBoundary = <Offset>[
     _boundary[8],
     _boundary[7],
-    // F5 — broader front/right rim shard, matching the target decomposition.
-    const Offset(92, 12),
-    const Offset(104, 30),
-    const Offset(92, 50),
-    const Offset(66, 58),
-    const Offset(40, 46),
-    const Offset(20, 26),
+    // F5 — right/front rim shard. Its outer edge approaches the silhouette so
+    // the plate inherits the egg's 3D curvature instead of floating frontally.
+    const Offset(96, 12),
+    const Offset(116, 30),
+    const Offset(106, 52),
+    const Offset(78, 60),
+    const Offset(48, 48),
+    const Offset(24, 28),
     const Offset(18, 4),
   ];
 
@@ -1723,7 +1725,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: _liftPushes,
     attachments: _attachments,
     materialBoundary: _materialBoundary,
-    centerOnShell: const Offset(58, -88),
+    centerOnShell: const Offset(56, -88),
     impactPitch: .55,
     impactYaw: .55,
     impactRoll: .35,
@@ -1762,7 +1764,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-10, -142),
+    centerOnShell: const Offset(-24, -150),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
@@ -1782,7 +1784,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _fourthAttachments,
     materialBoundary: _fourthMaterialBoundary,
-    centerOnShell: const Offset(-52, -4),
+    centerOnShell: const Offset(-60, -8),
     impactPitch: .22,
     impactYaw: -.38,
     impactRoll: -.20,
@@ -1800,7 +1802,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _fifthAttachments,
     materialBoundary: _fifthMaterialBoundary,
-    centerOnShell: const Offset(55, 12),
+    centerOnShell: const Offset(62, 10),
     impactPitch: .20,
     impactYaw: .42,
     impactRoll: .18,
@@ -2434,14 +2436,14 @@ class FragmentScene extends CustomPainter {
     canvas.translate(0, -_eggHalfHeight);
     final egg = Path()
       ..moveTo(0, -_eggHalfHeight)
-      // Fuller target profile: rounder crown, broader shoulders and a generous
-      // lower body so the final shell can read as a real bowl.
-      ..cubicTo(64, -_eggHalfHeight, 112, -162, 134, -78)
-      ..cubicTo(146, -12, 144, 92, 126, 165)
-      ..cubicTo(108, 208, 68, _eggHalfHeight, 0, _eggHalfHeight)
-      ..cubicTo(-68, _eggHalfHeight, -108, 208, -126, 165)
-      ..cubicTo(-144, 92, -146, -12, -134, -78)
-      ..cubicTo(-112, -162, -64, -_eggHalfHeight, 0, -_eggHalfHeight)
+      // Reference-like egg profile: soft crown, narrower shoulders, fuller
+      // middle/lower body and rounded base.
+      ..cubicTo(54, -_eggHalfHeight, 98, -154, 120, -68)
+      ..cubicTo(132, -8, 132, 102, 112, 168)
+      ..cubicTo(94, 208, 58, _eggHalfHeight, 0, _eggHalfHeight)
+      ..cubicTo(-58, _eggHalfHeight, -94, 208, -112, 168)
+      ..cubicTo(-132, 102, -132, -8, -120, -68)
+      ..cubicTo(-98, -154, -54, -_eggHalfHeight, 0, -_eggHalfHeight)
       ..close();
     // Build all fragment frames first. Even with a single validated fragment
     // active today, shell ownership and openings are now aggregated from a
