@@ -38,14 +38,14 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Gelé pour l'itération actuelle
 
-- Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis. Pour l'itération actuelle, la priorité passe à la continuité temporelle fissure → contour → ouverture des fragments 2 et 3. Ne pas reprendre encore le polish du vol.
+- Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis. Pour l'itération actuelle, la priorité est la validation d'une chronologie visuelle complète : 25 % encore fermé, 5 % premières ouvertures surtout en haut, 00:01 ouverture claire, puis libération finale à 00:00. La physique interne existante n'est pas réécrite ; seul son parcours temporel dans l'atelier est remappé pour prévisualiser cette chorégraphie.
 - Rebond final, polish artistique de la cavité et rendu artistique global reportés.
 - Le multi-fragments peut désormais commencer sur la base du `_FragmentSpec` validé ; ne pas introduire encore d'aléatoire libre.
 - L'atelier reste un diagnostic à fragment unique, avec progression déterministe, lecture/pause, ralenti, rejeu et aperçus 9:16 / 9:20 ; ce n'est pas encore le timer produit.
 
 ## Prochaine étape
 
-Valider sous Chrome la continuité temporelle de F3 : ses futures arêtes doivent apparaître progressivement avant l'ouverture et devenir exactement les mêmes bords matériels lorsque la plaque commence à pivoter. Les timings tardifs .665/.690 qui faisaient apparaître plusieurs arêtes après le début du mouvement ont été remplacés par la même chronologie de pression que F2. Vérifier qu'il n'y a plus d'impression de fragment redessiné ou de contour qui surgit après coup.
+Valider sous Chrome l'aperçu chronologique remappé. Repères disponibles dans l'atelier : boutons 25 %, 5 % et 00:01. À 25 %, la coquille doit rester fermée malgré un réseau de fissures dense ; à 5 %, seules les premières ouvertures hautes doivent apparaître et le bas doit rester fermé ; à 00:01, l'ouverture doit devenir clairement lisible avant la libération finale. Le poussin n'est pas encore intégré dans cette passe.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
