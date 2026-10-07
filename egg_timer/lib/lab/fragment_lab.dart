@@ -39,6 +39,8 @@ class _FragmentLabState extends State<FragmentLab>
   bool _tall = false;
   bool _identifySurfaces = false;
   bool _eggModelOnly = true;
+  bool _f1ModelPreview = true;
+  double _f1Open = .55;
   FragmentPaintDiagnostics? _lastPaint;
   final _previewKey = GlobalKey();
   Offset? _probePoint;
@@ -138,15 +140,17 @@ class _FragmentLabState extends State<FragmentLab>
         const SizedBox(height: 8),
         Text(
           _eggModelOnly
-              ? 'Validation géométrique : un seul modèle 3D d’œuf.\nLa silhouette affichée est calculée depuis cette même surface.'
+              ? (_f1ModelPreview
+                    ? 'Validation géométrique : F1 seul sur le nouveau modèle 3D.\nObjectif : un vrai chapeau de coquille courbe, pas une plaque frontale.'
+                    : 'Validation géométrique : un seul modèle 3D d’œuf.\nLa silhouette affichée est calculée depuis cette même surface.')
               : 'Aperçu pression → fissures → fragments → détachement.\nDécor et poussin encore provisoires.',
         ),
         const SizedBox(height: 20),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Valider le modèle 3D de l’œuf seul'),
+          title: const Text('Valider le modèle 3D unifié'),
           subtitle: const Text(
-            'Aucun fragment n’est utilisé dans cette vue.',
+            'La coquille et F1 utilisent exactement la même surface 3D.',
           ),
           value: _eggModelOnly,
           onChanged: (value) => setState(() {
@@ -156,10 +160,32 @@ class _FragmentLabState extends State<FragmentLab>
             _surfaceProbe = null;
           }),
         ),
+        if (_eggModelOnly)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Afficher F1 3D seul'),
+            subtitle: const Text(
+              'Grand fragment supérieur/chapeau, intégré au même modèle.',
+            ),
+            value: _f1ModelPreview,
+            onChanged: (value) => setState(() => _f1ModelPreview = value),
+          ),
         Text(
-          _eggModelOnly ? 'Modèle 3D unifié · œuf seul' : _previewStage(_time.value),
+          _eggModelOnly
+              ? (_f1ModelPreview
+                    ? 'Modèle 3D unifié · F1 supérieur'
+                    : 'Modèle 3D unifié · œuf seul')
+              : _previewStage(_time.value),
           style: Theme.of(context).textTheme.titleMedium,
         ),
+        if (_eggModelOnly && _f1ModelPreview)
+          _slider(
+            'Ouverture F1 · \${(_f1Open * 100).round()} %',
+            _f1Open,
+            0,
+            1,
+            (value) => setState(() => _f1Open = value),
+          ),
         const SizedBox(height: 4),
         Text(
           'État mécanique interne : ${fragmentPhase(_time.value)}',
@@ -326,10 +352,17 @@ class _FragmentLabState extends State<FragmentLab>
                     animation: _time,
                     builder: (context, child) => CustomPaint(
                       painter: _eggModelOnly
-                          ? EggShellModelPainter(
-                              guides: _guides,
-                              shadow: _shadow,
-                            )
+                          ? (_f1ModelPreview
+                                ? EggShellF1PreviewPainter(
+                                    guides: _guides,
+                                    shadow: _shadow,
+                                    thickness: _fragmentThickness,
+                                    openAmount: _f1Open,
+                                  )
+                                : EggShellModelPainter(
+                                    guides: _guides,
+                                    shadow: _shadow,
+                                  ))
                           : FragmentScene(
                               progress: _time.value,
                               thickness: _fragmentThickness,
