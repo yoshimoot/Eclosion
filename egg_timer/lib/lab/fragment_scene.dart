@@ -1298,7 +1298,7 @@ class FragmentScene extends CustomPainter {
     const Offset(-49, -88),
     const Offset(-42, -108),
     const Offset(-20, -121),
-    const Offset(3, -113),
+    const Offset(-10, -111),
   ];
 
   static const _thirdSteps = <List<Offset>>[
@@ -1392,7 +1392,7 @@ class FragmentScene extends CustomPainter {
       6,
       1.15,
       1.18,
-      Offset(13, -125),
+      Offset(-6, -124),
       damageStart: .45,
       damageEnd: .70,
     ),
@@ -1502,7 +1502,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-25, -93),
+    centerOnShell: const Offset(-28, -93),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
