@@ -592,7 +592,18 @@ class EggShellF1PreviewPainter extends CustomPainter {
         if (nz >= -.015) {
           outerIndices.addAll([a, c, b, b, c, d]);
         } else if (openAmount > .02) {
-          innerIndices.addAll([a, b, c, b, d, c]);
+          // A thin eggshell does not reveal its whole inner hemisphere as soon
+          // as the cap starts to lift. Near the closed pose, the body of the egg
+          // occludes almost all of that concave surface; only the broken rim is
+          // readable. Reveal deeper inner material progressively as the cap
+          // rotates farther away.
+          final rowT = row / rows;
+          final innerRevealDepth =
+              (.16 + .62 * openAmount).clamp(.16, .78).toDouble();
+          final visibleFromRow = 1 - innerRevealDepth;
+          if (rowT >= visibleFromRow) {
+            innerIndices.addAll([a, b, c, b, d, c]);
+          }
         }
       }
     }
