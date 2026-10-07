@@ -1237,7 +1237,10 @@ class FragmentScene extends CustomPainter {
     _CrackAdvance(7, .35, .95),
     _CrackAdvance(8, .25, .9),
     _CrackAdvance(9, .42, 1),
-    _CrackAdvance(8, .55, 1),
+    // This is also F3's shared seam. Let it become readable just before the
+    // coupled opening instead of appearing only after the plate has started
+    // moving.
+    _CrackAdvance(8, .35, .95),
   ];
 
   static final _neighborFractureEdges = <List<Offset>>[
@@ -1344,12 +1347,16 @@ class FragmentScene extends CustomPainter {
   ];
 
   static const _thirdOuterAdvances = <_CrackAdvance>[
-    _CrackAdvance(10, .32, .9),
-    _CrackAdvance(11, .05, .78),
-    _CrackAdvance(11, .2, .9),
-    _CrackAdvance(11, .38, 1),
-    _CrackAdvance(10, .5, 1),
-    _CrackAdvance(11, .55, 1),
+    // F3 must emerge from the SAME material cuts that later become its rigid
+    // contour. The old timings used late bookkeeping events (.665/.690), so
+    // several edges appeared after the plate was already moving. Grow them
+    // progressively from the common pressure episode instead.
+    _CrackAdvance(9, .18, .86),
+    _CrackAdvance(9, .38, .96),
+    _CrackAdvance(7, .15, .88),
+    _CrackAdvance(7, .42, 1),
+    _CrackAdvance(8, .25, .92),
+    _CrackAdvance(8, .48, 1),
   ];
 
   static final _thirdFractureEdges = <List<Offset>>[
