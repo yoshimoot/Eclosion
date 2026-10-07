@@ -32,18 +32,20 @@ Le cluster a également été redessiné pour rompre l'alignement horizontal : f
 
 La vidéo du 7 octobre a ensuite montré que la position était meilleure mais que les fragments se détachaient encore trop séquentiellement. La cause était mécanique : un événement local ancien chargeait F2 beaucoup plus tôt que F3, tandis que les contacts du poussin arrivaient trop tard pour produire une libération réellement commune. La correction actuelle fait intervenir le poussin sur le cluster pendant la fin du détachement de F1, garde le premier contact local sous le seuil de rupture, puis applique un appui tête/corps beaucoup plus large sur F2 et F3. Les ligaments couplés utilisent désormais les mêmes bandes de résistance ; les faibles écarts de rupture doivent venir de leur géométrie et de leur distance à la pression, non de mini-timers propres aux fragments.
 
-Un nouveau test « Vol couple: les voisins se libèrent dans la même poussée » impose que F2 et F3 se détachent dans une fenêtre de moins de 0,035 de progression et restent proches de la libération de F1. Les 7 tests ciblés « Vol couple » passent. La suite complète reste au niveau connu : 23 tests passés / 5 échecs existants.
+Un nouveau test « Vol couple: les voisins se libèrent dans la même poussée » impose que F2 et F3 se détachent dans une fenêtre de moins de 0,035 de progression et restent proches de la libération de F1.
+
+La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé plus haut sur la coquille, héritait de la composante verticale de sa normale locale et montait brutalement à la libération, comme après un coup distinct. Cette composante Y locale a été supprimée du lancement couplé. La courbure locale continue de différencier la séparation en X/Z, mais dès la rupture la gravité pilote Y pour tous les fragments couplés. Un nouveau test « aucun fragment ne reçoit de coup vertical local » verrouille ce comportement. Les 8 tests ciblés « Vol couple » passent. La suite complète reste au niveau connu : 24 tests passés / 5 échecs existants.
 
 ## Gelé pour l'itération actuelle
 
-- Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis. Pour l'itération actuelle, la priorité est uniquement la validation visuelle du détachement chevauché des fragments sous la même poussée interne. Ne pas reprendre encore le polish du vol.
+- Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis. Pour l'itération actuelle, la priorité est uniquement la validation visuelle d'un lancement commun sans coup vertical spécifique sur F3. Ne pas reprendre encore le polish du vol.
 - Rebond final, polish artistique de la cavité et rendu artistique global reportés.
 - Le multi-fragments peut désormais commencer sur la base du `_FragmentSpec` validé ; ne pas introduire encore d'aléatoire libre.
 - L'atelier reste un diagnostic à fragment unique, avec progression déterministe, lecture/pause, ralenti, rejeu et aperçus 9:16 / 9:20 ; ce n'est pas encore le timer produit.
 
 ## Prochaine étape
 
-Valider sous Chrome que F1, F2 et F3 réagissent désormais à une même phase de poussée, avec des libérations chevauchées ou quasi simultanées plutôt qu'une séquence 1→2→3. Une légère différence reste normale à cause des positions, des bras de levier et des attaches, mais elle ne doit plus être lue comme trois animations successives. Si ce point est visuellement validé, reprendre ensuite la continuité temporelle des fragments et la rotation inertielle déjà implémentée.
+Valider sous Chrome que F3 ne part plus brutalement vers le haut à sa libération. F1, F2 et F3 doivent rester dans la même phase de poussée ; les différences latérales/profondeur peuvent venir de la courbure locale, mais la composante verticale ne doit plus donner l'impression d'un coup séparé. Dès la rupture, Y doit devenir principalement gravitaire. Si ce point est visuellement validé, reprendre ensuite la continuité temporelle des fragments et la rotation inertielle déjà implémentée.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
