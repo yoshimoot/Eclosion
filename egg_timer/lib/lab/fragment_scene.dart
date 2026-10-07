@@ -1296,24 +1296,24 @@ class FragmentScene extends CustomPainter {
       1.05,
       1.08,
       Offset(5, -42),
-      damageStart: .28,
-      damageEnd: .52,
+      damageStart: .48,
+      damageEnd: .72,
     ),
     _ShellAttachment(
       4,
       1.10,
       1.13,
       Offset(-38, -43),
-      damageStart: .36,
-      damageEnd: .66,
+      damageStart: .58,
+      damageEnd: .86,
     ),
     _ShellAttachment(
       6,
       1.15,
       1.18,
       Offset(-25, -84),
-      damageStart: .24,
-      damageEnd: .48,
+      damageStart: .66,
+      damageEnd: .98,
     ),
   ];
 
@@ -1629,6 +1629,25 @@ class FragmentScene extends CustomPainter {
           points: _thirdOuterEdges[i],
           advance: _thirdOuterAdvances[i],
         ),
+      for (var i = 0; i < _fourthOuterEdges.length; i++)
+        _FractureEdgeSpec(
+          id: _fractureEdges.length +
+              _neighborOuterEdges.length +
+              _thirdOuterEdges.length +
+              i,
+          points: _fourthOuterEdges[i],
+          advance: _fourthOuterAdvances[i],
+        ),
+      for (var i = 0; i < _fifthOuterEdges.length; i++)
+        _FractureEdgeSpec(
+          id: _fractureEdges.length +
+              _neighborOuterEdges.length +
+              _thirdOuterEdges.length +
+              _fourthOuterEdges.length +
+              i,
+          points: _fifthOuterEdges[i],
+          advance: _fifthOuterAdvances[i],
+        ),
     ],
     branches: [
       for (var i = 0; i < _branches.length; i++)
@@ -1658,6 +1677,31 @@ class FragmentScene extends CustomPainter {
       ),
   ];
 
+  static final _fourthEdgeRefs = <_FragmentEdgeRef>[
+    _FragmentEdgeRef(_fractureEdges.length + 2, reversed: true),
+    for (var i = 0; i < _fourthOuterEdges.length; i++)
+      _FragmentEdgeRef(
+        _fractureEdges.length +
+            _neighborOuterEdges.length +
+            _thirdOuterEdges.length +
+            i,
+        reversed: false,
+      ),
+  ];
+
+  static final _fifthEdgeRefs = <_FragmentEdgeRef>[
+    const _FragmentEdgeRef(7, reversed: true),
+    for (var i = 0; i < _fifthOuterEdges.length; i++)
+      _FragmentEdgeRef(
+        _fractureEdges.length +
+            _neighborOuterEdges.length +
+            _thirdOuterEdges.length +
+            _fourthOuterEdges.length +
+            i,
+        reversed: false,
+      ),
+  ];
+
   // Exact validated single-fragment reference, now expressed as data.
   // Future deterministic generation will create additional _FragmentSpec
   // instances; the mechanics below must not depend on these particular values.
@@ -1676,6 +1720,7 @@ class FragmentScene extends CustomPainter {
     impactRoll: .35,
     flightShiftX: 55,
     settleShiftX: 4,
+    pressureCoupling: .52,
   );
 
   static final _neighborFragment = _FragmentSpec(
@@ -1719,10 +1764,48 @@ class FragmentScene extends CustomPainter {
     pressureCoupling: .42,
   );
 
+  static final _fourthFragment = _FragmentSpec(
+    seed: 4,
+    cluster: _fractureCluster,
+    edgeRefs: _fourthEdgeRefs,
+    boundary: _fourthBoundary,
+    fractureBoundary: _fourthFractureBoundary,
+    liftPushes: const [],
+    attachments: _fourthAttachments,
+    materialBoundary: _fourthMaterialBoundary,
+    centerOnShell: const Offset(-49, -14),
+    impactPitch: .22,
+    impactYaw: -.38,
+    impactRoll: -.20,
+    flightShiftX: -58,
+    settleShiftX: -6,
+    pressureCoupling: .36,
+  );
+
+  static final _fifthFragment = _FragmentSpec(
+    seed: 5,
+    cluster: _fractureCluster,
+    edgeRefs: _fifthEdgeRefs,
+    boundary: _fifthBoundary,
+    fractureBoundary: _fifthFractureBoundary,
+    liftPushes: const [],
+    attachments: _fifthAttachments,
+    materialBoundary: _fifthMaterialBoundary,
+    centerOnShell: const Offset(43, 4),
+    impactPitch: .20,
+    impactYaw: .42,
+    impactRoll: .18,
+    flightShiftX: 52,
+    settleShiftX: 6,
+    pressureCoupling: .38,
+  );
+
   static final List<_FragmentSpec> _fragments = [
     _referenceFragment,
     _neighborFragment,
     _thirdFragment,
+    _fourthFragment,
+    _fifthFragment,
   ];
 
   static List<_V> _edgeSamples(Offset a, Offset b) {
