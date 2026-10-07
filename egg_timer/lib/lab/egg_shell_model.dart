@@ -382,8 +382,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
   static const _shellBase = Color(0xffe7ab70);
   static const _shellDark = Color(0xff9c633d);
   static const _cavity = Color(0xff8f6656);
-  static const _innerShell = Color(0xffd5aa86);
-  static const _edgeShell = Color(0xffbd8257);
+  static const _innerShell = Color(0xffe4c1a0);
+  static const _edgeShell = Color(0xffcf9b72);
 
   Color _shade(EggShellPoint3 normal) {
     const light = EggShellPoint3(-.38, -.48, .79);
@@ -401,18 +401,23 @@ class EggShellF1PreviewPainter extends CustomPainter {
     )!;
   }
 
+  static const _boundaryKnots = <double>[
+    // 360° loop from rear (-pi) through the front (0) back to rear (+pi).
+    // Deliberately angular/asymmetric: this is a broken shell edge, not a wave.
+    -128, -124, -126, -118, -121, -112, -115, -106, -109,
+    -101, -104, -96, -100, -94, -99, -103, -98,
+    -102, -108, -105, -112, -109, -117, -114, -122,
+    -119, -126, -128, -125, -130, -127, -129, -128,
+  ];
+
   double _boundaryY(double angle) {
-    // Full 360° fracture loop on the crown. angle=0 faces the camera,
-    // ±pi/2 are the sides and pi is the rear of the egg.
-    final u = ((angle + math.pi) / (2 * math.pi)) % 1.0;
-    final frontBack = 9 * math.cos(angle);
-    final irregular =
-        6 * math.sin(u * math.pi * 6 + .45) +
-        3.5 * math.sin(u * math.pi * 14 + 1.15);
-    final lateralBias = 4 * math.sin(angle - .35);
-    return (-114 + frontBack + irregular + lateralBias)
-        .clamp(-132.0, -94.0)
-        .toDouble();
+    var u = (angle + math.pi) / (2 * math.pi);
+    u -= u.floorToDouble();
+    final scaled = u * (_boundaryKnots.length - 1);
+    final index = scaled.floor().clamp(0, _boundaryKnots.length - 2);
+    final t = scaled - index;
+    return _boundaryKnots[index] +
+        (_boundaryKnots[index + 1] - _boundaryKnots[index]) * t;
   }
 
   EggShellPoint3 _rotateX(EggShellPoint3 point, double angle) {
@@ -442,17 +447,17 @@ class EggShellF1PreviewPainter extends CustomPainter {
     final hingeY = _boundaryY(math.pi);
     final hinge = model.pointAt(hingeY, math.pi);
     var local = point - hinge;
-    local = _rotateX(local, .34 * amount);
-    local = _rotateZ(local, -.045 * amount);
+    local = _rotateX(local, .25 * amount);
+    local = _rotateZ(local, -.035 * amount);
     return local +
         hinge +
-        EggShellPoint3(-5 * amount, -3 * amount, -7 * amount);
+        EggShellPoint3(-4 * amount, -2 * amount, -5 * amount);
   }
 
   EggShellPoint3 _transformNormal(EggShellPoint3 normal) {
     final amount = openAmount.clamp(0.0, 1.0).toDouble();
-    var result = _rotateX(normal, .28 * amount);
-    result = _rotateZ(result, -.055 * amount);
+    var result = _rotateX(normal, .25 * amount);
+    result = _rotateZ(result, -.035 * amount);
     return result.normalized;
   }
 
@@ -683,9 +688,9 @@ class EggShellF1PreviewPainter extends CustomPainter {
       crack,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..strokeCap = StrokeCap.round
-        ..color = const Color(0x8a76503a),
+        ..strokeWidth = .72
+        ..strokeCap = StrokeCap.square
+        ..color = const Color(0x6676503a),
     );
   }
 
