@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import 'egg_shell_model.dart';
 import 'fragment_scene.dart';
 import 'fragment_playback.dart';
 
@@ -37,6 +38,7 @@ class _FragmentLabState extends State<FragmentLab>
   bool _shadow = true;
   bool _tall = false;
   bool _identifySurfaces = false;
+  bool _eggModelOnly = true;
   FragmentPaintDiagnostics? _lastPaint;
   final _previewKey = GlobalKey();
   Offset? _probePoint;
@@ -134,12 +136,28 @@ class _FragmentLabState extends State<FragmentLab>
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Aperçu pression → fissures → fragments → détachement.\nDécor et poussin encore provisoires.',
+        Text(
+          _eggModelOnly
+              ? 'Validation géométrique : un seul modèle 3D d’œuf.\nLa silhouette affichée est calculée depuis cette même surface.'
+              : 'Aperçu pression → fissures → fragments → détachement.\nDécor et poussin encore provisoires.',
         ),
         const SizedBox(height: 20),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Valider le modèle 3D de l’œuf seul'),
+          subtitle: const Text(
+            'Aucun fragment n’est utilisé dans cette vue.',
+          ),
+          value: _eggModelOnly,
+          onChanged: (value) => setState(() {
+            _eggModelOnly = value;
+            _identifySurfaces = false;
+            _probePoint = null;
+            _surfaceProbe = null;
+          }),
+        ),
         Text(
-          _previewStage(_time.value),
+          _eggModelOnly ? 'Modèle 3D unifié · œuf seul' : _previewStage(_time.value),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 4),
@@ -298,7 +316,7 @@ class _FragmentLabState extends State<FragmentLab>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: GestureDetector(
-            onTapUp: _identifySurfaces ? _probeSurface : null,
+            onTapUp: !_eggModelOnly && _identifySurfaces ? _probeSurface : null,
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -307,17 +325,22 @@ class _FragmentLabState extends State<FragmentLab>
                   child: AnimatedBuilder(
                     animation: _time,
                     builder: (context, child) => CustomPaint(
-                      painter: FragmentScene(
-                        progress: _time.value,
-                        thickness: _fragmentThickness,
-                        motion: _eggMotion,
-                        guides: _guides,
-                        showEgg: _egg,
-                        shadow: _shadow,
-                        identifySurfaces: _identifySurfaces,
-                        onDiagnostics: (diagnostics) =>
-                            _lastPaint = diagnostics,
-                      ),
+                      painter: _eggModelOnly
+                          ? EggShellModelPainter(
+                              guides: _guides,
+                              shadow: _shadow,
+                            )
+                          : FragmentScene(
+                              progress: _time.value,
+                              thickness: _fragmentThickness,
+                              motion: _eggMotion,
+                              guides: _guides,
+                              showEgg: _egg,
+                              shadow: _shadow,
+                              identifySurfaces: _identifySurfaces,
+                              onDiagnostics: (diagnostics) =>
+                                  _lastPaint = diagnostics,
+                            ),
                       child: const SizedBox.expand(),
                     ),
                   ),
