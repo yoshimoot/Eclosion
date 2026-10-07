@@ -145,14 +145,16 @@ class _BodyEpisode {
 }
 
 String fragmentPhase(double t) => t < .25
-    ? 'Coquille intacte'
-    : t < .495
-    ? 'Propagation de la fissure'
-    : t < .6
-    ? 'Soulèvement du fragment'
+    ? 'P1 · mouvements internes'
+    : t < .50
+    ? 'P2 · bec / premières fissures'
+    : t < .75
+    ? 'P3 · tête-front / propagation'
+    : t < .95
+    ? 'P4 · pression étendue / fragilisation'
     : t < 1
-    ? 'Chute du fragment'
-    : 'Fragment au sol';
+    ? 'Ouverture / détachement'
+    : 'Éclosion';
 
 class _V {
   const _V(this.x, this.y, this.z);
@@ -1047,6 +1049,10 @@ class FragmentScene extends CustomPainter {
     _BodyEpisode(.403, .424, .459, .27, .2),
     _BodyEpisode(.471, .491, .523, .14, .24),
     _BodyEpisode(.536, .561, .594, -.3, .26),
+    // Later efforts correspond to the broader head/front then upper-body push.
+    _BodyEpisode(.64, .685, .735, .20, .22),
+    _BodyEpisode(.77, .825, .89, -.24, .28),
+    _BodyEpisode(.905, .94, .975, .16, .20),
   ];
   // P1..P4 pressure chronology. The mechanics now follow the chick's internal
   // effort directly: beak first, then head/front, then head + upper body.
