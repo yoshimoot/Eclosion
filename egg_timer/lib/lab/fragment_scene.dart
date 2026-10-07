@@ -903,18 +903,22 @@ class FragmentScene extends CustomPainter {
 
   // One immutable boundary drives the crack, aperture and moving fragment.
   static const _boundary = [
-    Offset(9, -108),
-    Offset(34, -123),
-    Offset(47, -109),
-    Offset(72, -94),
-    Offset(64, -71),
-    Offset(78, -57),
-    Offset(53, -36),
-    Offset(32, -43),
-    Offset(13, -34),
-    Offset(4, -60),
-    Offset(-7, -75),
-    Offset(6, -88),
+    // F1 — large upper-right plate. It now occupies one coherent sector of the
+    // upper shell instead of looking like a central isolated patch.
+    Offset(8, -170),
+    Offset(36, -162),
+    Offset(62, -140),
+    Offset(78, -112),
+    Offset(88, -82),
+    Offset(92, -52),
+    Offset(78, -28),
+    Offset(58, -18),
+    // Edge 7 (7→8) is the literal shared seam with F5.
+    Offset(28, -28),
+    // Edge 9 (9→10) is the literal shared seam with F2.
+    Offset(18, -58),
+    Offset(4, -76),
+    Offset(10, -112),
   ];
 
   // Fixed, small deviations from each structural edge. These are material
@@ -1211,15 +1215,14 @@ class FragmentScene extends CustomPainter {
   static final _neighborBoundary = <Offset>[
     _boundary[10],
     _boundary[9],
-    // Fragment 2 is intentionally the smallest plate: a compact satellite
-    // formed immediately beside the primary opening by the first head/neck
-    // pressure. Its upper-left edge around the pressure point becomes the
-    // literal shared seam with F3.
-    const Offset(-2, -49),
-    const Offset(-13, -44),
-    const Offset(-25, -49),
-    const Offset(-28, -61),
-    const Offset(-19, -73),
+    // F2 — compact central chip at the beak pressure point. Its right seam is
+    // shared with F1; its upper-left seam is shared with F3; its lower-left
+    // seam is shared with F4.
+    const Offset(10, -44),
+    const Offset(-6, -40),
+    const Offset(-22, -50),
+    const Offset(-30, -72),
+    const Offset(-18, -94),
   ];
 
   static const _neighborSteps = <List<Offset>>[
@@ -1330,17 +1333,17 @@ class FragmentScene extends CustomPainter {
   static final _thirdBoundary = <Offset>[
     _neighborBoundary[0],
     _neighborBoundary[6],
-    // F3 is the large upper/back cap from the target composition. It keeps
-    // the small shared seam beside the beak-pressure zone, then wraps over the
-    // crown instead of behaving like another small central chip.
-    const Offset(-42, -92),
-    const Offset(-58, -126),
-    const Offset(-48, -160),
-    const Offset(-20, -184),
-    const Offset(10, -180),
-    const Offset(34, -150),
-    const Offset(38, -114),
-    const Offset(20, -90),
+    // F3 — broad upper/back cap. The crown is one large coherent piece,
+    // matching the "chapeau" seen behind the chick in the target composition.
+    const Offset(-42, -110),
+    const Offset(-58, -140),
+    const Offset(-46, -170),
+    const Offset(-16, -190),
+    const Offset(16, -184),
+    const Offset(40, -158),
+    const Offset(46, -126),
+    const Offset(34, -98),
+    const Offset(18, -84),
   ];
 
   static const _thirdSteps = <List<Offset>>[
@@ -1353,6 +1356,7 @@ class FragmentScene extends CustomPainter {
     [Offset(.24, -.6), Offset(.56, .7), Offset(.82, -.4)],
     [Offset(.30, .6), Offset(.66, -.6)],
     [Offset(.22, -.5), Offset(.52, .7), Offset(.8, -.4)],
+    [Offset(.27, .6), Offset(.62, -.6)],
   ];
 
   static final _thirdOuterEdges = <List<Offset>>[
@@ -1376,6 +1380,7 @@ class FragmentScene extends CustomPainter {
     _CrackAdvance(9, .30, .94),
     _CrackAdvance(9, .46, 1),
     _CrackAdvance(8, .52, 1),
+    _CrackAdvance(8, .62, 1),
   ];
 
   static final _thirdFractureEdges = <List<Offset>>[
@@ -1429,16 +1434,15 @@ class FragmentScene extends CustomPainter {
   static final _fourthBoundary = <Offset>[
     _neighborBoundary[4],
     _neighborBoundary[3],
-    // F4 is only the LEFT LIP of the final bowl. The previous version extended
-    // too far down the egg and created a large independent hole. The fixed shell
-    // below y≈20 now remains the real bowl body.
-    const Offset(-12, -18),
-    const Offset(-25, -2),
-    const Offset(-43, 10),
-    const Offset(-63, 8),
-    const Offset(-76, -8),
-    const Offset(-72, -28),
-    const Offset(-52, -44),
+    // F4 — left rim lip. It reaches the jagged bowl line but does not cut a
+    // separate hole deep into the lower shell.
+    const Offset(-14, -22),
+    const Offset(-28, -4),
+    const Offset(-48, 8),
+    const Offset(-68, 6),
+    const Offset(-80, -10),
+    const Offset(-72, -30),
+    const Offset(-48, -48),
   ];
 
   static const _fourthSteps = <List<Offset>>[
@@ -1522,16 +1526,15 @@ class FragmentScene extends CustomPainter {
   static final _fifthBoundary = <Offset>[
     _boundary[8],
     _boundary[7],
-    // F5 is the RIGHT/FRONT LIP of the final bowl, not a deep lower-shell
-    // panel. Keeping it near the rim prevents the lower half from becoming a
-    // second giant aperture.
-    const Offset(56, -32),
-    const Offset(72, -18),
-    const Offset(78, 2),
-    const Offset(65, 16),
-    const Offset(43, 18),
-    const Offset(22, 8),
-    const Offset(5, -14),
+    // F5 — right/front rim lip. Its outer silhouette is intentionally broader
+    // than F4, like the larger front shard in the target decomposition.
+    const Offset(72, -8),
+    const Offset(80, 12),
+    const Offset(70, 28),
+    const Offset(48, 34),
+    const Offset(26, 28),
+    const Offset(10, 10),
+    const Offset(12, -10),
   ];
 
   static const _fifthSteps = <List<Offset>>[
@@ -1720,7 +1723,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: _liftPushes,
     attachments: _attachments,
     materialBoundary: _materialBoundary,
-    centerOnShell: const Offset(35, -78),
+    centerOnShell: const Offset(48, -92),
     impactPitch: .55,
     impactYaw: .55,
     impactRoll: .35,
@@ -1738,7 +1741,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _neighborAttachments,
     materialBoundary: _neighborMaterialBoundary,
-    centerOnShell: const Offset(-13, -59),
+    centerOnShell: const Offset(-5, -66),
     // Keep the detached neighbour on a broad face. The previous landing
     // orientation projected it almost edge-on and made the same plate look like
     // a thin sliver despite unchanged geometry.
@@ -1759,7 +1762,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-14, -130),
+    centerOnShell: const Offset(-8, -136),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
@@ -1779,7 +1782,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _fourthAttachments,
     materialBoundary: _fourthMaterialBoundary,
-    centerOnShell: const Offset(-45, -14),
+    centerOnShell: const Offset(-46, -16),
     impactPitch: .22,
     impactYaw: -.38,
     impactRoll: -.20,
@@ -1797,7 +1800,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _fifthAttachments,
     materialBoundary: _fifthMaterialBoundary,
-    centerOnShell: const Offset(45, -10),
+    centerOnShell: const Offset(46, -2),
     impactPitch: .20,
     impactYaw: .42,
     impactRoll: .18,
