@@ -47,11 +47,9 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-La première tentative de bol final a montré un défaut structurel clair : F4 et F5 descendaient trop bas dans l'œuf et créaient deux grandes ouvertures indépendantes dans la moitié inférieure. Elles ont été réduites pour devenir uniquement les lèvres gauche et droite du bord supérieur du bol. La coque fixe située en dessous doit maintenant rester la masse principale du bol inférieur.
+La topologie statique a été redessinée une nouvelle fois à partir de la décomposition cible en six zones plutôt qu'à partir de trous locaux. F1 est maintenant une grande plaque supérieure droite ; F2 reste le petit fragment central au point de bec ; F3 est un large chapeau supérieur/arrière ; F4 et F5 sont uniquement les lèvres gauche et droite du bord du bol ; la coque fixe forme toute la masse inférieure restante. Les coutures F1↔F2, F2↔F3, F2↔F4 et F1↔F5 restent de vraies arêtes partagées.
 
-Valider sous Chrome cette correction avant d'ajouter le poussin. F3 reste la grande plaque supérieure/arrière de type « chapeau » ; F1/F2 restent les fragments réellement libérés ; F4/F5 ne doivent plus se lire comme deux panneaux arrachés dans le bas de l'œuf mais comme deux lèvres irrégulières autour du futur poussin.
-
-Critères : à 25 %, coquille encore fermée ; à 5 %, ouverture surtout haute ; à 00:01, ouverture de tête large mais bas encore continu ; à 00:00, silhouette lisible comme bol inférieur + chapeau arrière + quelques fragments libérés.
+Valider d'abord sous Chrome la PARTITION statique avant de reprendre les trajectoires : l'ensemble des cinq fragments mobiles + la coque fixe doit déjà évoquer la décomposition cible (grand droit, petit central, chapeau, lèvre gauche, lèvre avant/droite, bol bas). Il ne doit plus y avoir quatre ou cinq îlots indépendants au milieu de l'œuf.
 
 La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
