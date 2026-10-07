@@ -1048,79 +1048,106 @@ class FragmentScene extends CustomPainter {
     _BodyEpisode(.471, .491, .523, .14, .24),
     _BodyEpisode(.536, .561, .594, -.3, .26),
   ];
-  // Pressure has a location independent of the fragment's geometric center.
-  // More events or pressure zones can use the same data without changing the
-  // rigid fragment representation.
-  static const _pressureEvents = [
-    _PressureEvent(.27, .02, .3, Offset(62, -87)),
-    _PressureEvent(.327, .016, .42, Offset(14, -72)),
-    _PressureEvent(.378, .014, .52, Offset(66, -62)),
-    _PressureEvent(.43, .013, .68, Offset(25, -48)),
-    _PressureEvent(.448, .013, .42, Offset(70, -71)),
-    _PressureEvent(.482, .013, .34, Offset(63, -81)),
-    _PressureEvent(.51, .015, .48, Offset(66, -62)),
-    _PressureEvent(.554, .013, .66, Offset(28, -48)),
-    _PressureEvent(.59, .01, .9, Offset(70, -70)),
-  ];
-  static const _clusterPressureEvents = [
-    ..._pressureEvents,
-    // Common local push close to the shared seam. Existing reference edges keep
-    // their original pressure indices; neighbouring edges can react to this
-    // same physical impulse without owning an independent timer.
-    _PressureEvent(.515, .022, .45, Offset(-4, -67), radius: 120),
-    // Timing references used by fracture propagation only. Their physical
-    // force is zero: late shell mechanics now come from the moving chick
-    // contact trajectory below rather than from disconnected pressure points.
-    _PressureEvent(.665, .024, 0, Offset(-34, -52)),
-    _PressureEvent(.69, .035, 0, Offset(-48, -56)),
-  ];
-
+  // P1..P4 pressure chronology. The mechanics now follow the chick's internal
+  // effort directly: beak first, then head/front, then head + upper body.
+  // These events also remain the deterministic references used by crack growth.
   static const _sharedPressurePoint = Offset(-8, -76);
 
+  static const _pressureEvents = [
+    // P2 — beak: small, localised impacts.
+    _PressureEvent(.28, .03, .24, Offset(-2, -78), radius: 26),
+    _PressureEvent(.34, .035, .32, Offset(-8, -76), radius: 30),
+    _PressureEvent(.40, .04, .40, Offset(6, -82), radius: 34),
+    // P3 — head/front: pressure broadens and connects neighbouring cracks.
+    _PressureEvent(.47, .045, .48, Offset(-4, -74), radius: 42),
+    _PressureEvent(.54, .05, .54, Offset(8, -80), radius: 50),
+    _PressureEvent(.61, .055, .58, Offset(-10, -82), radius: 58),
+    // P4 preparation — the upper shell is globally weakened but still held.
+    _PressureEvent(.68, .06, .62, Offset(0, -78), radius: 66),
+    _PressureEvent(.76, .07, .70, Offset(-4, -78), radius: 78),
+    _PressureEvent(.84, .08, .78, _sharedPressurePoint, radius: 92),
+  ];
+
+  static const _clusterPressureEvents = [
+    ..._pressureEvents,
+    // P4 — head + upper body. One broad effort feeds every plate in the same
+    // cluster; geometry and surviving ligaments decide the different pivots.
+    _PressureEvent(.88, .07, .92, _sharedPressurePoint, radius: 104),
+    _PressureEvent(.93, .06, 1.08, _sharedPressurePoint, radius: 116),
+    _PressureEvent(.975, .035, 1.22, _sharedPressurePoint, radius: 126),
+  ];
+
   static const _chickContacts = <_ChickContactEpisode>[
-    // The chick first finds purchase around the marked pressure point while F1
-    // is still on its last hinge. This weak local effort prepares F2/F3 but
-    // does not launch either plate.
+    // P2 — front-facing beak contact around the main pressure point.
     _ChickContactEpisode(
-      start: .545,
-      peak: .575,
-      end: .615,
-      startPoint: Offset(-8, -72),
+      start: .25,
+      peak: .36,
+      end: .50,
+      startPoint: Offset(-4, -72),
       peakPoint: _sharedPressurePoint,
-      endPoint: Offset(-10, -78),
-      startRadius: 30,
-      peakRadius: 39,
-      endRadius: 46,
-      strength: .15,
+      endPoint: Offset(-6, -79),
+      startRadius: 18,
+      peakRadius: 28,
+      endRadius: 36,
+      strength: .34,
     ),
-    // The stronger head/body effort remains centered on the SAME pressure
-    // point and mainly widens its support area. F2 and F3 therefore receive one
-    // common push; their different pivots determine how they open.
+    // P3 — forehead/head contact expands around the same front-facing zone.
     _ChickContactEpisode(
-      start: .565,
-      peak: .605,
-      end: .655,
-      startPoint: _sharedPressurePoint,
+      start: .45,
+      peak: .61,
+      end: .78,
+      startPoint: Offset(-6, -76),
+      peakPoint: Offset(-4, -82),
+      endPoint: Offset(-2, -84),
+      startRadius: 42,
+      peakRadius: 68,
+      endRadius: 82,
+      strength: .74,
+    ),
+    // P4 — head + upper body. The contact area becomes broad rather than
+    // turning into fragment-specific kicks.
+    _ChickContactEpisode(
+      start: .72,
+      peak: .90,
+      end: .995,
+      startPoint: Offset(-4, -80),
       peakPoint: _sharedPressurePoint,
-      endPoint: Offset(-10, -78),
-      startRadius: 70,
-      peakRadius: 95,
-      endRadius: 110,
-      strength: 1.6,
+      endPoint: Offset(-6, -72),
+      startRadius: 76,
+      peakRadius: 108,
+      endRadius: 126,
+      strength: 1.08,
     ),
   ];
-  static const _liftPushes = [
-    _LiftPush(.495, .514, .16, Offset(63, -81)),
-    _LiftPush(.524, .542, .25, Offset(66, -62)),
-    _LiftPush(.552, .57, .27, Offset(28, -48)),
-    _LiftPush(.583, .6, .32, Offset(70, -70)),
-  ];
-  // The left and upper edge resists pressure applied mostly on the right.
-  // Each connection gives way during a different lift episode.
+
+  // All principal plates now use accumulated cluster damage. No fragment owns
+  // its own lift timer; pressure → damage → surviving hinge → release.
+  static const _liftPushes = <_LiftPush>[];
   static const _attachments = [
-    _ShellAttachment(10, .524, .542, Offset(-22, -77)),
-    _ShellAttachment(8, .552, .57, Offset(15, -22)),
-    _ShellAttachment(0, .583, .6, Offset(6, -120)),
+    _ShellAttachment(
+      10,
+      1.05,
+      1.08,
+      Offset(-22, -77),
+      damageStart: .46,
+      damageEnd: .72,
+    ),
+    _ShellAttachment(
+      8,
+      1.10,
+      1.13,
+      Offset(15, -22),
+      damageStart: .58,
+      damageEnd: .88,
+    ),
+    _ShellAttachment(
+      0,
+      1.15,
+      1.18,
+      Offset(6, -120),
+      damageStart: .68,
+      damageEnd: 1.02,
+    ),
   ];
   static final _grain = _makeGrain();
 
