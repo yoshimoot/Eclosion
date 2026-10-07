@@ -47,7 +47,9 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-Valider sous Chrome la mécanique basée sur la poussée réelle, sans remapping artificiel. Repères : boutons 25 %, 5 % et 00:01. À 25 %, les fissures doivent définir progressivement les futurs fragments mais la coquille doit encore rester fermée ; à 5 %, F2/F3 peuvent commencer à s'ouvrir tandis que F4/F5 maintiennent surtout le bas ; à 00:01, F1/F2/F3 doivent être nettement ouverts et F4/F5 former encore une partie du bol. Le poussin n'est pas encore intégré dans cette passe.
+Valider sous Chrome la composition finale de la coquille avant d'ajouter le poussin. F4 et F5 ont maintenant un rôle explicite de parois latérales du bol inférieur : chacune libère ses attaches exposées sous P4 mais conserve une charnière basse persistante. Leur couplage à la pression a été réduit afin qu'elles s'écartent en bascule plutôt qu'elles ne soient projetées ou ne chutent. F1/F2/F3 restent les plaques qui doivent dégager l'ouverture supérieure.
+
+Critères : à 25 %, la coquille reste fermée ; à 5 %, l'ouverture commence surtout en haut ; à 00:01, F1/F2/F3 dégagent la zone de la tête tandis que F4/F5 et la coquille fixe forment encore un bol jagged et lisible. Le poussin n'est pas encore intégré dans cette passe.
 
 La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
