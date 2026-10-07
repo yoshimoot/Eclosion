@@ -28,20 +28,22 @@ La dernière vidéo a montré un défaut plus précis : malgré des trajectoires
 
 Avant de poursuivre cette validation de mouvement, la géométrie statique a été reprise une nouvelle fois le 6 octobre 2026 pour se rapprocher davantage de la planche de référence. La silhouette de l'œuf est maintenant plus large et plus pleine au milieu/bas, avec un sommet plus doux, tout en gardant la même hauteur et le même contact au sol. Le modèle 3D de surface, la cavité intérieure et le grain utilisent désormais la même largeur de référence pour éviter qu'une simple retouche 2D de silhouette désynchronise la matière.
 
-Le cluster a également été redessiné pour rompre l'alignement horizontal : fragment 1 reste dominant en haut/droite, fragment 2 devient clairement le plus petit et le plus compact, immédiatement voisin de l'ouverture principale, et fragment 3 devient plus grand, plus oblique et plus bas à gauche. Les centres mécaniques forment maintenant une diagonale F1 → F2 → F3. La trajectoire de contact interne du poussin suit cette même diagonale, avec un premier appui local sur F2 puis un appui tête/corps plus large vers F3. Les arêtes réellement partagées sont conservées. Aucun changement de loi de vol ou d'épaisseur n'a été introduit.
+Le cluster a également été redessiné pour rompre l'alignement horizontal : fragment 1 reste dominant, fragment 2 devient clairement le plus petit et le plus compact, et fragment 3 a été déplacé au-dessus-gauche du point de pression utilisateur, avec une vraie arête partagée sur la bonne couture du fragment 2. Les trois plaques conservent une topologie commune.
 
-Après cette passe, les 6 tests ciblés « Vol couple » passent toujours. La suite complète reste exactement au même niveau connu : 22 tests passés / 5 échecs existants.
+La vidéo du 7 octobre a ensuite montré que la position était meilleure mais que les fragments se détachaient encore trop séquentiellement. La cause était mécanique : un événement local ancien chargeait F2 beaucoup plus tôt que F3, tandis que les contacts du poussin arrivaient trop tard pour produire une libération réellement commune. La correction actuelle fait intervenir le poussin sur le cluster pendant la fin du détachement de F1, garde le premier contact local sous le seuil de rupture, puis applique un appui tête/corps beaucoup plus large sur F2 et F3. Les ligaments couplés utilisent désormais les mêmes bandes de résistance ; les faibles écarts de rupture doivent venir de leur géométrie et de leur distance à la pression, non de mini-timers propres aux fragments.
+
+Un nouveau test « Vol couple: les voisins se libèrent dans la même poussée » impose que F2 et F3 se détachent dans une fenêtre de moins de 0,035 de progression et restent proches de la libération de F1. Les 7 tests ciblés « Vol couple » passent. La suite complète reste au niveau connu : 23 tests passés / 5 échecs existants.
 
 ## Gelé pour l'itération actuelle
 
-- Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis. Pour l'itération actuelle, la priorité est uniquement la validation visuelle de la nouvelle silhouette de l'œuf et du nouveau placement différencié des fragments 2 et 3. Ne pas reprendre encore le polish du vol.
+- Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis. Pour l'itération actuelle, la priorité est uniquement la validation visuelle du détachement chevauché des fragments sous la même poussée interne. Ne pas reprendre encore le polish du vol.
 - Rebond final, polish artistique de la cavité et rendu artistique global reportés.
 - Le multi-fragments peut désormais commencer sur la base du `_FragmentSpec` validé ; ne pas introduire encore d'aléatoire libre.
 - L'atelier reste un diagnostic à fragment unique, avec progression déterministe, lecture/pause, ralenti, rejeu et aperçus 9:16 / 9:20 ; ce n'est pas encore le timer produit.
 
 ## Prochaine étape
 
-Valider d'abord sous Chrome la nouvelle géométrie avant toute autre correction de mouvement. Vérifier : (1) forme générale de l'œuf plus proche de la planche, sans impression d'œuf trop étroit ; (2) fragment 2 nettement plus petit et compact que le 3 ; (3) fragment 3 plus bas, plus latéral et plus oblique ; (4) absence d'alignement horizontal artificiel des trois fragments ; (5) lecture d'une seule propagation de contrainte suivant la poussée interne. Si cette géométrie est validée, reprendre ensuite la continuité temporelle des fragments et la validation de la rotation inertielle déjà implémentée.
+Valider sous Chrome que F1, F2 et F3 réagissent désormais à une même phase de poussée, avec des libérations chevauchées ou quasi simultanées plutôt qu'une séquence 1→2→3. Une légère différence reste normale à cause des positions, des bras de levier et des attaches, mais elle ne doit plus être lue comme trois animations successives. Si ce point est visuellement validé, reprendre ensuite la continuité temporelle des fragments et la rotation inertielle déjà implémentée.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
