@@ -47,9 +47,9 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-La dernière validation visuelle a montré que la silhouette s'éloignait d'un vrai œuf et que les fragments restaient perçus comme des îlots plaqués sur la face avant. La priorité a donc été recentrée sur la base géométrique : retour à une silhouette d'œuf plus étroite et crédible, puis déplacement des grands fragments jusqu'aux vraies zones de courbure de la coquille. F1 atteint maintenant le flanc droit, F3 enveloppe la couronne et le flanc haut gauche, F4/F5 atteignent les côtés du bord du bol. Leurs sommets 3D sont toujours générés par la même surface ellipsoïdale `_surface()` ; les points de couronne ont aussi été recalés pour rester réellement sur cette ellipsoïde plutôt que de tomber artificiellement à z=0 hors projection.
+La priorité a changé : les retouches successives du contour 2D sont abandonnées. Un modèle `EggShellModel` unique a été ajouté comme future source de vérité géométrique. Il définit un profil longitudinal mesuré, une surface 3D de révolution, les normales, l'épaisseur par normale et la silhouette 2D calculée automatiquement depuis cette même surface.
 
-Valider sous Chrome uniquement deux choses : (1) la silhouette doit redevenir immédiatement lisible comme un œuf ; (2) les fragments doivent commencer à se lire comme des morceaux d'une coquille courbe qui se prolongent vers les côtés/couronne, et non comme cinq formes dessinées au milieu de la façade. Tant que ces deux lectures ne sont pas correctes, ne pas reprendre le polish des trajectoires.
+L'atelier démarre désormais en vue « modèle 3D de l'œuf seul ». Aucun fragment n'est utilisé dans cette vue. Valider sous Chrome uniquement la forme globale et le volume de cet œuf. Si ce modèle est validé, l'étape suivante sera de remplacer l'ancienne surface ellipsoïdale de `fragment_scene.dart` par `EggShellModel.surfaceAt()` / `normalAt()`, puis de reprojeter les fragments sur cette surface unique. Tant que l'œuf seul n'est pas validé, ne pas reprendre la partition ni les trajectoires.
 
 La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
