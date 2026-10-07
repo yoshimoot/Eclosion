@@ -1409,24 +1409,198 @@ class FragmentScene extends CustomPainter {
       1.05,
       1.08,
       Offset(-53, -65),
-      damageStart: .28,
-      damageEnd: .52,
+      damageStart: .52,
+      damageEnd: .78,
     ),
     _ShellAttachment(
       4,
       1.10,
       1.13,
       Offset(-54, -120),
-      damageStart: .36,
-      damageEnd: .66,
+      damageStart: .62,
+      damageEnd: .92,
     ),
     _ShellAttachment(
       6,
       1.15,
       1.18,
       Offset(-6, -124),
-      damageStart: .24,
-      damageEnd: .48,
+      damageStart: .70,
+      damageEnd: 1.04,
+    ),
+  ];
+
+  // F4 — left lateral plate. It grows from F2's lower-left seam and remains
+  // attached longer, helping preserve the lower bowl until the last push.
+  static final _fourthBoundary = <Offset>[
+    _neighborBoundary[4],
+    _neighborBoundary[3],
+    const Offset(-20, -20),
+    const Offset(-38, 6),
+    const Offset(-63, 14),
+    const Offset(-82, -4),
+    const Offset(-80, -30),
+    const Offset(-55, -52),
+  ];
+
+  static const _fourthSteps = <List<Offset>>[
+    [Offset(.28, -.5), Offset(.62, .6)],
+    [Offset(.22, .6), Offset(.52, -.5), Offset(.82, .4)],
+    [Offset(.31, -.6), Offset(.68, .5)],
+    [Offset(.2, .5), Offset(.47, -.7), Offset(.78, .5)],
+    [Offset(.27, -.5), Offset(.61, .7)],
+    [Offset(.24, .6), Offset(.56, -.5), Offset(.84, .4)],
+    [Offset(.34, -.6), Offset(.71, .6)],
+  ];
+
+  static final _fourthOuterEdges = <List<Offset>>[
+    _buildSingleFractureEdge(_fourthBoundary[1], _fourthBoundary[2], _fourthSteps[0]),
+    _buildSingleFractureEdge(_fourthBoundary[2], _fourthBoundary[3], _fourthSteps[1]),
+    _buildSingleFractureEdge(_fourthBoundary[3], _fourthBoundary[4], _fourthSteps[2]),
+    _buildSingleFractureEdge(_fourthBoundary[4], _fourthBoundary[5], _fourthSteps[3]),
+    _buildSingleFractureEdge(_fourthBoundary[5], _fourthBoundary[6], _fourthSteps[4]),
+    _buildSingleFractureEdge(_fourthBoundary[6], _fourthBoundary[7], _fourthSteps[5]),
+    _buildSingleFractureEdge(_fourthBoundary[7], _fourthBoundary[0], _fourthSteps[6]),
+  ];
+
+  static const _fourthOuterAdvances = <_CrackAdvance>[
+    _CrackAdvance(8, .35, .92),
+    _CrackAdvance(8, .55, 1),
+    _CrackAdvance(9, .18, .86),
+    _CrackAdvance(9, .40, .98),
+    _CrackAdvance(10, .20, .88),
+    _CrackAdvance(10, .42, 1),
+    _CrackAdvance(9, .58, 1),
+  ];
+
+  static final _fourthFractureEdges = <List<Offset>>[
+    _neighborOuterEdges[2].reversed.toList(growable: false),
+    ..._fourthOuterEdges,
+  ];
+
+  static final _fourthFractureBoundary = <Offset>[
+    for (final edge in _fourthFractureEdges) ...edge.take(edge.length - 1),
+  ];
+
+  static final _fourthMaterialBoundary = <_V>[
+    for (var i = 0; i < _fourthFractureBoundary.length; i++)
+      ..._edgeSamples(
+        _fourthFractureBoundary[i],
+        _fourthFractureBoundary[(i + 1) % _fourthFractureBoundary.length],
+      ),
+  ];
+
+  static const _fourthAttachments = <_ShellAttachment>[
+    _ShellAttachment(
+      2,
+      1.05,
+      1.08,
+      Offset(-16, -8),
+      damageStart: .64,
+      damageEnd: .94,
+    ),
+    _ShellAttachment(
+      5,
+      1.10,
+      1.13,
+      Offset(-94, 6),
+      damageStart: .78,
+      damageEnd: 1.10,
+    ),
+    _ShellAttachment(
+      7,
+      1.15,
+      1.18,
+      Offset(-62, -65),
+      damageStart: .72,
+      damageEnd: 1.02,
+    ),
+  ];
+
+  // F5 — front/right plate. It shares a real F1 edge and opens late, so the
+  // lower front remains present at 25% and is only partially open near 5%.
+  static final _fifthBoundary = <Offset>[
+    _boundary[8],
+    _boundary[7],
+    const Offset(55, -32),
+    const Offset(76, -8),
+    const Offset(75, 22),
+    const Offset(58, 48),
+    const Offset(28, 54),
+    const Offset(8, 28),
+  ];
+
+  static const _fifthSteps = <List<Offset>>[
+    [Offset(.26, .5), Offset(.61, -.6)],
+    [Offset(.23, -.5), Offset(.55, .7), Offset(.82, -.4)],
+    [Offset(.30, .6), Offset(.68, -.5)],
+    [Offset(.2, -.6), Offset(.48, .5), Offset(.79, -.6)],
+    [Offset(.29, .5), Offset(.64, -.6)],
+    [Offset(.25, -.5), Offset(.57, .7), Offset(.83, -.4)],
+    [Offset(.35, .6), Offset(.72, -.6)],
+  ];
+
+  static final _fifthOuterEdges = <List<Offset>>[
+    _buildSingleFractureEdge(_fifthBoundary[1], _fifthBoundary[2], _fifthSteps[0]),
+    _buildSingleFractureEdge(_fifthBoundary[2], _fifthBoundary[3], _fifthSteps[1]),
+    _buildSingleFractureEdge(_fifthBoundary[3], _fifthBoundary[4], _fifthSteps[2]),
+    _buildSingleFractureEdge(_fifthBoundary[4], _fifthBoundary[5], _fifthSteps[3]),
+    _buildSingleFractureEdge(_fifthBoundary[5], _fifthBoundary[6], _fifthSteps[4]),
+    _buildSingleFractureEdge(_fifthBoundary[6], _fifthBoundary[7], _fifthSteps[5]),
+    _buildSingleFractureEdge(_fifthBoundary[7], _fifthBoundary[0], _fifthSteps[6]),
+  ];
+
+  static const _fifthOuterAdvances = <_CrackAdvance>[
+    _CrackAdvance(8, .42, .95),
+    _CrackAdvance(9, .20, .88),
+    _CrackAdvance(9, .46, 1),
+    _CrackAdvance(10, .24, .90),
+    _CrackAdvance(10, .48, 1),
+    _CrackAdvance(11, .18, .88),
+    _CrackAdvance(11, .45, 1),
+  ];
+
+  static final _fifthFractureEdges = <List<Offset>>[
+    _fractureEdges[7].reversed.toList(growable: false),
+    ..._fifthOuterEdges,
+  ];
+
+  static final _fifthFractureBoundary = <Offset>[
+    for (final edge in _fifthFractureEdges) ...edge.take(edge.length - 1),
+  ];
+
+  static final _fifthMaterialBoundary = <_V>[
+    for (var i = 0; i < _fifthFractureBoundary.length; i++)
+      ..._edgeSamples(
+        _fifthFractureBoundary[i],
+        _fifthFractureBoundary[(i + 1) % _fifthFractureBoundary.length],
+      ),
+  ];
+
+  static const _fifthAttachments = <_ShellAttachment>[
+    _ShellAttachment(
+      2,
+      1.05,
+      1.08,
+      Offset(64, -40),
+      damageStart: .68,
+      damageEnd: .98,
+    ),
+    _ShellAttachment(
+      5,
+      1.10,
+      1.13,
+      Offset(72, 60),
+      damageStart: .82,
+      damageEnd: 1.14,
+    ),
+    _ShellAttachment(
+      7,
+      1.15,
+      1.18,
+      Offset(2, 40),
+      damageStart: .76,
+      damageEnd: 1.08,
     ),
   ];
 
