@@ -47,9 +47,9 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-La priorité a changé : les retouches successives du contour 2D sont abandonnées. Un modèle `EggShellModel` unique a été ajouté comme future source de vérité géométrique. Il définit un profil longitudinal mesuré, une surface 3D de révolution, les normales, l'épaisseur par normale et la silhouette 2D calculée automatiquement depuis cette même surface.
+Le modèle `EggShellModel` reste la source de vérité géométrique. La validation passe maintenant par un test minimal : F1 seul, le grand fragment supérieur/chapeau de la référence, est construit directement sur cette même surface 3D. Le corps de l'œuf, l'ouverture laissée par F1, la face extérieure, la face intérieure et la tranche de 2,5 utilisent tous `EggShellModel`; aucun ancien fragment de `fragment_scene.dart` n'intervient dans cette vue.
 
-L'atelier démarre désormais en vue « modèle 3D de l'œuf seul ». Aucun fragment n'est utilisé dans cette vue. Valider sous Chrome uniquement la forme globale et le volume de cet œuf. Si ce modèle est validé, l'étape suivante sera de remplacer l'ancienne surface ellipsoïdale de `fragment_scene.dart` par `EggShellModel.surfaceAt()` / `normalAt()`, puis de reprojeter les fragments sur cette surface unique. Tant que l'œuf seul n'est pas validé, ne pas reprendre la partition ni les trajectoires.
+L'atelier démarre avec « Afficher F1 3D seul » activé. Un curseur « Ouverture F1 » permet de vérifier de 0 à 100 % que le fragment enveloppe réellement la couronne et les flancs du haut, au lieu de se comporter comme une plaque frontale. Valider sous Chrome uniquement cette intégration 3D et la proximité avec le chapeau de la référence. Ne pas encore réintroduire F2–F5 ni reprendre la mécanique de chute.
 
 La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
