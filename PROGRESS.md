@@ -47,9 +47,9 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-La topologie statique a été redessinée une nouvelle fois à partir de la décomposition cible en six zones plutôt qu'à partir de trous locaux. F1 est maintenant une grande plaque supérieure droite ; F2 reste le petit fragment central au point de bec ; F3 est un large chapeau supérieur/arrière ; F4 et F5 sont uniquement les lèvres gauche et droite du bord du bol ; la coque fixe forme toute la masse inférieure restante. Les coutures F1↔F2, F2↔F3, F2↔F4 et F1↔F5 restent de vraies arêtes partagées.
+La forme générale de l'œuf et la partition ont été reprises ensemble, à partir du rendu final cible plutôt qu'à partir des anciens îlots. L'œuf est désormais plus plein et plus arrondi (largeur 3D cohérente avec la silhouette), avec une couronne moins pointue et un bas plus généreux pour accueillir un vrai bol. F1 est une grande plaque supérieure droite ; F2 reste le petit éclat central du bec ; F3 devient un chapeau supérieur/arrière beaucoup plus large ; F4/F5 sont des éclats de bord gauche et avant/droite, tandis que toute la masse inférieure reste dans la coque fixe. F3 partage désormais aussi littéralement l'arête 10 de F1, en plus de sa couture avec F2.
 
-Valider d'abord sous Chrome la PARTITION statique avant de reprendre les trajectoires : l'ensemble des cinq fragments mobiles + la coque fixe doit déjà évoquer la décomposition cible (grand droit, petit central, chapeau, lèvre gauche, lèvre avant/droite, bol bas). Il ne doit plus y avoir quatre ou cinq îlots indépendants au milieu de l'œuf.
+Valider sous Chrome uniquement la FORME DE L'ŒUF et la PARTITION statique avant de reprendre les trajectoires. Le résultat doit déjà évoquer la planche de décomposition cible : grand fragment droit, petit fragment central, grand chapeau, deux morceaux de bord, puis une coque basse massive et continue. Si cette lecture n'est pas immédiate, ne pas poursuivre encore la mécanique.
 
 La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
