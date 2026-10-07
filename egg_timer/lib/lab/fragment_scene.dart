@@ -1089,7 +1089,7 @@ class FragmentScene extends CustomPainter {
       startRadius: 30,
       peakRadius: 39,
       endRadius: 46,
-      strength: .5,
+      strength: .15,
     ),
     // Head/body support widens around the marked pressure zone. F2 and F3 see
     // this same overlapping load; their slightly different release instants
