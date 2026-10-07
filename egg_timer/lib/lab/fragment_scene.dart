@@ -1661,11 +1661,7 @@ class FragmentScene extends CustomPainter {
       final torqueX = fragment.pressureCoupling * clusterMoment.dy / 45;
       final torqueY = -fragment.pressureCoupling * clusterMoment.dx / 45;
       final compliance = .28 + .42 * _smooth(coupledReleasedShare);
-      return _V(
-        compliance * torqueX,
-        compliance * torqueY,
-        0,
-      );
+      return _V(compliance * torqueX, compliance * torqueY, 0);
     }
 
     // Validated reference fragment: keep the historical attached-pose model.
