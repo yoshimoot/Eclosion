@@ -1075,32 +1075,34 @@ class FragmentScene extends CustomPainter {
     _PressureEvent(.69, .035, 0, Offset(-48, -56)),
   ];
 
+  static const _sharedPressurePoint = Offset(-8, -76);
+
   static const _chickContacts = <_ChickContactEpisode>[
-    // The chick reaches the weakened cluster while fragment 1 is still on its
-    // final hinge. Neighbouring plates therefore start reacting during the same
-    // physical effort instead of waiting for a separate late sequence.
+    // The chick first finds purchase around the marked pressure point while F1
+    // is still on its last hinge. This weak local effort prepares F2/F3 but
+    // does not launch either plate.
     _ChickContactEpisode(
       start: .545,
       peak: .575,
       end: .615,
-      startPoint: Offset(-8, -70),
-      peakPoint: Offset(-12, -74),
-      endPoint: Offset(-18, -78),
+      startPoint: Offset(-8, -72),
+      peakPoint: _sharedPressurePoint,
+      endPoint: Offset(-10, -78),
       startRadius: 30,
       peakRadius: 39,
       endRadius: 46,
       strength: .15,
     ),
-    // Head/body support widens around the marked pressure zone. F2 and F3 see
-    // this same overlapping load; their slightly different release instants
-    // come only from geometry and distance, not from fragment-specific timers.
+    // The stronger head/body effort remains centered on the SAME pressure
+    // point and mainly widens its support area. F2 and F3 therefore receive one
+    // common push; their different pivots determine how they open.
     _ChickContactEpisode(
       start: .565,
       peak: .605,
       end: .655,
-      startPoint: Offset(-8, -76),
-      peakPoint: Offset(-18, -86),
-      endPoint: Offset(-27, -94),
+      startPoint: _sharedPressurePoint,
+      peakPoint: _sharedPressurePoint,
+      endPoint: Offset(-10, -78),
       startRadius: 70,
       peakRadius: 95,
       endRadius: 110,
@@ -1632,8 +1634,42 @@ class FragmentScene extends CustomPainter {
                     sum + (1 - _attachmentHold(fragment, attachment, t)),
               ) /
               fragment.attachments.length;
+
+    var heldWeight = 0.0;
+    var heldPoint = Offset.zero;
+    for (final attachment in fragment.attachments) {
+      final hold = _attachmentHold(fragment, attachment, t);
+      heldWeight += hold;
+      heldPoint += fragment.boundary[attachment.vertex] * hold;
+    }
+    final remainingPivot = heldWeight > 0
+        ? heldPoint / heldWeight
+        : fragment.centerOnShell;
+    final attachmentBlend = _smooth(_part(coupledReleasedShare, .55, 1));
+    final pivotOnShell = Offset.lerp(
+      remainingPivot,
+      fragment.centerOnShell,
+      attachmentBlend,
+    )!;
+
+    if (fragment.pressureCoupling > 0) {
+      // A coupled plate does not receive a generic upward "lift". Pressure acts
+      // at the shared red point and creates a moment around the surviving
+      // ligament. Plates on opposite sides of that point therefore tip in
+      // different directions while remaining part of the same push.
+      final clusterMoment = fragment.cluster.momentAt(t, pivotOnShell);
+      final torqueX = fragment.pressureCoupling * clusterMoment.dy / 45;
+      final torqueY = -fragment.pressureCoupling * clusterMoment.dx / 45;
+      final compliance = .28 + .42 * _smooth(coupledReleasedShare);
+      return _V(
+        compliance * torqueX,
+        compliance * torqueY,
+        0,
+      );
+    }
+
+    // Validated reference fragment: keep the historical attached-pose model.
     final pressureLift =
-        fragment.pressureCoupling *
         fragment.cluster.responseAt(t, fragment.centerOnShell) *
         (1 + .65 * coupledReleasedShare);
     final drivenLift =
@@ -1646,30 +1682,6 @@ class FragmentScene extends CustomPainter {
     final releaseLift = _smooth(_part(coupledReleasedShare, .72, 1));
     final lift = math.max(drivenLift, releaseLift);
     final center = _surface(fragment.centerOnShell);
-
-    var heldWeight = 0.0;
-    var heldPoint = Offset.zero;
-    for (final attachment in fragment.attachments) {
-      final hold = _attachmentHold(fragment, attachment, t);
-      heldWeight += hold;
-      heldPoint += fragment.boundary[attachment.vertex] * hold;
-    }
-    final remainingPivot = heldWeight > 0
-        ? heldPoint / heldWeight
-        : fragment.centerOnShell;
-    final releasedShare = 1 - heldWeight / fragment.attachments.length;
-    final attachmentBlend = _smooth(_part(releasedShare, .55, 1));
-    final pivotOnShell = Offset.lerp(
-      remainingPivot,
-      fragment.centerOnShell,
-      attachmentBlend,
-    )!;
-
-    final clusterMoment = fragment.pressureCoupling == 0
-        ? Offset.zero
-        : fragment.cluster.momentAt(t, pivotOnShell);
-    final clusterTorqueX = fragment.pressureCoupling * clusterMoment.dy / 45;
-    final clusterTorqueY = -fragment.pressureCoupling * clusterMoment.dx / 45;
     final pressureRoll = fragment.liftPushes.fold(
       0.0,
       (sum, push) => sum + push.at(t) * (push.point.dx - center.x) / 45,
@@ -1680,11 +1692,9 @@ class FragmentScene extends CustomPainter {
     );
 
     return _V(
-      -.38 * lift +
-          (.03 + .01 * releasedShare) * pressurePitch +
-          .14 * clusterTorqueX,
-      .45 * lift + .14 * clusterTorqueY,
-      -(.14 + .025 * releasedShare) * pressureRoll,
+      -.38 * lift + (.03 + .01 * coupledReleasedShare) * pressurePitch,
+      .45 * lift,
+      -(.14 + .025 * coupledReleasedShare) * pressureRoll,
     );
   }
 
@@ -1835,6 +1845,11 @@ class FragmentScene extends CustomPainter {
       rotationX = inertialRotation.x;
       rotationY = inertialRotation.y;
       rotationZ = inertialRotation.z;
+    } else if (coupledFlight) {
+      final attachedRotation = _attachedRotationAt(fragment, fragmentProgress);
+      rotationX = attachedRotation.x;
+      rotationY = attachedRotation.y;
+      rotationZ = attachedRotation.z;
     } else {
       rotationX =
           -.38 * lift +
@@ -1886,13 +1901,11 @@ class FragmentScene extends CustomPainter {
     const ejectionTravel = 65.0;
     late final double flightX, ballisticY, flightZ;
     if (coupledFlight) {
-      final departureY = -12 * lift * lift;
-      final departureZ = 22 * lift * lift;
       final normalTravelX = shellNormal.x * ejectionTravel;
       final normalTravelZ = shellNormal.z * ejectionTravel;
       flightX = normalTravelX * flight;
-      ballisticY = departureY + (impactLandingY - departureY) * flight * flight;
-      flightZ = departureZ + normalTravelZ * flight;
+      ballisticY = impactLandingY * flight * flight;
+      flightZ = normalTravelZ * flight;
     } else {
       final initialFlightY = -20.0;
       flightX = fragment.flightShiftX * flight + fragment.settleShiftX * settle;
