@@ -1877,9 +1877,11 @@ class FragmentScene extends CustomPainter {
         .reduce(math.max);
     final impactLandingY = 220 - center.y - impactBottom;
     final shellNormal = _surfaceNormal(fragment.centerOnShell);
-    // Coupled plates leave the shell along the complete local 3D normal.
-    // The launch starts from the exact attached pose: x=0, y=-12*lift² and
-    // z=22*lift² at flight=0. Gravity then curves only y toward the floor.
+    // Coupled plates share the same internal effort. Their local shell
+    // curvature still differentiates the outward X/Z separation, but it must
+    // not create a fragment-specific screen-vertical kick: an upper plate
+    // should not shoot upward merely because its local normal points upward.
+    // After the last ligament breaks, gravity owns Y immediately.
     // The reference fragment keeps its validated historical equations verbatim.
     const ejectionTravel = 65.0;
     late final double flightX, ballisticY, flightZ;
@@ -1887,13 +1889,11 @@ class FragmentScene extends CustomPainter {
       final departureY = -12 * lift * lift;
       final departureZ = 22 * lift * lift;
       final normalTravelX = shellNormal.x * ejectionTravel;
-      final normalTravelY = shellNormal.y * ejectionTravel;
       final normalTravelZ = shellNormal.z * ejectionTravel;
       flightX = normalTravelX * flight;
       ballisticY =
           departureY +
-          normalTravelY * flight +
-          (impactLandingY - departureY - normalTravelY) * flight * flight;
+          (impactLandingY - departureY) * flight * flight;
       flightZ = departureZ + normalTravelZ * flight;
     } else {
       final initialFlightY = -20.0;
