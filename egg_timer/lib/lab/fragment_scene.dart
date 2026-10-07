@@ -1429,15 +1429,16 @@ class FragmentScene extends CustomPainter {
   static final _fourthBoundary = <Offset>[
     _neighborBoundary[4],
     _neighborBoundary[3],
-    // Left rim of the persistent lower bowl. The inner edge drops toward the
-    // future chick's chest; the outer edge follows the egg wall much lower.
-    const Offset(-10, -12),
-    const Offset(-20, 24),
-    const Offset(-42, 56),
-    const Offset(-72, 72),
-    const Offset(-98, 44),
-    const Offset(-96, 4),
-    const Offset(-72, -34),
+    // F4 is only the LEFT LIP of the final bowl. The previous version extended
+    // too far down the egg and created a large independent hole. The fixed shell
+    // below y≈20 now remains the real bowl body.
+    const Offset(-12, -18),
+    const Offset(-25, -2),
+    const Offset(-43, 10),
+    const Offset(-63, 8),
+    const Offset(-76, -8),
+    const Offset(-72, -28),
+    const Offset(-52, -44),
   ];
 
   static const _fourthSteps = <List<Offset>>[
@@ -1501,7 +1502,7 @@ class FragmentScene extends CustomPainter {
       5,
       1.10,
       1.13,
-      Offset(-82, 82),
+      Offset(-68, 12),
       // Permanent lower-left hinge: this plate is a bowl wall, not debris.
       damageStart: 50,
       damageEnd: 60,
@@ -1510,7 +1511,7 @@ class FragmentScene extends CustomPainter {
       8,
       1.15,
       1.18,
-      Offset(-76, -42),
+      Offset(-58, -48),
       damageStart: 1.0,
       damageEnd: 2.5,
     ),
@@ -1521,14 +1522,16 @@ class FragmentScene extends CustomPainter {
   static final _fifthBoundary = <Offset>[
     _boundary[8],
     _boundary[7],
-    // Right/front rim mirrors F4 only in role, not in silhouette.
-    const Offset(62, -28),
-    const Offset(90, -4),
-    const Offset(102, 34),
-    const Offset(82, 68),
-    const Offset(48, 78),
-    const Offset(18, 58),
-    const Offset(2, 22),
+    // F5 is the RIGHT/FRONT LIP of the final bowl, not a deep lower-shell
+    // panel. Keeping it near the rim prevents the lower half from becoming a
+    // second giant aperture.
+    const Offset(56, -32),
+    const Offset(72, -18),
+    const Offset(78, 2),
+    const Offset(65, 16),
+    const Offset(43, 18),
+    const Offset(22, 8),
+    const Offset(5, -14),
   ];
 
   static const _fifthSteps = <List<Offset>>[
@@ -1592,7 +1595,7 @@ class FragmentScene extends CustomPainter {
       5,
       1.10,
       1.13,
-      Offset(88, 78),
+      Offset(70, 18),
       // Permanent lower-right hinge: opposite wall of the same bowl.
       damageStart: 50,
       damageEnd: 60,
@@ -1601,7 +1604,7 @@ class FragmentScene extends CustomPainter {
       8,
       1.15,
       1.18,
-      Offset(-4, 32),
+      Offset(2, -8),
       damageStart: .70,
       damageEnd: 1.30,
     ),
@@ -1776,7 +1779,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _fourthAttachments,
     materialBoundary: _fourthMaterialBoundary,
-    centerOnShell: const Offset(-55, 18),
+    centerOnShell: const Offset(-45, -14),
     impactPitch: .22,
     impactYaw: -.38,
     impactRoll: -.20,
@@ -1794,7 +1797,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _fifthAttachments,
     materialBoundary: _fifthMaterialBoundary,
-    centerOnShell: const Offset(55, 20),
+    centerOnShell: const Offset(45, -10),
     impactPitch: .20,
     impactYaw: .42,
     impactRoll: .18,
