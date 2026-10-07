@@ -1090,19 +1090,19 @@ class FragmentScene extends CustomPainter {
       endRadius: 42,
       strength: .9,
     ),
-    // The head/body support then widens diagonally down-left across the already
-    // weakened shell. The pressure path now follows the cluster rather than
-    // placing fragments 1, 2 and 3 on a horizontal visual row.
+    // The broad head/body effort stays anchored around the user-marked
+    // pressure point near (-7,-75), then spreads up-left into F3. The crack
+    // cluster therefore grows around that load instead of below it.
     _ChickContactEpisode(
       start: .655,
       peak: .692,
       end: .735,
-      startPoint: Offset(-22, -52),
-      peakPoint: Offset(-38, -44),
-      endPoint: Offset(-50, -38),
+      startPoint: Offset(-8, -76),
+      peakPoint: Offset(-18, -86),
+      endPoint: Offset(-27, -94),
       startRadius: 45,
-      peakRadius: 70,
-      endRadius: 80,
+      peakRadius: 68,
+      endRadius: 78,
       strength: 1.6,
     ),
   ];
@@ -1177,7 +1177,8 @@ class FragmentScene extends CustomPainter {
     _boundary[9],
     // Fragment 2 is intentionally the smallest plate: a compact satellite
     // formed immediately beside the primary opening by the first head/neck
-    // pressure. Its lower-left edge becomes the literal shared seam with F3.
+    // pressure. Its upper-left edge around the pressure point becomes the
+    // literal shared seam with F3.
     const Offset(-2, -49),
     const Offset(-13, -44),
     const Offset(-25, -49),
@@ -1286,21 +1287,18 @@ class FragmentScene extends CustomPainter {
     ),
   ];
 
-  // Third plate in the SAME fracture cluster. It shares neighbour outer edge 3
-  // exactly (reversed), proving that topology can propagate beyond one pair.
-  // Its release is allowed to overlap the neighbour's: both react to the same
-  // broad late chick effort rather than to a strict fragment sequence.
+  // Third plate in the SAME fracture cluster. It now shares neighbour outer
+  // edge 5 exactly (reversed): the short seam beside the marked pressure point.
+  // F3 therefore grows above-left of that point, matching the requested sketch
+  // instead of occupying the lower-left region of the opening.
   static final _thirdBoundary = <Offset>[
-    _neighborBoundary[5],
-    _neighborBoundary[4],
-    // Fragment 3 is a broader secondary plate, visibly different from F2.
-    // It continues the same break diagonally down-left instead of repeating a
-    // second compact polygon on the same horizontal line.
-    const Offset(-35, -36),
-    const Offset(-49, -19),
-    const Offset(-65, -25),
-    const Offset(-70, -43),
-    const Offset(-53, -60),
+    _neighborBoundary[0],
+    _neighborBoundary[6],
+    const Offset(-40, -70),
+    const Offset(-49, -88),
+    const Offset(-42, -108),
+    const Offset(-20, -121),
+    const Offset(3, -113),
   ];
 
   static const _thirdSteps = <List<Offset>>[
@@ -1355,7 +1353,7 @@ class FragmentScene extends CustomPainter {
   ];
 
   static final _thirdFractureEdges = <List<Offset>>[
-    _neighborOuterEdges[3].reversed.toList(growable: false),
+    _neighborOuterEdges[5].reversed.toList(growable: false),
     ..._thirdOuterEdges,
   ];
 
@@ -1376,18 +1374,17 @@ class FragmentScene extends CustomPainter {
       2,
       1.05,
       1.08,
-      Offset(-38, -22),
+      Offset(-53, -65),
       damageStart: .55,
       damageEnd: .85,
     ),
-    // The outer ligament is less directly loaded but still participates in the
-    // same broad body/head effort; it can therefore release shortly after its
-    // neighbours rather than waiting for a separate fragment event.
+    // Upper ligament: loaded by the widened head/body support around the
+    // marked pressure point while still acting as the visible hinge.
     _ShellAttachment(
       4,
       1.10,
       1.13,
-      Offset(-82, -18),
+      Offset(-54, -120),
       damageStart: .40,
       damageEnd: .58,
     ),
@@ -1395,7 +1392,7 @@ class FragmentScene extends CustomPainter {
       6,
       1.15,
       1.18,
-      Offset(-62, -72),
+      Offset(13, -125),
       damageStart: .45,
       damageEnd: .70,
     ),
@@ -1447,7 +1444,7 @@ class FragmentScene extends CustomPainter {
       _FragmentEdgeRef(_fractureEdges.length + i, reversed: false),
   ];
   static final _thirdEdgeRefs = <_FragmentEdgeRef>[
-    _FragmentEdgeRef(_fractureEdges.length + 3, reversed: true),
+    _FragmentEdgeRef(_fractureEdges.length + 5, reversed: true),
     for (var i = 0; i < _thirdOuterEdges.length; i++)
       _FragmentEdgeRef(
         _fractureEdges.length + _neighborOuterEdges.length + i,
@@ -1505,7 +1502,7 @@ class FragmentScene extends CustomPainter {
     liftPushes: const [],
     attachments: _thirdAttachments,
     materialBoundary: _thirdMaterialBoundary,
-    centerOnShell: const Offset(-49, -39),
+    centerOnShell: const Offset(-25, -93),
     // Keep the same broad-face fallback used by the neighbour; no special
     // occlusion or shape correction is introduced for this third plate.
     impactPitch: .25,
