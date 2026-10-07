@@ -47,9 +47,11 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-Valider sous Chrome la nouvelle topologie redessinée à partir du résultat final cible, avant d'ajouter le poussin. F3 est maintenant une grande plaque supérieure/arrière de type « chapeau » qui conserve une charnière de couronne ; F4 et F5 sont devenues de vraies parois latérales basses, beaucoup plus profondes, avec une charnière basse permanente. La coquille fixe sous leur bord reste donc le fond du bol. F1/F2 restent les plaques réellement libérées qui doivent créer les principaux débris.
+La première tentative de bol final a montré un défaut structurel clair : F4 et F5 descendaient trop bas dans l'œuf et créaient deux grandes ouvertures indépendantes dans la moitié inférieure. Elles ont été réduites pour devenir uniquement les lèvres gauche et droite du bord supérieur du bol. La coque fixe située en dessous doit maintenant rester la masse principale du bol inférieur.
 
-Critères : à 25 %, la coquille doit encore se lire comme un œuf fermé malgré les fissures ; à 5 %, l'ouverture doit commencer surtout autour du bec/tête ; à 00:01, la zone supérieure doit être largement dégagée tandis que F3 reste en arrière et que F4/F5 + coquille fixe dessinent déjà le bol inférieur destiné au poussin. À 00:00, la silhouette générale doit pouvoir accueillir le poussin de référence sans donner l'impression d'une coquille trouée en plaques indépendantes.
+Valider sous Chrome cette correction avant d'ajouter le poussin. F3 reste la grande plaque supérieure/arrière de type « chapeau » ; F1/F2 restent les fragments réellement libérés ; F4/F5 ne doivent plus se lire comme deux panneaux arrachés dans le bas de l'œuf mais comme deux lèvres irrégulières autour du futur poussin.
+
+Critères : à 25 %, coquille encore fermée ; à 5 %, ouverture surtout haute ; à 00:01, ouverture de tête large mais bas encore continu ; à 00:00, silhouette lisible comme bol inférieur + chapeau arrière + quelques fragments libérés.
 
 La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
