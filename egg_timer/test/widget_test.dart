@@ -753,7 +753,7 @@ void main() {
     return math.sqrt(dx * dx + dy * dy + dz * dz);
   }
 
-  test('Vol couple: le depart suit la normale locale en 3D', () {
+  test('Vol couple: le depart suit la normale locale en XZ', () {
     final lateral = <double>[];
     for (final index in [1, 2]) {
       final start = frame(0).debugFragmentFlight(index).detachmentProgress;
@@ -791,6 +791,21 @@ void main() {
         c - 2 * b + a,
         greaterThan(0),
         reason: 'Downward acceleration for fragment ${index + 1}',
+      );
+    }
+  });
+
+  test('Vol couple: aucun fragment ne recoit de coup vertical local', () {
+    for (final index in [1, 2]) {
+      final start = frame(0).debugFragmentFlight(index).detachmentProgress;
+      final at = frame(start).debugFragmentFlight(index).shift.$2;
+      final after = frame(start + .01).debugFragmentFlight(index).shift.$2;
+      expect(
+        after - at,
+        greaterThanOrEqualTo(-1e-9),
+        reason:
+            'Gravity must take over Y immediately after release for '
+            'fragment ${index + 1}',
       );
     }
   });
