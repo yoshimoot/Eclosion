@@ -451,9 +451,27 @@ class EggShellF1PreviewPainter extends CustomPainter {
 
   EggShellPoint3 _transformNormal(EggShellPoint3 normal) {
     final amount = openAmount.clamp(0.0, 1.0).toDouble();
-    var result = _rotateX(normal, .28 * amount);
-    result = _rotateZ(result, -.055 * amount);
+    // Normals must use the exact rotation applied to the shell vertices.
+    var result = _rotateX(normal, .34 * amount);
+    result = _rotateZ(result, -.045 * amount);
     return result.normalized;
+  }
+
+  Color _shadeInner(EggShellPoint3 outwardNormal) {
+    // The visible reverse side is concave shell material, not a flat patch.
+    // Shade its inward-facing normal under the same light as the exterior.
+    const light = EggShellPoint3(-.38, -.48, .79);
+    final diffuse = (-outwardNormal.x * light.x -
+            outwardNormal.y * light.y -
+            outwardNormal.z * light.z)
+        .clamp(-1.0, 1.0)
+        .toDouble();
+    final amount = ((diffuse + 1) * .5).clamp(0.0, 1.0).toDouble();
+    return Color.lerp(
+      const Color(0xff9f735f),
+      const Color(0xffdfb89b),
+      amount,
+    )!;
   }
 
   Path _aperturePath() {
@@ -561,6 +579,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
         outerPositions[index] = movedOuter.xy;
         innerPositions[index] = movedInner.xy;
         outerColors[index] = _shade(movedNormal);
+        innerColors[index] = _shadeInner(movedNormal);
       }
     }
 
