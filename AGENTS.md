@@ -19,6 +19,29 @@
 - Modifications ciblées sur une branche ; préserver les changements locaux de l'utilisateur. Pas de ZIP ni de régénération d'images sans nécessité ; aucun gros fichier de spécification supplémentaire sans demande explicite.
 - Mettre à jour `PROGRESS.md` seulement lorsqu'une étape est réellement validée ou que la priorité change ; distinguer tests exécutés et validation visuelle utilisateur.
 
+## Boucle de travail active : vidéo → GitHub → Chrome
+
+Mode normal depuis le 8 octobre 2026 : **l'utilisateur transmet une vidéo ou une capture Chrome ; ChatGPT analyse, corrige directement sur la branche GitHub et commite ; l'utilisateur récupère le commit et valide dans Chrome**. Il n'est plus nécessaire de préparer un prompt Codex pour chaque itération. Codex reste un outil facultatif, pas un passage obligatoire.
+
+1. **Entrée utilisateur :** dernière capture/vidéo, éventuellement avec remarque ou objectif. Comparer au rendu précédent, à la référence et aux validations écrites.
+2. **Analyse :** isoler **un défaut visuel principal**, distinguer cause probable et observation certaine, préciser les comportements/valeurs gelés. Vérifier le HEAD et le code réel avant édition. Si le diagnostic est incertain, examiner le code avant tout correctif.
+3. **Correction :** lorsqu'une nouvelle itération est demandée et le problème assez établi, modifier **directement sur GitHub** (`yoshimoot/Eclosion`, `prototype/fragment-lab-v1`) les seuls fichiers requis. Commit ciblé, traçable, non destructif, sans réécrire l'historique. Aucune confirmation répétée pour les changements ciblés prévus par ce cycle ; demander un accord explicite pour une suppression importante, un changement de stratégie, ou un point qui touche aux acquis gelés.
+4. **Vérifications :** formatage, analyse et tests Dart/Flutter par l'assistant **si son environnement le permet** (voir commandes ci-dessous) ; si les outils ne sont pas disponibles, le signaler explicitement, sans annoncer de tests réussis. Ne pas remplacer ces vérifications par GitHub Actions.
+5. **Livraison :** fournir le lien/identifiant du commit, le changement précis, ce qui reste gelé, les contrôles réellement effectués et la commande PowerShell courte pour `git pull --ff-only` puis `flutter run -d chrome`.
+6. **Validation :** l'utilisateur teste localement dans Chrome, envoie une nouvelle vidéo/capture ; **seule cette vérification permet de valider le rendu**, notamment à plusieurs ouvertures de F1. Mettre à jour `PROGRESS.md` si l'état validé, le blocage ou la priorité change.
+
+Pour relancer le prototype après un commit, depuis PowerShell sur le PC de l'utilisateur :
+
+```powershell
+cd "$env:USERPROFILE\Dev\Eclosion"
+git status --short
+git pull --ff-only origin prototype/fragment-lab-v1
+cd egg_timer
+flutter run -d chrome
+```
+
+Si `git status --short` signale des modifications, les examiner et les sauvegarder **avant** de basculer ou mettre à jour la branche ; ne jamais écraser le travail local ni réappliquer automatiquement un stash. Ne pas prétendre intervenir directement sur le PC de l'utilisateur. **Aucune GitHub Action dans cette boucle.**
+
 ## Vérification après modification de code Dart
 
 Depuis `egg_timer/`, exécuter soi-même, dans cet ordre :
