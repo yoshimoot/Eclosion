@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.8 — Faces incurvées du bol arrière et tranche de couronne F1 (tests en attente, 9 octobre 2026)
+
+**Retour local V11.7 confirmé :** `flutter test --no-pub test/egg_rear_bowl_boundary_test.dart test/egg_stationary_bowl_shell_test.dart` → **`00:01 +10: All tests passed!`**. Le contour arrière V11.7 et le bol avant V11.6 sont donc techniquement vérifiés par ces suites, sans validation de l'affichage.
+
+**Objet unique V11.8 :** construire la **demi-coquille arrière statique** avec face extérieure sur `EggShellModel`, face intérieure normale de `2.5`, et parois de tranche **seulement** sur la couronne arrière F1. `egg_rear_bowl_mesh.dart` consomme le contour V11.7 avec **exactement les objets `EggShellPoint3` d'origine sur ses bords**. La triangulation se fait par trois bandes concentriques en espace paramétrique (angle de révolution, hauteur) vers un centre arrière. Toutes les bandes internes restent sur `model.pointAt` ; le contour externe conserve les vrais sommets de l'avant, même si leur reprojection a légèrement décalé les méridiens. Pas de nouvelles subdivisions ni de triangles de liaison sur ces côtés, donc pas de T-junction introduite lors du raccord futur.
+
+**Délimitation :** 12 arêtes arrière de couronne F1 × 16 segments réels par arête = **192 segments supérieurs**. Seules ces 192 arêtes reçoivent des faces de tranche. Les deux arcs latéraux avant/arrière restent ouverts et partagent déjà le même échantillonnage V11.7 ; les deux extrémités verticales des tranches restent libres tant que les deux demi-coquilles ne sont pas réunies en un seul maillage. Les faces internes sont obtenues par `model.inset(point, 2.5)` et les triangles sont inversés.
+
+**Vérifications prévues (cinq tests non exécutés ici) :** identité exacte des sommets latéraux/du contour, géométrie sur l'ellipsoïde de révolution, normale et épaisseur 2.5, incidences topologiques des arêtes ouvertes limitées aux seuls arcs latéraux et à leurs extrémités, absence de triangle de face extérieure inversé, stabilité et entrées invalides. La fermeture globale (weld des deux demi-coquilles, recouvrement et orientation des triangles, éventuelles intersections) doit être validée **séparément**, sans modifier le peintre actif avant ce contrôle.
+
+**Gel intégral :** F1, fissures V10.4, seed, oscillation, propagation, modèle, volumes V11.2, bol avant V11.6, contour V11.7, poussin, scène et timing restent inchangés. Aucun rendu visible attendu sous Chrome. Après succès des tests V11.8 : vérifier et souder conceptuellement avant + arrière, puis valider continuité/occlusion avant toute animation physique.
+
 ## V11.7 — Couture latérale réelle et contour arrière F1 (tests en attente, 9 octobre 2026)
 
 **Retour PowerShell confirmé sur `e5fdbc3` :** les deux suites `egg_stationary_bowl_shell_test.dart` et `egg_shell_front_assembly_test.dart` passent **9/9** (`00:01 +9: All tests passed!`). La V11.6 (face intérieure et tranche supérieure du bol fixe AVANT) est ainsi validée par les tests, pas encore visuellement.
