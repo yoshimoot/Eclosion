@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -363,6 +364,128 @@ class EggShellModelPainter extends CustomPainter {
 }
 
 
+
+class _DepthMesh {
+  _DepthMesh(this.points, this.colors, this.indices, {this.fracture = false});
+  final List<EggShellPoint3> points;
+  final List<Color> colors;
+  final List<int> indices;
+  final bool fracture;
+
+  void draw(Canvas canvas) => canvas.drawVertices(
+    ui.Vertices(ui.VertexMode.triangles,
+      points.map((point) => point.xy).toList(),
+      colors: colors, indices: indices),
+    BlendMode.srcOver, Paint()..color = Colors.white);
+}
+
+/// F1-only diagnostic Z-buffer. Resolve each projected triangle at pixel
+/// centres, then clip the original interpolated-colour meshes to their visible
+/// pixels. Unlike a painter/group sort, this handles crossing surface depths.
+class _DepthScene {
+  final meshes = <_DepthMesh>[];
+
+  void add(List<EggShellPoint3> points, List<Color> colors,
+      List<int> indices, {bool fracture = false}) {
+    if (indices.isNotEmpty) {
+      meshes.add(_DepthMesh(points, colors, indices, fracture: fracture));
+    }
+  }
+
+  void paint(Canvas canvas, Path crack) {
+    if (meshes.isEmpty) return;
+    var minX = double.infinity, minY = double.infinity;
+    var maxX = double.negativeInfinity, maxY = double.negativeInfinity;
+    for (final mesh in meshes) {
+      for (final p in mesh.points) {
+        minX = math.min(minX, p.x);
+        maxX = math.max(maxX, p.x);
+        minY = math.min(minY, p.y);
+        maxY = math.max(maxY, p.y);
+      }
+    }
+    // Approximately one model unit per screen pixel in the F1 preview.
+    final left = minX.floor() - 2, top = minY.floor() - 2;
+    final width = maxX.ceil() - left + 3;
+    final height = maxY.ceil() - top + 3;
+    final count = width * height;
+    final depth = Float64List(count)
+      ..fillRange(0, count, double.negativeInfinity);
+    final owner = Uint8List(count);
+
+    for (var surface = 0; surface < meshes.length; surface++) {
+      final mesh = meshes[surface];
+      for (var i = 0; i < mesh.indices.length; i += 3) {
+        final p0 = mesh.points[mesh.indices[i]];
+        final p1 = mesh.points[mesh.indices[i + 1]];
+        final p2 = mesh.points[mesh.indices[i + 2]];
+        final signedArea = (p1.x-p0.x)*(p2.y-p0.y) -
+            (p1.y-p0.y)*(p2.x-p0.x);
+        if (signedArea.abs() < 1e-9) continue;
+        final x0 = (math.min(p0.x, math.min(p1.x,p2.x))-left-.5)
+            .ceil().clamp(0,width-1).toInt();
+        final x1 = (math.max(p0.x, math.max(p1.x,p2.x))-left-.5)
+            .floor().clamp(0,width-1).toInt();
+        final y0 = (math.min(p0.y, math.min(p1.y,p2.y))-top-.5)
+            .ceil().clamp(0,height-1).toInt();
+        final y1 = (math.max(p0.y, math.max(p1.y,p2.y))-top-.5)
+            .floor().clamp(0,height-1).toInt();
+        if (x0>x1 || y0>y1) continue;
+        final inverse = 1/signedArea;
+        final da = (p1.y-p2.y)*inverse;
+        final db = (p2.y-p0.y)*inverse;
+        for (var y=y0;y<=y1;y++) {
+          final py=top+y+.5, px=left+x0+.5;
+          var a=((p1.y-p2.y)*(px-p2.x)+(p2.x-p1.x)*(py-p2.y))*inverse;
+          var b=((p2.y-p0.y)*(px-p2.x)+(p0.x-p2.x)*(py-p2.y))*inverse;
+          for (var x=x0;x<=x1;x++) {
+            final c=1-a-b;
+            if(a>=-1e-8 && b>=-1e-8 && c>=-1e-8) {
+              final z=a*p0.z+b*p1.z+c*p2.z;
+              final pixel=y*width+x;
+              if(z>depth[pixel]+1e-7) {
+                depth[pixel]=z;
+                owner[pixel]=surface+1;
+              }
+            }
+            a+=da; b+=db;
+          }
+        }
+      }
+    }
+
+    // Disjoint run-length masks preserve the vertex colours and material.
+    final paths=List<Path>.generate(meshes.length,(_)=>Path());
+    final crackPath=Path();
+    for(var y=0;y<height;y++) {
+      var x=0;
+      while(x<width) {
+        final id=owner[y*width+x], start=x;
+        while(x<width && owner[y*width+x]==id) { x++; }
+        if(id==0) continue;
+        final rect=Rect.fromLTWH((left+start).toDouble(),
+            (top+y).toDouble(),(x-start).toDouble(),1);
+        paths[id-1].addRect(rect);
+        if(meshes[id-1].fracture) crackPath.addRect(rect);
+      }
+    }
+    for(var i=0;i<meshes.length;i++) {
+      canvas.save();
+      canvas.clipPath(paths[i],doAntiAlias:true);
+      meshes[i].draw(canvas);
+      canvas.restore();
+    }
+    canvas.save();
+    canvas.clipPath(crackPath,doAntiAlias:true);
+    canvas.drawPath(crack, Paint()
+        ..style=PaintingStyle.stroke
+        ..strokeWidth=1.2
+        ..strokeCap=StrokeCap.round
+        ..color=const Color(0x8a76503a));
+    canvas.restore();
+  }
+}
+
 class EggShellF1PreviewPainter extends CustomPainter {
   const EggShellF1PreviewPainter({
     this.model = EggShellModel.reference,
@@ -473,12 +596,12 @@ class EggShellF1PreviewPainter extends CustomPainter {
     )!;
   }
 
-  void _drawRearInnerBowl(Canvas canvas) {
+  void _drawRearInnerBowl(_DepthScene scene) {
     // The true rear inner wall is revealed through F1's opening.
     // Geometry comes from the shared 3D shell, not a 2D cavity overlay.
     const rows = 64;
     const columns = 96;
-    final positions = <Offset>[];
+    final points = <EggShellPoint3>[];
     final colors = <Color>[];
     final indices = <int>[];
 
@@ -490,7 +613,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
         final y = topY + (model.halfHeight - topY) * t;
         final outer = model.pointAt(y, angle);
         final inner = model.inset(outer, thickness);
-        positions.add(inner.xy);
+        points.add(inner);
         colors.add(_shadeInner(model.normalAt(outer)));
       }
     }
@@ -506,22 +629,13 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
 
-    canvas.drawVertices(
-      ui.Vertices(
-        ui.VertexMode.triangles,
-        positions,
-        colors: colors,
-        indices: indices,
-      ),
-      BlendMode.srcOver,
-      Paint()..color = Colors.white,
-    );
+    scene.add(points, colors, indices);
   }
 
-  void _drawBody(Canvas canvas) {
+  void _drawBody(_DepthScene scene) {
     const rows = 72;
     const columns = 48;
-    final positions = <Offset>[];
+    final points = <EggShellPoint3>[];
     final colors = <Color>[];
     final indices = <int>[];
 
@@ -534,7 +648,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
         final topY = _boundaryY(angle);
         final y = topY + (model.halfHeight - topY) * t;
         final point = model.pointAt(y, angle);
-        positions.add(point.xy);
+        points.add(point);
         colors.add(_shade(model.normalAt(point)));
       }
     }
@@ -550,28 +664,17 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
 
-    canvas.drawVertices(
-      ui.Vertices(
-        ui.VertexMode.triangles,
-        positions,
-        colors: colors,
-        indices: indices,
-      ),
-      BlendMode.srcOver,
-      Paint()..color = Colors.white,
-    );
+    scene.add(points, colors, indices);
   }
 
-  void _drawCap(Canvas canvas, {required VoidCallback paintFixedBody}) {
+  Path _drawCap(_DepthScene scene) {
     const rows = 34;
     const columns = 96;
     final vertexCount = (rows + 1) * (columns + 1);
 
-    final outer3 = List<EggShellPoint3?>.filled(vertexCount, null);
-    final inner3 = List<EggShellPoint3?>.filled(vertexCount, null);
-    final normals = List<EggShellPoint3?>.filled(vertexCount, null);
-    final outerPositions = List<Offset>.filled(vertexCount, Offset.zero);
-    final innerPositions = List<Offset>.filled(vertexCount, Offset.zero);
+    final outer3 = List<EggShellPoint3>.filled(vertexCount, const EggShellPoint3(0, 0, 0));
+    final inner3 = List<EggShellPoint3>.filled(vertexCount, const EggShellPoint3(0, 0, 0));
+    final normals = List<EggShellPoint3>.filled(vertexCount, const EggShellPoint3(0, 0, 0));
     final outerColors = List<Color>.filled(vertexCount, _shellBase);
     final innerColors = List<Color>.filled(vertexCount, _innerShell);
 
@@ -591,8 +694,6 @@ class EggShellF1PreviewPainter extends CustomPainter {
         outer3[index] = movedOuter;
         inner3[index] = movedInner;
         normals[index] = movedNormal;
-        outerPositions[index] = movedOuter.xy;
-        innerPositions[index] = movedInner.xy;
         outerColors[index] = _shade(movedNormal);
         innerColors[index] = _shadeInner(movedNormal);
       }
@@ -608,7 +709,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
         final c = a + stride;
         final d = c + 1;
         final nz =
-            (normals[a]!.z + normals[b]!.z + normals[c]!.z + normals[d]!.z) /
+            (normals[a].z + normals[b].z + normals[c].z + normals[d].z) /
             4;
 
         // Orthographic camera looks along +Z. Culling on the transformed shell
@@ -622,26 +723,10 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
 
-    if (innerIndices.isNotEmpty) {
-      canvas.drawVertices(
-        ui.Vertices(
-          ui.VertexMode.triangles,
-          innerPositions,
-          colors: innerColors,
-          indices: innerIndices,
-        ),
-        BlendMode.srcOver,
-        Paint()..color = Colors.white,
-      );
-    }
-
-    // The moving cap's inward surface is behind the fixed shell's front
-    // exterior in this rear-hinged preview. Paint that front surface now,
-    // before the cap's fracture rim and outward-facing material.
-    paintFixedBody();
+    scene.add(inner3, innerColors, innerIndices);
 
     if (openAmount > .02) {
-      final edgePositions = <Offset>[];
+      final edgePoints = <EggShellPoint3>[];
       final edgeColors = <Color>[];
       final edgeIndices = <int>[];
       for (var column = 0; column <= columns; column++) {
@@ -652,9 +737,9 @@ class EggShellF1PreviewPainter extends CustomPainter {
         final inner = _transformPoint(
           model.inset(model.pointAt(_boundaryY(angle), angle), thickness),
         );
-        edgePositions
-          ..add(outer.xy)
-          ..add(inner.xy);
+        edgePoints
+          ..add(outer)
+          ..add(inner);
         edgeColors
           ..add(_edgeShell)
           ..add(_innerShell);
@@ -675,30 +760,10 @@ class EggShellF1PreviewPainter extends CustomPainter {
         edgeIndices.addAll([a, b, c, c, b, d]);
       }
 
-      canvas.drawVertices(
-        ui.Vertices(
-          ui.VertexMode.triangles,
-          edgePositions,
-          colors: edgeColors,
-          indices: edgeIndices,
-        ),
-        BlendMode.srcOver,
-        Paint()..color = Colors.white,
-      );
+      scene.add(edgePoints, edgeColors, edgeIndices, fracture: true);
     }
 
-    if (outerIndices.isNotEmpty) {
-      canvas.drawVertices(
-        ui.Vertices(
-          ui.VertexMode.triangles,
-          outerPositions,
-          colors: outerColors,
-          indices: outerIndices,
-        ),
-        BlendMode.srcOver,
-        Paint()..color = Colors.white,
-      );
-    }
+    scene.add(outer3, outerColors, outerIndices, fracture: true);
 
     // Visible front half of the fracture line.
     final crack = Path();
@@ -714,14 +779,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
         crack.lineTo(point.dx, point.dy);
       }
     }
-    canvas.drawPath(
-      crack,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..strokeCap = StrokeCap.round
-        ..color = const Color(0x8a76503a),
-    );
+    return crack;
   }
 
   @override
@@ -759,10 +817,11 @@ class EggShellF1PreviewPainter extends CustomPainter {
       );
     }
 
-    // Painter's depth order: rear bowl < F1 inner face < fixed front shell
-    // < F1 outer face. Keep F1 mesh generation shared for both sides.
-    _drawRearInnerBowl(canvas);
-    _drawCap(canvas, paintFixedBody: () => _drawBody(canvas));
+    final scene = _DepthScene();
+    _drawRearInnerBowl(scene);
+    _drawBody(scene);
+    final crack = _drawCap(scene);
+    scene.paint(canvas, crack);
 
     if (guides) {
       final guidePaint = Paint()
