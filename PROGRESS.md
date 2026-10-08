@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.4 — Triangulation du bol fixe restant (tests locaux à confirmer, 8 octobre 2026)
+
+**Accord de poursuite :** l'utilisateur a répondu `ok` après la livraison de V11.3. V11.2 : **5/5 tests locaux réussis**, confirmé par PowerShell. Les tests dédiés V11.3 n'ont pas encore été rapportés et ne sont donc pas déclarés réussis.
+
+**Implémentation statique :** `EggStationaryBowlMeshBuilder` produit un véritable maillage triangulé de la **surface avant du bol fixe sans les deux fragments candidats**. Il part exclusivement du contour V11.3, avec les arêtes d'origine et les deux méridiens de `EggShellModel`. L'ancien maillage F1/bol dessiné en Chrome n'est **pas remplacé** dans cette étape : aucun changement visible ni animation. Les coupures ne sont ni des masques alpha ni des bandes dessinées.
+
+**Réutilisation du moteur 3D :** la triangulation extérieure de V11.2 a été extraite dans `EggShellPanelMeshBuilder.tessellateExterior`, produisant un `EggShellSurfacePatch` (points, triangles, contour). Les deux volumes V11.2 se construisent désormais par cette même routine sans changer leurs triangles externes attendus, leur épaisseur de `2.5`, leurs faces intérieures ou leurs tranches. Le bol fixe en bénéficie aussi. Les nouveaux sommets sont reprojetés sur le vrai profil de coquille, avec échantillons de fissures originaux préservés.
+
+**Limites encore ouvertes :** bol arrière et face interne restant à raccorder, tranches de l'ouverture, attaches, charnières, mouvement et passage du poussin. Le contour original est géométriquement commun ; les raffinements de maille propres à chaque région peuvent encore différer le long d'une même fissure : **vérifier et unifier la tessellation des frontières avant tout rendu actif**, pour éliminer les T-junction. F1, le réseau V10.4, les peintres, la seed et la propagation sont inchangés.
+
+**Tests V11.4 ajoutés mais non exécutés ici :** `flutter test --no-pub test/egg_stationary_bowl_mesh_test.dart` (aire triangulée, bord unique, reprojection, coordonnées de la découpe et déterminisme). Rejouer obligatoirement `flutter test --no-pub test/egg_shell_fragment_mesh_test.dart` en raison de la factorisation et `flutter test --no-pub test/egg_stationary_bowl_boundary_test.dart` (V11.3). Corriger tout échec avant de poursuivre.
+
 ## V11.3 — Contour matériel du bol fixe restant (code livré, tests locaux en attente, 8 octobre 2026)
 
 **Retour utilisateur V11.2 :** sur le commit `ca39e57`, `git pull --ff-only` indique `Already up to date`, puis `flutter test --no-pub test/egg_shell_fragment_mesh_test.dart` → **`00:01 +5: All tests passed!`**. Les cinq contrôles dédiés de génération des deux volumes statiques de coquille ont donc réussi sur la machine de l'utilisateur. Cela ne constitue pas encore une validation de leur rendu ou de leur animation.

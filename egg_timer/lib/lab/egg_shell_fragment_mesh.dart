@@ -11,6 +11,15 @@ class EggShellTriangle {
   final int c;
 }
 
+/// Geometry-only exterior patch shared by the V11.2 panel tessellator
+/// and the new V11.4 stationary front-bowl tessellator.
+class EggShellSurfacePatch {
+  const EggShellSurfacePatch._(this.vertices, this.rim, this.triangles);
+  final List<EggShellPoint3> vertices;
+  final List<int> rim;
+  final List<EggShellTriangle> triangles;
+}
+
 /// A real static 3D shell patch: outer face, inner face, and all side walls.
 /// This is NOT yet removed from the original bowl or animated.
 class EggShellPanelMesh {
@@ -114,14 +123,17 @@ class EggShellPanelMeshBuilder {
     return result;
   }
 
-  static EggShellPanelMesh _mesh(
-    EggFragmentRegionPlan plan,
-    EggCandidateShellRegion region,
-    double thickness,
-    double maxEdgeXY,
-  ) {
-    final model = plan.network.model;
-    final sampled = region.sampledPerimeter(plan.network);
+  /// Triangulates the *actual* sampled 3D shell boundary; every inserted
+  /// vertex is projected to the shared EggShellModel curved surface.
+  static EggShellSurfacePatch tessellateExterior({
+    required EggShellModel model,
+    required List<EggShellPoint3> closedPerimeter,
+    double maxEdgeXY = 24,
+  }) {
+    if (!maxEdgeXY.isFinite || maxEdgeXY <= 0) {
+      throw ArgumentError.value(maxEdgeXY, 'maxEdgeXY');
+    }
+    final sampled = closedPerimeter;
     if (sampled.length < 4 || !_same(sampled.first, sampled.last)) {
       throw StateError('Unclosed original shell perimeter');
     }
@@ -211,6 +223,29 @@ class EggShellPanelMeshBuilder {
       throw StateError('Disconnected rim edges');
     }
 
+
+    return EggShellSurfacePatch._(
+      List<EggShellPoint3>.unmodifiable(points),
+      List<int>.unmodifiable(rim),
+      List<EggShellTriangle>.unmodifiable(triangles),
+    );
+  }
+
+  static EggShellPanelMesh _mesh(
+    EggFragmentRegionPlan plan,
+    EggCandidateShellRegion region,
+    double thickness,
+    double maxEdgeXY,
+  ) {
+    final model = plan.network.model;
+    final patch = tessellateExterior(
+      model: model,
+      closedPerimeter: region.sampledPerimeter(plan.network),
+      maxEdgeXY: maxEdgeXY,
+    );
+    final points = patch.vertices;
+    final triangles = patch.triangles;
+    final rim = patch.rim;
     final inside = <EggShellPoint3>[
       for (final point in points) model.inset(point, thickness),
     ];
