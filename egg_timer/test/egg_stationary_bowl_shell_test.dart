@@ -86,10 +86,40 @@ void main() {
     expect(counts.values.every((n) => n == 1 || n == 2), isTrue,
         reason: 'No non-manifold edges, duplicate walls, or missing rim joins');
 
-    final openOuter = shell.openSilhouetteEdgeCount;
-    final openEdges = counts.values.where((v) => v == 1).length;
-    expect(openEdges, openOuter * 2,
-        reason: 'Only front/rear silhouette borders remain unjoined');
+    // There are two open silhouette arcs, one on each shell surface.
+    // Since the upper cut has a finite thickness, the left and right
+    // endpoints ALSO expose one short outer-to-inner edge each until
+    // the front and rear halves are physically connected.
+    final upperMaterialEdges = <String>{
+      for (var i = 0; i + 1 < shell.upperRim.length; i++)
+        edgeKey(shell.upperRim[i], shell.upperRim[i + 1]),
+    };
+    final rim = assembly.bowl.surface.rim;
+    final offset = shell.exterior.length;
+    final expectedOpenEdges = <String>{};
+    for (var i = 0; i < rim.length; i++) {
+      final a = rim[i];
+      final b = rim[(i + 1) % rim.length];
+      if (upperMaterialEdges.contains(edgeKey(a, b))) continue;
+      expectedOpenEdges.add(edgeKey(a, b));
+      expectedOpenEdges.add(edgeKey(a + offset, b + offset));
+    }
+    final leftTip = shell.upperRim.first;
+    final rightTip = shell.upperRim.last;
+    expectedOpenEdges.add(edgeKey(leftTip, leftTip + offset));
+    expectedOpenEdges.add(edgeKey(rightTip, rightTip + offset));
+
+    final actualOpenEdges = counts.entries
+        .where((e) => e.value == 1)
+        .map((e) => e.key)
+        .toSet();
+    expect(actualOpenEdges, expectedOpenEdges,
+        reason: 'Only both silhouette arcs and their two vertical '
+            'end contacts may remain open');
+    expect(actualOpenEdges.length,
+        shell.openSilhouetteEdgeCount * 2 + 2,
+        reason: 'Each of the two upper-rim endpoints has one exposed '
+            'thickness edge until the rear shell is assembled');
   });
 
   test('V11.6: cut walls have exactly the same outer and inner rim', () {

@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## V11.6 — Correction du test d'incidence des deux extrémités (8 octobre 2026)
+
+**Retour réel PowerShell :** après récupération de `d9f5429`, exécution des suites V11.6 et V11.5 ensemble : **8 tests réussis, 1 échec**, dans `V11.6: interior and cut walls share manifold edges only`. Comptage réel des arêtes ouvertes = `4098` ; test attendait `4096`. Les autres vérifications (épaisseur 2.5, faces, tranches, stabilité, assemblage V11.5) passent.
+
+**Diagnostic topologique :** la demi-coquille avant comporte deux arcs de silhouette ouverts, un extérieur et un intérieur (ensemble `2 × openSilhouetteEdgeCount` arêtes), **plus exactement deux arêtes de liaison verticale entre les faces** situées aux extrémités gauche et droite de la tranche supérieure. Tant que la face arrière n'est pas raccordée, ces deux arêtes verticales doivent rester **ouvertes**, sans créer de fausse paroi sur les côtés. Il s'agit d'une attente de test incorrecte, pas d'un défaut de maillage démontré.
+
+**Correctif ciblé et renforcé :** dans `egg_stationary_bowl_shell_test.dart` uniquement, reconstruire l'ensemble attendu des arêtes ouvertes à partir du contour raffiné, en excluant les segments de la tranche supérieure, puis ajouter les deux liaisons verticales aux extrémités. Comparer **les identifiants de toutes les arêtes d'incidence 1** à cet ensemble exact : cela détecte les manques, doublons et trous inattendus, au-delà du simple total `2×N+2`. Le code de production, les maillages, F1, les fissures et le rendu ne changent pas.
+
+**Tests :** correctif publié, mais sa réussite locale **reste à confirmer**. Exécuter `flutter test --no-pub test/egg_stationary_bowl_shell_test.dart test/egg_shell_front_assembly_test.dart`. Résultat attendu : **9/9**. Ne pas passer au raccord arrière avant confirmation.
+
 ## V11.6 — Face intérieure et tranches réelles du bol fixe avant (tests en attente, 8 octobre 2026)
 
 **Retour PowerShell V11.5 confirmé :** `flutter test --no-pub test/egg_shell_front_assembly_test.dart` → **`00:01 +4: All tests passed!`**. Après les 15 tests V11.2/V11.3/V11.4 déjà réussis, la topologie commune de l'assemblage V11.5 a passé ses quatre nouveaux tests. Cela reste une validation technique, pas une validation du rendu.
