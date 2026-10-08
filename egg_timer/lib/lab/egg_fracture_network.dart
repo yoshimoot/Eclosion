@@ -164,35 +164,62 @@ class _CrackGraphBuilder {
     return result;
   }
 
+  // Deterministic coordinates generated once per network (not per frame).
+  static double _fixedSignedOffset(int edgeId, int step, int channel) {
+    final basis =
+        (edgeId + 11) * 379 + (step + 7) * 587 + (channel + 5) * 241;
+    final hash = (basis * basis * 17 + basis * 19 + 97) % 65521;
+    return 2 * hash / 65520 - 1;
+  }
+
   void edge(int from, int to, EggCrackKind kind) {
     final id = edges.length;
     final start = nodes[from];
     final end = nodes[to];
     final crown = kind == EggCrackKind.crown;
-    final steps = crown ? 16 : 6;
+    final startPoint = start.onShell(model);
+    final endPoint = end.onShell(model);
+    final dx = endPoint.x - startPoint.x;
+    final dy = endPoint.y - startPoint.y;
+    final span = math.sqrt(dx * dx + dy * dy);
+    final steps = crown ? 16 : math.max(6, math.min(10, (span / 5).round()));
     final points = <EggShellPoint3>[];
     final lastAngle = crown && to == 0 ? math.pi : end.angle;
 
     for (var i = 0; i <= steps; i++) {
-      final t = i / steps;
-      var angle = start.angle + (lastAngle - start.angle) * t;
-      var y = crown
-          ? model.crownFractureY(angle)
-          : start.y + (end.y - start.y) * t;
-      if (!crown && i > 0 && i < steps) {
-        // A reproducible small angular kink, never applied at junctions.
-        final kink = (((id + 3) * 17 + i * 13) % 7 - 3) *
-            math.sin(math.pi * t);
-        angle += .007 * kink;
-        y += .60 * kink;
+      if (i == 0 || i == steps) {
+        // Shared junctions stay exact. F1's original crown is frozen.
+        points.add(i == 0 ? startPoint : endPoint);
+        continue;
       }
+
+      if (crown) {
+        final angle = start.angle + (lastAngle - start.angle) * i / steps;
+        points.add(model.pointAt(model.crownFractureY(angle), angle));
+        continue;
+      }
+
+      // Angular, uneven changes in direction instead of nearly straight
+      // interpolations. Offset intermediate corners sideways to the chord,
+      // tapering to zero at each existing graph junction.
+      final t = i / steps + _fixedSignedOffset(id, i, 2) * .19 / steps;
+      final amplitude = (span * .22).clamp(4.0, 7.0).toDouble();
+      final kink =
+          amplitude * _fixedSignedOffset(id, i, 1) * math.sin(math.pi * t);
+      final lateralX = span > 1e-6 ? -dy / span : 0.0;
+      final lateralY = span > 1e-6 ? dx / span : 0.0;
+      final y = startPoint.y + dy * t + lateralY * kink;
+      final projectedX = startPoint.x + dx * t + lateralX * kink;
+
+      // Current branches lie on the camera-facing hemisphere. Every corner
+      // must be placed back on the shared 3D shell, never painted as 2D art.
+      final radius = model.radiusAt(y);
+      final xOnShell =
+          projectedX.clamp(-radius * .996, radius * .996).toDouble();
+      final angle = math.asin(xOnShell / radius);
       points.add(model.pointAt(y, angle));
     }
 
-    // Exact graph-node positions at each junction. Two connected edges
-    // refer to the same 3D endpoint, not coincident-looking 2D patches.
-    points[0] = start.onShell(model);
-    points[steps] = end.onShell(model);
     edges.add(EggCrackEdge(
       id: id,
       startNode: from,

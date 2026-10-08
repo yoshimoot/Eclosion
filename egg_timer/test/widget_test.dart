@@ -737,6 +737,39 @@ void main() {
     expect(first.edges.last.kind, EggCrackKind.secondary);
   });
 
+  test('Fissures secondaires : angles visibles et jonctions intactes', () {
+    final network = EggFractureNetwork.fixed();
+    var visiblyAngledEdges = 0;
+    var greatestDeviation = 0.0;
+
+    for (final edge in network.edges) {
+      if (edge.kind == EggCrackKind.crown) continue;
+      final start = edge.samples.first;
+      final end = edge.samples.last;
+      final dx = end.x - start.x;
+      final dy = end.y - start.y;
+      final length = math.sqrt(dx * dx + dy * dy);
+      expect(length, greaterThan(1));
+
+      var maxDeviation = 0.0;
+      for (final point in edge.samples.skip(1).take(edge.samples.length - 2)) {
+        final deviation =
+            ((point.x - start.x) * dy - (point.y - start.y) * dx).abs() /
+            length;
+        maxDeviation = math.max(maxDeviation, deviation);
+      }
+
+      if (maxDeviation > 1.5) visiblyAngledEdges++;
+      greatestDeviation = math.max(greatestDeviation, maxDeviation);
+      expect(maxDeviation, lessThan(9.0),
+          reason: 'A crack must not form an oversized lateral hook');
+    }
+
+    expect(visiblyAngledEdges, greaterThanOrEqualTo(8),
+        reason: 'Cracks must be angular instead of nearly straight');
+    expect(greatestDeviation, greaterThan(3.0));
+  });
+
   testWidgets('Atelier unifié : ouverture F1 et œuf intact', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));

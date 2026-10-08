@@ -1,5 +1,13 @@
 ﻿# Eclosion — état courant
 
+## Réseau statique V1 — retour de capture et morphologie V2
+
+La capture du 8 octobre montre un réseau fixé à la surface, mais les **ramifications présentent des segments presque droits** et leurs coudes restent insuffisamment irréguliers. La cassure circulaire supérieure est également trop lisse, mais **son tracé est actuellement partagé avec le F1 validé** : ne pas la modifier dans la même itération.
+
+**Correction ciblée livrée :** échantillonnage intermédiaire des arêtes ramifiées avec déviations anguleuses déterministes, non uniformes et limitées. Reprojection systématique des nouveaux coins sur `EggShellModel`. La topologie, les nœuds, leurs connexions et la couronne F1 restent strictement inchangés, de même que le pivot. Aucun aléatoire par session.
+
+**Contrôle à demander :** Chrome → `Réseau de fissures 3D (statique)`, idéalement avec `Repères de cadrage` désactivés, puis une capture pour comparer les fissures organiques à la planche. Le lissage de la cassure autour de la couronne sera une itération distincte nécessitant un contrôle du bord F1. Un test de non-colinéarité bornée est ajouté, mais il doit être exécuté sous Flutter avant de déclarer la correction techniquement testée. Validation visuelle en attente.
+
 ## Itération réseau statique 3D — code livré, validation Chrome attendue
 
 **Objectif unique :** première topologie de fissures géométriques sur `EggShellModel`, sans rotation des fragments, sans changement de F1, et sans variabilité entre sessions.
