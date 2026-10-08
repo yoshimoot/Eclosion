@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V10.3 — adaptation du dernier croquis rouge (8 octobre 2026)
+
+**Nouvelle priorité confirmée :** conserver la logique de l'annotation rouge de l'utilisateur sur la capture V10.2 : trois fissures mères verticales/obliques, deux liaisons basses non rectilignes rejoignant la fissure centrale à deux hauteurs différentes, trois sorties vers les côtés. Le défaut unique est la **répartition hors F1**, pas l'animation.
+
+**Réseau candidat :** racines F1 `7, 11, 16` inchangées ; douze arêtes mères, six arêtes de connexion et six petites arêtes latérales, plus quatre arêtes inchangées des deux fissures sur le chapeau. La liaison gauche rejoint `middle[2]`, la droite rejoint `middle[3]` : pas de jonction à quatre branches. **50 nœuds, 52 arêtes, trois cycles au total (F1 + deux régions candidates), degré maximal 3.** Les sorties latérales se terminent juste sur la partie avant de la surface courbe, près du contour projeté : ce sont des fissures réelles du graphe, mais elles ne constituent pas encore des coupes physiques rejoignant l'arrière de la coquille. Aucun fragment n'est découpé ni détaché.
+
+**Gel :** modèle `EggShellModel`, profil, couronne F1, ses deux fines fissures, ouverture F1, pivot, seed `20261008`, épaisseur `2.5`, oscillation `1.5`, moteur de propagation V9/V10 et atelier unique inchangés. Ne pas substituer une image 2D ou une géométrie indépendante au réseau.
+
+**Contrôles préparatoires non-Flutter :** simulation des coordonnées, profils et échantillons sur la même géométrie : 50 nœuds/52 arêtes, aucun croisement parasite entre arêtes hors couronne non connectées, aucun point hors surface, pas d'arête passant d'un côté à l'autre de F1 et propagation théorique terminée avant 100 %. Deux intersections projetées historiques entre couronne et fines fissures du chapeau restent hors périmètre. **Tests Dart/Flutter non exécutés ici :** tests topologiques et de propagation actualisés, à vérifier localement.
+
+**Prochaine validation :** `flutter test --no-pub test/egg_crack_propagation_test.dart`, puis `flutter test --no-pub test/widget_test.dart --plain-name "V10.3 : deux jonctions basses et sorties latérales partagées"`. Comparer dans Chrome une capture avec F1 fermé, propagation à 100 %, repères désactivés, au croquis rouge. Si le tracé est accepté, observer une courte vidéo 0→100 % avant toute implémentation de fragments mobiles.
+
 ## V10.2 — combinaison visuelle 2 + 3 + 7 : grandes régions centrales (8 octobre 2026)
 
 **Décision de l'utilisateur :** préférer une combinaison des études visuelles numérotées **2** (organique proche du croquis rouge), **3** (dégagement au centre) et **7** (peu de branches, grandes zones) à la distribution V10.1. Ne pas recopier l'image générée pixel par pixel : l'utiliser comme orientation artistique, puis construire les vraies arêtes 3D de la coquille. **Seul défaut traité : la répartition et les connexions hors F1.**

@@ -830,8 +830,8 @@ void main() {
     expect(network.edges.where(
       (edge) => edge.kind == EggCrackKind.connection).length, 6);
     expect(degrees.every((degree) => degree <= 3), isTrue);
-    expect(degrees.skip(24).where((degree) => degree == 3).length, 3,
-        reason: 'Sparse left/right branches and one central Y junction');
+    expect(degrees.skip(24).where((degree) => degree == 3).length, 4,
+        reason: 'Three lateral branch nodes and one central left join');
 
     final majorOblique = network.edges.where((edge) {
       if (edge.kind != EggCrackKind.primary &&
@@ -843,68 +843,80 @@ void main() {
     expect(majorOblique, greaterThanOrEqualTo(6));
   });
 
-  test('V10.2 : deux grandes régions F1 et jonction centrale partagée', () {
+  test('V10.3 : deux jonctions basses et sorties latérales partagées', () {
     final network = EggFractureNetwork.fixed();
     final edges = network.edges;
     final crown = edges.where((e) => e.kind == EggCrackKind.crown).toList();
     final mothers = edges.where((e) => e.kind == EggCrackKind.primary).toList();
     final links = edges.where((e) => e.kind == EggCrackKind.connection).toList();
+    final secondary = edges.where((e) => e.kind == EggCrackKind.secondary)
+        .toList();
 
     expect(network.seed, EggFractureNetwork.fixedSeed);
     expect(crown.length, 24);
     expect(mothers.length, 12);
     expect(links.length, 6);
-    final motherRoots = mothers.where((edge) => edge.startNode < 24)
-        .map((edge) => edge.startNode).toList();
+    expect(secondary.length, 10,
+        reason: 'Six lateral branch edges and four F1 cap scratches');
+    final motherRoots = mothers.where((e) => e.startNode < 24)
+        .map((e) => e.startNode).toList();
     expect(motherRoots, [7, 11, 16]);
 
-    final tips = <double>[];
+    final tipHeights = <double>[];
     for (final root in motherRoots) {
-      final first = mothers.singleWhere((edge) => edge.startNode == root);
-      var node = first.endNode;
+      final first = mothers.singleWhere((e) => e.startNode == root);
+      var tip = first.endNode;
       while (true) {
-        final continuation = mothers.where((e) => e.startNode == node);
-        if (continuation.isEmpty) break;
-        expect(continuation.length, 1);
-        node = continuation.single.endNode;
+        final next = mothers.where((e) => e.startNode == tip);
+        if (next.isEmpty) break;
+        expect(next.length, 1);
+        tip = next.single.endNode;
       }
-      tips.add(network.nodes[node].y);
+      tipHeights.add(network.nodes[tip].y);
     }
-    expect(tips, [3, 34, 6],
-        reason: 'Distinct upper faults converge below into a shallow U');
+    expect(tipHeights, [13, 37, -9],
+        reason: 'Mother cracks are asymmetrical, not equally long');
 
-    // Two separate upper regions can open against the unchanged F1 crown.
-    // Their late paths join the SAME central mother tip, not each other
-    // through an unrelated 2D decorative line.
-    final centre = mothers[7].endNode;
-    expect(links[0].startNode, mothers[3].endNode);
-    expect(links[2].endNode, centre);
-    expect(links[3].startNode, mothers[11].endNode);
-    expect(links[5].endNode, centre);
-    expect(centre, links[2].endNode);
-    expect(centre, links[5].endNode);
-    expect(
-      network.nodes[centre].onShell(network.model).x.abs(),
-      lessThan(20),
-      reason: 'The shared junction must remain near the middle of the egg',
-    );
+    // Two lower bridges join distinct nodes of the SAME central mother.
+    final leftTip = mothers[3].endNode;
+    final middleUpper = mothers[6].endNode;
+    final middleLower = mothers[7].endNode;
+    final rightTip = mothers[11].endNode;
+    expect(links[0].startNode, leftTip);
+    expect(links[2].endNode, middleUpper);
+    expect(links[3].startNode, rightTip);
+    expect(links[5].endNode, middleLower);
+    expect(middleUpper, isNot(middleLower));
+    expect(network.nodes[middleUpper].y,
+        lessThan(network.nodes[middleLower].y));
 
-    // Graph identities are real material boundaries, not coincident lines.
     final degrees = List<int>.filled(network.nodes.length, 0);
-    final pairs = <String>{};
+    final materialPairs = <String>{};
     for (final edge in edges) {
       degrees[edge.startNode]++;
       degrees[edge.endNode]++;
       final a = math.min(edge.startNode, edge.endNode);
       final b = math.max(edge.startNode, edge.endNode);
-      expect(pairs.add('$a:$b'), isTrue);
+      expect(materialPairs.add('$a:$b'), isTrue,
+          reason: 'No overlapping duplicate edges');
     }
     expect(degrees.every((degree) => degree <= 3), isTrue);
-    expect(degrees[centre], 3,
-        reason: 'Two late boundaries and central mother form one 3D Y');
+    expect(degrees[middleUpper], 3);
+    expect(degrees[middleLower], 2);
+    expect(degrees[leftTip], 3);
+    expect(degrees[rightTip], 3);
     expect(edges.length - network.nodes.length + 1, 3,
-        reason: 'F1 crown cycle plus two prospective large regions');
-    expect(links.every((e) => e.samples.length == 7), isTrue);
+        reason: 'Two candidate shell regions and the unchanged F1 crown');
+    expect(links.every((edge) => edge.samples.length == 7), isTrue);
+
+    final lateralEnds = secondary.where((edge) {
+      final tip = network.nodes[edge.endNode];
+      return tip.y > -50 && tip.angle.abs() > 1.40;
+    }).toList();
+    expect(lateralEnds.length, 3,
+        reason: 'One upper left, one lower left and one right exit');
+    expect(lateralEnds.every((edge) => edge.samples.last.z > 0), isTrue,
+        reason: 'The projected silhouette does not close a 3D fragment');
   });
 
   test('Réseau V6 : aucune intersection fortuite entre branches visibles', () {
@@ -950,7 +962,7 @@ void main() {
     }
   });
 
-  test('V10.2 : fissures concentrées dans la moitié supérieure', () {
+  test('V10.3 : fissures haut-médianes et sorties latérales', () {
     final network = EggFractureNetwork.fixed();
     final model = network.model;
     final fixedEdges = network.edges.where((edge) {
@@ -964,8 +976,9 @@ void main() {
     // in long parallel lines toward the base. Short cap branches are exempt.
     expect(fixedEdges.length, greaterThanOrEqualTo(20));
     expect(
-      fixedSamples.every((sample) => sample.y < model.halfHeight * .27),
+      fixedSamples.every((sample) => sample.y < model.halfHeight * .35),
       isTrue,
+      reason: 'Only lateral exits extend toward the middle of the shell',
     );
     expect(fixedSamples.any((sample) => sample.x < -95), isTrue);
     expect(fixedSamples.any((sample) => sample.x > 105), isTrue);
@@ -978,8 +991,8 @@ void main() {
                    other.endNode == edge.endNode,
       ).length == 1;
     }).map((edge) => network.nodes[edge.endNode]).toList();
-    expect(tips.where((node) => node.y > -50 && node.y < 55).length, 2,
-        reason: 'Exactly two sparse side-branch dead ends below F1');
+    expect(tips.where((node) => node.y > -50 && node.y < 80).length, 3,
+        reason: 'Three lateral dead ends; no dense lower mesh');
     expect(tips.where((node) => node.y > 80), isEmpty,
         reason: 'Keep the lower shell intact for the future opening');
 

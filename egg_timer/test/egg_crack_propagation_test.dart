@@ -162,12 +162,12 @@ void main() {
       }
     }
     expect(mothers, greaterThanOrEqualTo(12));
-    expect(dependentBranches, 4,
-        reason: 'Only two short secondary branches outside preserved F1');
+    expect(dependentBranches, 6,
+        reason: 'Three lateral 2-edge chains outside preserved F1');
     expect(lateConnections, 6);
   });
 
-  test('V10.2: closure edges remain latent until after mother cracks', () {
+  test('V10.3: closure edges remain latent until after mother cracks', () {
     final plan = EggCrackPropagationPlan(EggFractureNetwork.fixed());
     final edges = plan.network.edges;
     final atHalf = plan.visibleFractionsAt(.5);

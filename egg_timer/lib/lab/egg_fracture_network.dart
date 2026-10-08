@@ -70,61 +70,59 @@ class EggFractureNetwork {
       graph.edge(i, (i + 1) % sections, EggCrackKind.crown);
     }
 
-    // V10.2: large, sparse shared boundaries inspired by study variants
-    // 2 (organic), 3 (central opening) and 7 (few large regions).
-    //
-    // Three unequal front-facing fractures descend from the same F1 crown
-    // into a lower, shallow U-shaped release zone. The two late joining
-    // paths bound two REAL graph cycles against the crown; no decorative
-    // second geometry, independent islands or premature fragment meshes.
-    //
-    // Keep the 24 crown edges and its two accepted cap scratches untouched.
+    // V10.3: three descending fractures, two distinct lower junctions
+    // and sparse lateral exits based on the user's annotated red drawing.
+    // Material edges and junctions are always sampled on EggShellModel.
+    // The unchanged F1 crown and cap scratches are deliberately excluded.
     final left = graph.chain(7, const [
-      _CrackLocation(-89, -1.05),
-      _CrackLocation(-54, -.78),
-      _CrackLocation(-20, -.55),
-      _CrackLocation(3, -.45),
+      _CrackLocation(-90, -1.11),
+      _CrackLocation(-62, -.99),
+      _CrackLocation(-30, -.77),
+      _CrackLocation(13, -.56),
     ]);
     final middle = graph.chain(11, const [
-      _CrackLocation(-91, -.18),
-      _CrackLocation(-48, -.12),
-      _CrackLocation(-13, .03),
-      _CrackLocation(34, .045),
+      _CrackLocation(-91, -.23),
+      _CrackLocation(-55, -.12),
+      _CrackLocation(10, .05),
+      _CrackLocation(37, .15),
     ]);
     final right = graph.chain(16, const [
-      _CrackLocation(-87, .91),
-      _CrackLocation(-48, .67),
-      _CrackLocation(-12, .54),
-      _CrackLocation(6, .57),
+      _CrackLocation(-88, .97),
+      _CrackLocation(-52, .81),
+      _CrackLocation(-23, .68),
+      _CrackLocation(-9, .66),
     ]);
 
-    // Close two large prospective shell regions only late in propagation.
-    // Both paths share the SAME central junction on the middle mother.
-    // Their directions are independent: left -> centre and right -> centre,
-    // so neither closure depends on completing the other one.
-    final leftBoundary = graph.chain(left.last, const [
-      _CrackLocation(24, -.32),
-      _CrackLocation(46, -.12),
+    // Two low boundaries join DIFFERENT central mother nodes, avoiding
+    // a four-way intersection and keeping real graph-edge provenance.
+    final leftLower = graph.chain(left.last, const [
+      _CrackLocation(26, -.41),
+      _CrackLocation(28, -.16),
     ], kind: EggCrackKind.connection);
-    graph.edge(leftBoundary.last, middle.last, EggCrackKind.connection);
+    graph.edge(leftLower.last, middle[2], EggCrackKind.connection);
 
-    final rightBoundary = graph.chain(right.last, const [
-      _CrackLocation(26, .39),
-      _CrackLocation(45, .22),
+    final rightLower = graph.chain(right.last, const [
+      _CrackLocation(6, .54),
+      _CrackLocation(23, .38),
     ], kind: EggCrackKind.connection);
-    graph.edge(rightBoundary.last, middle.last, EggCrackKind.connection);
+    graph.edge(rightLower.last, middle[3], EggCrackKind.connection);
 
-    // A few short dead-end stress cracks; no dense decorative mesh.
+    // Three sparse exits remain on the FRONT shell surface near the
+    // silhouette. They are NOT yet rear-surface material cuts or pieces.
     graph.chain(left[1], const [
-      _CrackLocation(-39, -1.02),
-      _CrackLocation(-20, -1.05),
+      _CrackLocation(-35, -1.16),
+      _CrackLocation(-12, -1.45),
     ], kind: EggCrackKind.secondary);
-    graph.chain(right[1], const [
-      _CrackLocation(-35, 1.00),
-      _CrackLocation(-15, 1.08),
+    graph.chain(left.last, const [
+      _CrackLocation(32, -1.08),
+      _CrackLocation(62, -1.47),
+    ], kind: EggCrackKind.secondary);
+    graph.chain(right.last, const [
+      _CrackLocation(10, 1.03),
+      _CrackLocation(44, 1.47),
     ], kind: EggCrackKind.secondary);
 
-    // Validated F1 cap scratches: exact nodes and positions preserved.
+    // F1 cap scratches: both validated chains stay exactly unchanged.
     graph.chain(10, const [
       _CrackLocation(-142, -.57),
       _CrackLocation(-164, -.36),
