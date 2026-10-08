@@ -47,11 +47,11 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-Le modèle `EggShellModel` reste la source de vérité géométrique et F1 reste le seul fragment actif. Le réseau de fissures reste déterministe par seed. La validation visuelle a montré qu'un simple corps inférieur frontal, même construit sur la surface 3D, restait incomplet : une vraie coquille basse ouverte doit aussi révéler une partie de sa paroi intérieure arrière à travers l'ouverture.
+Le modèle `EggShellModel` reste la source de vérité géométrique. La validation passe maintenant par un test minimal : F1 seul, le grand fragment supérieur/chapeau de la référence, est construit directement sur cette même surface 3D. Le corps de l'œuf, l'ouverture laissée par F1, la face extérieure, la face intérieure et la tranche de 2,5 utilisent tous `EggShellModel`; aucun ancien fragment de `fragment_scene.dart` n'intervient dans cette vue.
 
-La partie fixe inférieure est donc maintenant construite comme un bol 3D complet : demi-coque extérieure avant, lèvre de rupture avant, demi-paroi intérieure arrière et lèvre arrière. Le rendu est peint de l'arrière vers l'avant afin que la coque extérieure avant masque naturellement la paroi intérieure là où elle doit être cachée. L'espace entre F1 et la lèvre avant reste vide ; ce qui peut apparaître derrière est la vraie face intérieure arrière de la même coquille, pas une bande 2D projetée.
+L'atelier démarre avec « Afficher F1 3D seul » activé. Un curseur « Ouverture F1 » permet de vérifier de 0 à 100 % que le fragment enveloppe réellement la couronne et les flancs du haut, au lieu de se comporter comme une plaque frontale. Valider sous Chrome uniquement cette intégration 3D et la proximité avec le chapeau de la référence. Ne pas encore réintroduire F2–F5 ni reprendre la mécanique de chute.
 
-Valider sous Chrome uniquement cette lecture volumique : à l'ouverture de F1, on doit distinguer une tranche avant fine, du vide, puis une partie de l'intérieur arrière du bol avec une occlusion crédible. Tant que cette structure n'est pas propre, ne pas réintroduire F2–F5 ni poursuivre le polish du réseau.
+La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
