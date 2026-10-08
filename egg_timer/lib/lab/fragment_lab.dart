@@ -20,8 +20,28 @@ class _FragmentLabState extends State<FragmentLab> {
   bool _guides = true;
   static final EggFractureNetwork _staticCracks =
       EggFractureNetwork.fixed();
+
+  static List<ShellCrackStroke> _strokesFor({required bool onCap}) =>
+      List<ShellCrackStroke>.unmodifiable(
+        _staticCracks.edges
+            .where((edge) => edge.kind != EggCrackKind.crown)
+            .where((edge) {
+              final end = _staticCracks.nodes[edge.endNode];
+              final belongsToCap =
+                  end.y < _staticCracks.model.crownFractureY(end.angle);
+              return belongsToCap == onCap;
+            })
+            .map((edge) => (
+                  samples: edge.samples,
+                  primary: edge.kind != EggCrackKind.secondary,
+                )),
+      );
+
+  static final List<ShellCrackStroke> _fixedCracks =
+      _strokesFor(onCap: false);
+  static final List<ShellCrackStroke> _movingCracks =
+      _strokesFor(onCap: true);
   bool _showF1 = true;
-  bool _showCracks = false;
   bool _identifySurfaces = false;
   double _f1Open = .55;
 
@@ -34,37 +54,27 @@ class _FragmentLabState extends State<FragmentLab> {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Modèle 3D unifié : œuf intact, chapeau F1 ou réseau de fissures '
-        'géométrique statique. Les autres fragments et le poussin restent '
-        'hors de cet atelier.',
+        'Modèle 3D unique avec réseau de fissures permanent. '
+        'L’ouverture F1 reste un diagnostic provisoire. '
+        'Les autres fragments et le poussin ne sont pas encore intégrés.',
       ),
       const SizedBox(height: 20),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
-        title: const Text('Réseau de fissures 3D (statique)'),
-        subtitle: const Text('Seed fixe 20261008 ; aucune rupture animée.'),
-        value: _showCracks,
-        onChanged: (value) => setState(() => _showCracks = value),
-      ),
-      if (!_showCracks)
-        SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Afficher F1 3D seul'),
+        title: const Text('Ouverture F1 (diagnostic)'),
         subtitle: const Text(
-          'Désactivé : œuf 3D intact, sur la même surface géométrique.',
+          'Désactivé : œuf intact, avec les mêmes fissures 3D.',
         ),
         value: _showF1,
         onChanged: (value) => setState(() => _showF1 = value),
       ),
       Text(
-        _showCracks
-            ? 'Réseau statique · géométrie commune'
-            : _showF1
-                ? 'Modèle 3D unifié · F1 supérieur'
-                : 'Modèle 3D unifié · œuf intact',
+        _showF1
+            ? 'Œuf 3D · fissures et ouverture F1'
+            : 'Œuf 3D intact · fissures permanentes',
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      if (!_showCracks && _showF1) ...[
+      if (_showF1) ...[
         const SizedBox(height: 12),
         Text('Ouverture F1 · ${(_f1Open * 100).round()} %'),
         Slider(
@@ -81,7 +91,7 @@ class _FragmentLabState extends State<FragmentLab> {
         value: _guides,
         onChanged: (value) => setState(() => _guides = value ?? false),
       ),
-      if (!_showCracks && _showF1)
+      if (_showF1)
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Identifier les surfaces'),
@@ -89,7 +99,7 @@ class _FragmentLabState extends State<FragmentLab> {
           onChanged: (value) =>
               setState(() => _identifySurfaces = value ?? false),
         ),
-      if (!_showCracks && _showF1 && _identifySurfaces)
+      if (_showF1 && _identifySurfaces)
         const Text(
           'F1 : extérieur vert · intérieur magenta · tranche orange. '
           'Bol : extérieur cyan · intérieur arrière bleu. '
@@ -104,11 +114,9 @@ class _FragmentLabState extends State<FragmentLab> {
           await Clipboard.setData(
             ClipboardData(
               text: jsonEncode({
-                'atelier': _showCracks
-                    ? 'EggShellModel réseau statique'
-                    : 'EggShellModel F1 unifié',
-                'staticCracks': _showCracks,
-                'seed': _showCracks ? _staticCracks.seed : null,
+                'atelier': 'EggShellModel 3D avec fissures intégrées',
+                'staticCracks': true,
+                'seed': _staticCracks.seed,
                 'showF1': _showF1,
                 'f1Opening': _f1Open,
                 'thickness': _fragmentThickness,
@@ -136,22 +144,19 @@ class _FragmentLabState extends State<FragmentLab> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: CustomPaint(
-            painter: _showCracks
-                ? EggCrackNetworkPainter(
-                    network: _staticCracks,
-                    guides: _guides,
-                  )
-                : _showF1
+            painter: _showF1
                 ? EggShellF1PreviewPainter(
                     guides: _guides,
                     shadow: true,
                     thickness: _fragmentThickness,
                     openAmount: _f1Open,
                     identifySurfaces: _identifySurfaces,
+                    fixedCracks: _fixedCracks,
+                    movingCracks: _movingCracks,
                   )
-                : EggShellModelPainter(
+                : EggCrackNetworkPainter(
+                    network: _staticCracks,
                     guides: _guides,
-                    shadow: true,
                   ),
             child: const SizedBox.expand(),
           ),

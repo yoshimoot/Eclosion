@@ -885,7 +885,9 @@ void main() {
     }
   });
 
-  testWidgets('Atelier unifié : ouverture F1 et œuf intact', (tester) async {
+  testWidgets('Atelier intégré : fissures permanentes et ouverture F1', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(const MyApp());
@@ -896,53 +898,40 @@ void main() {
         .whereType<EggShellF1PreviewPainter>()
         .single;
 
+    expect(find.text('Réseau de fissures 3D (statique)'), findsNothing);
     expect(find.text('Valider le modèle 3D unifié'), findsNothing);
-    expect(find.text('Ralenti ×4'), findsNothing);
-    expect(find.text('Format 9:20 (sinon 9:16)'), findsNothing);
-    expect(find.text('Afficher l’œuf'), findsNothing);
-    expect(find.text('Afficher les ombres'), findsNothing);
     expect(find.byType(FragmentScene), findsNothing);
     expect(f1Painter().thickness, 2.5);
+    expect(f1Painter().fixedCracks, isNotEmpty);
+    expect(f1Painter().movingCracks, isNotEmpty);
 
     for (final opening in [0.0, .25, .50, .75, 1.0]) {
       tester.widget<Slider>(find.byType(Slider)).onChanged!(opening);
       await tester.pump();
       expect(f1Painter().openAmount, opening);
-      expect(f1Painter().identifySurfaces, isFalse);
+      expect(f1Painter().fixedCracks, isNotEmpty);
+      expect(f1Painter().movingCracks, isNotEmpty);
     }
 
     await tester.tap(find.text('Identifier les surfaces'));
     await tester.pump();
     expect(f1Painter().identifySurfaces, isTrue);
-    await tester.tap(find.text('Afficher F1 3D seul'));
-    await tester.pump();
-    expect(
-      tester.widgetList<CustomPaint>(find.byType(CustomPaint))
-          .map((widget) => widget.painter)
-          .whereType<EggShellModelPainter>()
-          .length,
-      1,
-    );
-    expect(find.byType(Slider), findsNothing);
-    await tester.tap(find.text('Afficher F1 3D seul'));
-    await tester.pump();
-    expect(f1Painter().identifySurfaces, isTrue);
-    expect(f1Painter().openAmount, 1);
 
-    await tester.tap(find.text('Réseau de fissures 3D (statique)'));
+    await tester.tap(find.text('Ouverture F1 (diagnostic)'));
     await tester.pump();
-    expect(
-      tester
-          .widgetList<CustomPaint>(find.byType(CustomPaint))
-          .map((widget) => widget.painter)
-          .whereType<EggCrackNetworkPainter>()
-          .length,
-      1,
-    );
+    final intact = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((widget) => widget.painter)
+        .whereType<EggCrackNetworkPainter>();
+    expect(intact.length, 1);
+    expect(intact.single.network.seed, EggFractureNetwork.fixedSeed);
     expect(find.byType(Slider), findsNothing);
-    await tester.tap(find.text('Réseau de fissures 3D (statique)'));
+
+    await tester.tap(find.text('Ouverture F1 (diagnostic)'));
     await tester.pump();
     expect(f1Painter().openAmount, 1);
+    expect(f1Painter().identifySurfaces, isTrue);
+    expect(f1Painter().movingCracks, isNotEmpty);
   });
 
   FragmentScene frame(double progress) => FragmentScene(

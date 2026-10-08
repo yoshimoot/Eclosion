@@ -1,5 +1,13 @@
 ﻿# Eclosion — état courant
 
+## Atelier 3D unifié — réseau permanent (8 octobre 2026)
+
+**Décision mise en œuvre :** le bouton ON/OFF `Réseau de fissures 3D (statique)` est retiré. Le réseau V4 reste présent sur la coquille intacte **et pendant l'ouverture F1** ; `Ouverture F1 (diagnostic)` ne sert plus qu'à examiner deux états de la même géométrie. `Repères de cadrage` et `Identifier les surfaces` restent des contrôles de diagnostic.
+
+**Mécanique d'affichage :** sur l'œuf intact, `EggCrackNetworkPainter` dessine toujours le réseau partagé. En diagnostic F1, les fissures du bol restent fixes ; celles sur le chapeau reçoivent exactement `_transformPoint`, puis leurs tracés sont découpés dans les masques de profondeur associés aux faces visibles du bol ou du chapeau. La fracture circulaire propre à F1 demeure unique. Aucune modification de `EggFractureNetwork`, des deux Y, de la seed `20261008`, de la géométrie, du pivot, de l'épaisseur ou des valeurs validées.
+
+**Tests :** nouveau test UI vérifiant l'absence du commutateur séparé, la présence de fissures des deux côtés à cinq ouvertures, la conservation de la seed et le passage œuf intact/F1. `dart format`, `flutter analyze` et les tests Flutter n'ont pas été exécutés sans Flutter local. Validation Chrome obligatoire avant acceptation du rendu, notamment pour déceler tout défaut de masquage dans F1 ouvert.
+
 ## Réseau statique V4 — diversification directionnelle, à valider dans Chrome
 
 **Demande validée le 8 octobre 2026 :** les fissures principales de V3 descendaient presque toutes verticalement. La prochaine correction vise **uniquement les directions et les bifurcations du réseau**. La simplification de l'interface en un seul mode a été décidée mais est **reportée à une itération distincte**, afin de ne pas mélanger topologie et interface.

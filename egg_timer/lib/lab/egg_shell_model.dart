@@ -379,14 +379,22 @@ class EggShellModelPainter extends CustomPainter {
 
 
 
+/// Immutable sampled fissure on EggShellModel.
+typedef ShellCrackStroke = ({List<EggShellPoint3> samples, bool primary});
+
+enum _DepthSurfaceRole { rearBowl, fixedOuter, capInner, cutRim, capOuter }
+
 class _DepthMesh {
   _DepthMesh(this.points, this.colors, this.indices,
-      {required this.diagnosticColor, this.fracture = false});
+      {required this.diagnosticColor,
+        required this.role,
+        this.fracture = false});
   final List<EggShellPoint3> points;
   final List<Color> colors;
   final List<int> indices;
   final bool fracture;
   final Color diagnosticColor;
+  final _DepthSurfaceRole role;
 
   void draw(Canvas canvas, {required bool identifySurfaces}) => canvas.drawVertices(
     ui.Vertices(ui.VertexMode.triangles,
@@ -406,14 +414,20 @@ class _DepthScene {
 
   void add(List<EggShellPoint3> points, List<Color> colors,
       List<int> indices, {bool fracture = false,
-      required Color diagnosticColor}) {
+      required Color diagnosticColor,
+      required _DepthSurfaceRole role}) {
     if (indices.isNotEmpty) {
       meshes.add(_DepthMesh(points, colors, indices,
-          fracture: fracture, diagnosticColor: diagnosticColor));
+          fracture: fracture,
+          diagnosticColor: diagnosticColor,
+          role: role));
     }
   }
 
-  void paint(Canvas canvas, Path crack, {required bool identifySurfaces}) {
+  void paint(Canvas canvas, Path crack, {
+    required bool identifySurfaces,
+    void Function(Canvas canvas, _DepthSurfaceRole role)? paintCracks,
+  }) {
     if (meshes.isEmpty) return;
     var minX = double.infinity, minY = double.infinity;
     var maxX = double.negativeInfinity, maxY = double.negativeInfinity;
@@ -494,6 +508,8 @@ class _DepthScene {
       canvas.save();
       canvas.clipPath(paths[i],doAntiAlias:true);
       meshes[i].draw(canvas, identifySurfaces: identifySurfaces);
+      // Shared-geometry cracks are clipped by their visible 3D owner mask.
+      paintCracks?.call(canvas, meshes[i].role);
       canvas.restore();
     }
     if (!identifySurfaces) {
@@ -517,6 +533,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
     this.thickness = 2.5,
     this.openAmount = .55,
     this.identifySurfaces = false,
+    this.fixedCracks = const [],
+    this.movingCracks = const [],
   });
 
   final EggShellModel model;
@@ -525,6 +543,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
   final double thickness;
   final double openAmount;
   final bool identifySurfaces;
+  final List<ShellCrackStroke> fixedCracks;
+  final List<ShellCrackStroke> movingCracks;
 
   static const _shellLight = Color(0xffffd59b);
   static const _shellBase = Color(0xffe7ab70);
@@ -644,7 +664,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
     }
 
     scene.add(points, colors, indices,
-        diagnosticColor: const Color(0xff3366dd)); // Rear bowl interior
+        diagnosticColor: const Color(0xff3366dd),
+        role: _DepthSurfaceRole.rearBowl); // Rear bowl interior
   }
 
   void _drawBody(_DepthScene scene) {
@@ -680,7 +701,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
     }
 
     scene.add(points, colors, indices,
-        diagnosticColor: const Color(0xff40c8ed)); // Fixed bowl exterior
+        diagnosticColor: const Color(0xff40c8ed),
+        role: _DepthSurfaceRole.fixedOuter); // Fixed bowl exterior
   }
 
   Path _drawCap(_DepthScene scene) {
@@ -740,7 +762,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
     }
 
     scene.add(inner3, innerColors, innerIndices,
-        diagnosticColor: const Color(0xffff3db8)); // F1 inner
+        diagnosticColor: const Color(0xffff3db8),
+        role: _DepthSurfaceRole.capInner); // F1 inner
 
     if (openAmount > .02) {
       final edgePoints = <EggShellPoint3>[];
@@ -778,11 +801,15 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
 
       scene.add(edgePoints, edgeColors, edgeIndices,
-          fracture: true, diagnosticColor: const Color(0xffff8c2e)); // Rim
+          fracture: true,
+          diagnosticColor: const Color(0xffff8c2e),
+          role: _DepthSurfaceRole.cutRim); // Rim
     }
 
     scene.add(outer3, outerColors, outerIndices,
-        fracture: true, diagnosticColor: const Color(0xff87c961)); // F1 outer
+        fracture: true,
+        diagnosticColor: const Color(0xff87c961),
+        role: _DepthSurfaceRole.capOuter); // F1 outer
 
     // Visible front half of the fracture line.
     final crack = Path();
@@ -799,6 +826,42 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
     return crack;
+  }
+
+  void _paintCrackStrokes(
+    Canvas canvas,
+    List<ShellCrackStroke> strokes, {
+    required bool onMovingCap,
+  }) {
+    for (final stroke in strokes) {
+      final path = Path();
+      var drawing = false;
+      for (final point in stroke.samples) {
+        if (point.z <= model.maxRadius * .002) {
+          drawing = false;
+          continue;
+        }
+        // The cap fracture follows the SAME rigid transform as its mesh.
+        final p = onMovingCap ? _transformPoint(point) : point;
+        if (!drawing) {
+          path.moveTo(p.x, p.y);
+          drawing = true;
+        } else {
+          path.lineTo(p.x, p.y);
+        }
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke.primary ? .95 : .60
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = stroke.primary
+              ? const Color(0xba704631)
+              : const Color(0x93774e3a),
+      );
+    }
   }
 
   @override
@@ -840,7 +903,18 @@ class EggShellF1PreviewPainter extends CustomPainter {
     _drawRearInnerBowl(scene);
     _drawBody(scene);
     final crack = _drawCap(scene);
-    scene.paint(canvas, crack, identifySurfaces: identifySurfaces);
+    scene.paint(
+      canvas,
+      crack,
+      identifySurfaces: identifySurfaces,
+      paintCracks: (surfaceCanvas, role) {
+        if (role == _DepthSurfaceRole.fixedOuter) {
+          _paintCrackStrokes(surfaceCanvas, fixedCracks, onMovingCap: false);
+        } else if (role == _DepthSurfaceRole.capOuter) {
+          _paintCrackStrokes(surfaceCanvas, movingCracks, onMovingCap: true);
+        }
+      },
+    );
 
     if (guides) {
       final guidePaint = Paint()
@@ -864,5 +938,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
       oldDelegate.shadow != shadow ||
       oldDelegate.thickness != thickness ||
       oldDelegate.openAmount != openAmount ||
-      oldDelegate.identifySurfaces != identifySurfaces;
+      oldDelegate.identifySurfaces != identifySurfaces ||
+      oldDelegate.fixedCracks != fixedCracks ||
+      oldDelegate.movingCracks != movingCracks;
 }
