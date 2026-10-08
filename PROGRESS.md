@@ -1,6 +1,6 @@
 ﻿# Eclosion — état courant
 
-## Validé
+## Validé — moteur antérieur et acquis historiques
 
 Acquis explicitement validés, à préserver :
 - Mouvement général doux de l'œuf ; oscillation `1.5` et épaisseur `2.5`.
@@ -18,7 +18,64 @@ Acquis explicitement validés, à préserver :
 - Tri d'occlusion dynamique validé visuellement le 5 octobre 2026 : l'ordre de peinture dépend désormais de la profondeur 3D courante des fragments et non de leur ordre dans la liste.
 - Modèle de pression interne clarifié le 5 octobre 2026 : les événements représentent des efforts du poussin (appuis locaux puis effort plus large tête/corps sur la zone fragilisée). Un même effort peut affecter plusieurs plaques et produire des détachements simultanés ou quasi simultanés.
 
+## Validé sur le nouveau prototype F1 (8 octobre 2026)
+
+Portée de la validation : atelier `EggShellModel`, **chapeau F1 seul**. Dans l'ancien cluster F1–F5, F1 ne désignait pas ce même chapeau : ne pas confondre les numérotations. L'ancien moteur `fragment_scene.dart` reste historiquement documenté, mais ses résultats n'établissent pas la validité volumique de F1 dans le nouvel aperçu.
+
+- **`e7feb3d`** : restauration non destructive de la base `04f282b`, F1 enveloppant la couronne 360° et le profil issu de `EggShellModel`. C'est le point de départ de l'aperçu actuel, pas un certificat de rendu fini.
+- **`eb3470b`** : ligne de rupture suivie par le premier rang de triangles du bol ; disparition des découpes rectangulaires **confirmée visuellement**.
+- **`9ff48ab`** : rotation cohérente des normales et calcul d'éclairage interne. Amélioration partielle observée, volume intérieur **non validé**.
+- **`6cf38a7`** : remplacement du remplissage 2D de la cavité par une paroi intérieure arrière maillée sur le modèle 3D. Changement de code effectué ; rendu 3D encore insuffisant.
+- **`4a57b07`** : suppression du contour projeté de l'œuf intact par-dessus F1 ; disparition du contour fantôme **confirmée visuellement**.
+- **`86562cd`** : tentative de réorganisation des couches d'occlusion (arrière du bol → intérieur F1 → extérieur du bol → tranche et extérieur F1). Vidéo suivante : défaut de bandes/superpositions **toujours présent**.
+
+Les validations de l'ancien moteur multi-fragments (notamment son tri dynamique d'occlusion **inter-fragments**) sont conservées plus bas comme **historique**, et ne résolvent pas le problème différent d'intersection et d'occlusion **entre triangles du bol et de F1** dans la nouvelle vue.
+
 ## Défaut prioritaire actuel
+
+**Non résolu au 8 octobre 2026 : occlusion et lecture volumique de F1 à l'ouverture.**
+
+La silhouette extérieure du chapeau, le bord désormais continu et l'animation d'ouverture sont à préserver. En revanche, la face intérieure reste trop proche d'une membrane beige ; des bandes ondulées se superposent entre F1 et la coquille fixe, particulièrement à grande ouverture. L'espace vide, la vraie concavité et la tranche ne se distinguent pas de façon crédible.
+
+**Diagnostic de code :** `EggShellF1PreviewPainter`, dans `egg_timer/lib/lab/egg_shell_model.dart`, calcule des positions 3D mais peint des triangles projetés en `.xy` avec `canvas.drawVertices()`. La visibilité repose encore sur le placement des groupes dans un ordre fixe, sans test de profondeur global. La gestion d'occlusion est donc **une cause architecturale probable**, non une validation que toute la géométrie est correcte.
+
+Les dernières corrections cosmétiques et les réordonnancements seuls n'ont pas suffi : **ne plus empiler d'artifices 2D**.
+
+## Gelé pour l'itération actuelle
+
+- `EggShellModel` comme source de géométrie unique pour la surface, la silhouette, les normales et l'épaisseur de la coquille.
+- Chapeau F1 360° : forme extérieure, profil et mouvement actuellement observés, ligne de fracture continue ; conserver la progression manuelle 0–100 %.
+- Épaisseur `2.5`, oscillation `1.5` ; ne pas modifier la mécanique validée de l'ancien atelier.
+- `reference/Planche Eclosion.png` immuable ; aucun fond, poussin, moteur temporel, matériel artistique ou F2–F5 à retoucher.
+- Éléments déjà corrigés : pas de marches au bord du bol ni de contour fantôme réintroduits.
+- Seul objectif autorisé : profondeur/masquage cohérents entre les faces F1, la tranche et le bol inférieur.
+
+## Prochaine étape
+
+1. Inspecter la géométrie et la projection des faces extérieures/intérieures et de la tranche, la convention de profondeur et les triangles visibles, **sans modifier immédiatement leurs formes**.
+2. Implémenter une visibilité réellement dépendante de la profondeur à l'échelle des triangles/surfaces (test de profondeur, rastérisation Z-buffer ou autre solution démontrablement correcte en Flutter/Web et compatible avec le projet Android). Un simple tri de groupes par centre Z ne constitue pas une garantie suffisante si les surfaces s'entrecroisent à l'écran.
+3. Conserver `EggShellModel`, la trajectoire et les frontières partagées ; corriger **un seul défaut principal**. Ne pas ajouter de membrane, patch, gradient ou faux fond.
+4. Vérifier `dart format` sur les seuls Dart modifiés, `flutter analyze` et `flutter test --no-pub test/widget_test.dart` **si les outils sont disponibles** ; déclarer précisément les vérifications non exécutées. Aucune GitHub Action.
+5. Faire valider sous Chrome les ouvertures **0 %, 25 %, 50 %, 75 % et 100 %** : absence de bandes superposées, faces creuses lisibles, tranche crédible, continuité du mouvement, silhouette intacte, aucun retour du bord en escalier et du contour fantôme. Ne déclarer F1 validé qu'après retour visuel explicite.
+
+**Point de reprise technique :** `86562cd` est le dernier commit modifiant le moteur F1 dans le fil du 8 octobre ; `d41a805` a ensuite mis à jour `ECLOSION_CHAT_REFERENCE.md`, et les commits documentaires suivants n'impliquent aucune modification Flutter.
+
+La variabilité déterministe par session et les autres fragments sont à traiter **après** validation F1 : seed unique par éclosion, aucune randomisation d'un frame à l'autre.
+
+## Dette connue / à traiter plus tard
+
+- Rebond final légèrement trop marqué pour une coquille légère.
+- Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
+- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin, la continuité de forme post-libération et le tri d'occlusion inter-fragments par profondeur 3D courante sont validés visuellement. La phase tardive utilise maintenant une trajectoire continue de contact du poussin et un couple de rotation spatial ; cette extension reste à valider.
+- Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
+- Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
+- Réglages d'affichage non persistants après rechargement.
+
+## Historique antérieur — moteur multi-fragments (non actif dans F1 seul)
+
+Les deux sous-sections ci-dessous sont archivées **sans transformer leurs affirmations en validations du nouvel aperçu F1**. Elles décrivent les itérations multi-fragments et les tests correspondants réalisés avant la reprise de `EggShellModel`.
+
+### Ancien défaut prioritaire et corrections associées
 
 Le fragment unique et l'ouverture sont désormais sur une base structurelle cohérente : continuité fissure → ouverture → tranche → fragment, clip evenOdd corrigé, lèvre fixe intégrée et cavité intérieure globale indépendante des fragments.
 
@@ -36,7 +93,7 @@ Un nouveau test « Vol couple: les voisins se libèrent dans la même poussée �
 
 La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé plus haut sur la coquille, héritait de la composante verticale de sa normale locale et montait brutalement à la libération, comme après un coup distinct. Cette composante Y locale a été supprimée du lancement couplé. La courbure locale continue de différencier la séparation en X/Z, mais dès la rupture la gravité pilote Y pour tous les fragments couplés. Un nouveau test « aucun fragment ne reçoit de coup vertical local » verrouille ce comportement. Les 8 tests ciblés « Vol couple » passent. La suite complète reste au niveau connu : 24 tests passés / 5 échecs existants.
 
-## Gelé pour l'itération actuelle
+### Anciennes contraintes d'itération
 
 - Mouvement général, oscillation, épaisseur, principe des attaches, pivot, éclairage et chute ; préserver ces acquis.
 - Le remapping temporel artificiel a été abandonné. L'itération actuelle valide désormais la vraie chaîne causale : P1 mouvements internes → P2 bec → P3 tête/front → P4 tête + haut du corps → fissures → dommages → pivots → ruptures.
@@ -44,27 +101,6 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 - Rebond final, polish artistique de la cavité et rendu artistique global reportés.
 - Le multi-fragments peut désormais commencer sur la base du `_FragmentSpec` validé ; ne pas introduire encore d'aléatoire libre.
 - L'atelier reste un diagnostic à fragment unique, avec progression déterministe, lecture/pause, ralenti, rejeu et aperçus 9:16 / 9:20 ; ce n'est pas encore le timer produit.
-
-## Prochaine étape
-
-Le modèle `EggShellModel` reste la source de vérité géométrique. La validation passe maintenant par un test minimal : F1 seul, le grand fragment supérieur/chapeau de la référence, est construit directement sur cette même surface 3D. Le corps de l'œuf, l'ouverture laissée par F1, la face extérieure, la face intérieure et la tranche de 2,5 utilisent tous `EggShellModel`; aucun ancien fragment de `fragment_scene.dart` n'intervient dans cette vue.
-
-L'atelier démarre avec « Afficher F1 3D seul » activé. Un curseur « Ouverture F1 » permet de vérifier de 0 à 100 % que le fragment enveloppe réellement la couronne et les flancs du haut, au lieu de se comporter comme une plaque frontale. Valider sous Chrome uniquement cette intégration 3D et la proximité avec le chapeau de la référence. Ne pas encore réintroduire F2–F5 ni reprendre la mécanique de chute.
-
-La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
-
-La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
-
-Après toute prochaine modification Dart, appliquer les vérifications d'AGENTS.md ; la validation visuelle utilisateur reste distincte dans Chrome.
-
-## Dette connue / à traiter plus tard
-
-- Rebond final légèrement trop marqué pour une coquille légère.
-- Polish artistique de la cavité intérieure à reprendre plus tard : contraste, teinte, ombres internes et apport de lumière selon l'ensemble des ouvertures.
-- Le cluster partagé, l'arête commune, le couplage pression → flexion/dommage/pivot, le détachement complet du voisin, la continuité de forme post-libération et le tri d'occlusion inter-fragments par profondeur 3D courante sont validés visuellement. La phase tardive utilise maintenant une trajectoire continue de contact du poussin et un couple de rotation spatial ; cette extension reste à valider.
-- Décor, matière et œuf provisoires ; éléments artistiques séparés et poussin validé à intégrer.
-- Compte à rebours produit et interactions +5/−5 absents ; intégrer l'éclosion à `00:00` et formaliser la visibilité du poussin avant zéro.
-- Réglages d'affichage non persistants après rechargement.
 
 ## Multi-fragments et variabilité future
 
