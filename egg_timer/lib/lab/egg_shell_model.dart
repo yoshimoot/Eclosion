@@ -703,7 +703,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
           // rotates farther away.
           final rowT = row / rows;
           final innerRevealDepth =
-              (.16 + .62 * openAmount).clamp(.16, .78).toDouble();
+              (.025 + .14 * openAmount).clamp(.025, .17).toDouble();
           final visibleFromRow = 1 - innerRevealDepth;
           if (rowT >= visibleFromRow) {
             innerIndices.addAll([a, b, c, b, d, c]);
