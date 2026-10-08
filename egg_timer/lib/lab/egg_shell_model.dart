@@ -381,7 +381,6 @@ class EggShellF1PreviewPainter extends CustomPainter {
   static const _shellLight = Color(0xffffd59b);
   static const _shellBase = Color(0xffe7ab70);
   static const _shellDark = Color(0xff9c633d);
-  static const _cavity = Color(0xff8f6656);
   static const _innerShell = Color(0xffd5aa86);
   static const _edgeShell = Color(0xffbd8257);
 
@@ -474,33 +473,49 @@ class EggShellF1PreviewPainter extends CustomPainter {
     )!;
   }
 
-  Path _aperturePath() {
-    const samples = 72;
-    final path = Path();
-    for (var i = 0; i <= samples; i++) {
-      final angle = -math.pi / 2 + math.pi * i / samples;
-      final point = model.pointAt(_boundaryY(angle), angle).xy;
-      if (i == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
+  void _drawRearInnerBowl(Canvas canvas) {
+    // The true rear inner wall is revealed through F1's opening.
+    // Geometry comes from the shared 3D shell, not a 2D cavity overlay.
+    const rows = 64;
+    const columns = 96;
+    final positions = <Offset>[];
+    final colors = <Color>[];
+    final indices = <int>[];
+
+    for (var row = 0; row <= rows; row++) {
+      final t = row / rows;
+      for (var column = 0; column <= columns; column++) {
+        final angle = math.pi / 2 + math.pi * column / columns;
+        final topY = _boundaryY(angle);
+        final y = topY + (model.halfHeight - topY) * t;
+        final outer = model.pointAt(y, angle);
+        final inner = model.inset(outer, thickness);
+        positions.add(inner.xy);
+        colors.add(_shadeInner(model.normalAt(outer)));
       }
     }
 
-    final rightBoundaryY = _boundaryY(math.pi / 2);
-    for (var i = 0; i <= 48; i++) {
-      final y = rightBoundaryY +
-          (-model.halfHeight - rightBoundaryY) * i / 48;
-      path.lineTo(model.radiusAt(y), y);
+    final stride = columns + 1;
+    for (var row = 0; row < rows; row++) {
+      for (var column = 0; column < columns; column++) {
+        final a = row * stride + column;
+        final b = a + 1;
+        final c = a + stride;
+        final d = c + 1;
+        indices.addAll([a, b, c, b, d, c]);
+      }
     }
 
-    final leftBoundaryY = _boundaryY(-math.pi / 2);
-    for (var i = 0; i <= 48; i++) {
-      final y = -model.halfHeight +
-          (leftBoundaryY + model.halfHeight) * i / 48;
-      path.lineTo(-model.radiusAt(y), y);
-    }
-    return path..close();
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        positions,
+        colors: colors,
+        indices: indices,
+      ),
+      BlendMode.srcOver,
+      Paint()..color = Colors.white,
+    );
   }
 
   void _drawBody(Canvas canvas) {
@@ -739,23 +754,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
       );
     }
 
-    canvas.drawPath(
-      _aperturePath(),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xff775245), _cavity],
-        ).createShader(
-          Rect.fromLTWH(
-            -model.maxRadius,
-            -model.halfHeight,
-            2 * model.maxRadius,
-            model.halfHeight * .75,
-          ),
-        ),
-    );
-
+    // Back interior is naturally occluded by the front lower shell and F1.
+    _drawRearInnerBowl(canvas);
     _drawBody(canvas);
     _drawCap(canvas);
 
