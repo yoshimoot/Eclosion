@@ -1,5 +1,13 @@
 ﻿# Eclosion — état courant
 
+## Retour des tests PowerShell V10.1 — correction ciblée (8 octobre 2026)
+
+**Compte rendu local utilisateur sur `c6233ec` :** `git status --short` vide et `git pull --ff-only` réussi. Test ciblé `V10.1 : répartition asymétrique et deux fermetures locales` : **1 réussi**. Suite `egg_crack_propagation_test.dart` : **6 réussis, 1 échec** dans `V10: 3D prefix follows cumulative length without moving nodes` à la comparaison des listes de points 3D ligne 27. La classe `EggShellPoint3` ne redéfinit pas `==` : une interpolation déterministe recrée un objet différent ayant les mêmes coordonnées. L'échec indique donc une assertion inappropriée, pas un défaut de propagation démontré.
+
+**Correction :** remplacement de la seule comparaison de listes de points par la vérification des coordonnées `x/y/z` avec une tolérance `1e-12`, après contrôle de longueur. Aucun code moteur ou géométrique modifié. **Nouveaux tests non exécutés ici** : relancer la suite de propagation avant de conclure.
+
+**Chrome :** lancement en cours dans la dernière sortie transmise, sans message final de connexion. Le signalement de versions de packages disponibles est informatif. Capture encore attendue à `Ouverture F1 = 0 %`, `Propagation fissures = 100 %`, repères désactivés ; la distribution V10.1 n'est pas validée visuellement.
+
 ## V10.1 — redistribution des fissures hors F1 (code livré, rendu Chrome à valider)
 
 **Décision utilisateur (8 octobre 2026) :** la répartition V8/V10 à 100 % ne convient pas, indépendamment de la propagation technique. Le défaut principal est la topologie spatiale : réseau trop central, liaisons longues artificielles et trois axes ayant une organisation trop systématique. **Une itération = recomposer uniquement cette répartition** pour préparer des futurs fragments plausibles, sans toucher aux acquis.

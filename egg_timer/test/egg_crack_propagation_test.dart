@@ -24,7 +24,15 @@ void main() {
     final second = visibleCrackPrefix(points, 3 / 7);
     expect(second.last.x, 3);
     expect(second.last.y, 0);
-    expect(visibleCrackPrefix(points, .5), half);
+    // Interpolated points are distinct EggShellPoint3 instances.
+    // Check numerical determinism, not identity-based object equality.
+    final repeated = visibleCrackPrefix(points, .5);
+    expect(repeated.length, half.length);
+    for (var i = 0; i < half.length; i++) {
+      expect(repeated[i].x, closeTo(half[i].x, 1e-12));
+      expect(repeated[i].y, closeTo(half[i].y, 1e-12));
+      expect(repeated[i].z, closeTo(half[i].z, 1e-12));
+    }
     expect(points.last.y, 4);
     expect(
       () => visibleCrackPrefix(points, double.nan),
