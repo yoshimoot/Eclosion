@@ -18,8 +18,19 @@ void main() {
     final original = boundary.sampledFrontPerimeter();
     expect(patch.triangles, isNotEmpty);
     expect(patch.vertices.length, greaterThan(200));
+    // The lateral silhouette is sampled anew for each call, so object
+    // identity is not meaningful there. Check the real 3D coordinates.
     for (final p in original.take(original.length - 1)) {
-      expect(patch.vertices.any((v) => identical(p, v)), isTrue);
+      expect(patch.vertices.any((v) =>
+          (v.x - p.x).abs() < 1e-7 &&
+          (v.y - p.y).abs() < 1e-7 &&
+          (v.z - p.z).abs() < 1e-7), isTrue);
+    }
+    // The original, stored material crack samples themselves still
+    // reach the mesh unchanged, not redrawn from approximate geometry.
+    final originalCrack = boundary.cutEdges.first.samples(network);
+    for (final p in originalCrack.skip(1)) {
+      expect(patch.vertices.any((v) => identical(v, p)), isTrue);
     }
     for (final p in patch.vertices) {
       final onShell = network.model.surfaceAt(p.x, p.y);
@@ -40,13 +51,29 @@ void main() {
       expect(area2, greaterThan(1e-8));
       trianglesArea += area2 / 2;
     }
-    final p = boundary.sampledFrontPerimeter();
-    var doubleArea = 0.0;
-    for (var i = 0; i < p.length - 1; i++) {
-      doubleArea += p[i].x * p[i + 1].y -
-          p[i + 1].x * p[i].y;
+    // Refinement places new points back onto the curved shell, which can
+    // move the projected silhouette slightly versus its initial chords.
+    // The EXACT area invariant therefore uses the actual refined rim.
+    var refinedDoubleArea = 0.0;
+    for (var i = 0; i < patch.rim.length; i++) {
+      final a = patch.vertices[patch.rim[i]];
+      final b = patch.vertices[
+        patch.rim[(i + 1) % patch.rim.length]
+      ];
+      refinedDoubleArea += a.x * b.y - b.x * a.y;
     }
-    expect(trianglesArea, closeTo(doubleArea.abs() / 2, 1e-4));
+    expect(trianglesArea, closeTo(refinedDoubleArea.abs() / 2, 1e-4));
+
+    final original = boundary.sampledFrontPerimeter();
+    var originalDoubleArea = 0.0;
+    for (var i = 0; i < original.length - 1; i++) {
+      originalDoubleArea += original[i].x * original[i + 1].y -
+          original[i + 1].x * original[i].y;
+    }
+    final originalArea = originalDoubleArea.abs() / 2;
+    expect((trianglesArea - originalArea).abs(),
+        lessThan(originalArea * 5e-6),
+        reason: 'Curved boundary refinement must not appreciably drift');
   });
 
   test('V11.4: exactly one manifold disk boundary remains', () {
@@ -103,6 +130,15 @@ void main() {
     ).surface;
     expect(a.vertices.length, b.vertices.length);
     expect(a.rim, b.rim);
+    final normalSampling = EggStationaryBowlMeshBuilder.build(
+      boundary, sideSegments: 64,
+    ).surface;
+    expect(a.vertices.length, normalSampling.vertices.length,
+        reason: 'Coarse requests must receive curvature-safe sampling');
+    final minimalSampling = EggStationaryBowlMeshBuilder.build(
+      boundary, sideSegments: 2,
+    ).surface;
+    expect(minimalSampling.triangles.length, a.triangles.length);
     expect(a.triangles.map((t) => (t.a, t.b, t.c)).toList(),
         b.triangles.map((t) => (t.a, t.b, t.c)).toList());
     expect(boundary.remainingCrownEdges.map((s) => s.edgeId),

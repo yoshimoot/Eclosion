@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## V11.4 — correction après tests locaux (8 octobre 2026)
+
+**Résultats confirmés par PowerShell :** V11.3 `egg_stationary_bowl_boundary_test.dart` **5/5 réussis**, V11.2 `egg_shell_fragment_mesh_test.dart` **5/5 réussis** ; V11.4 `egg_stationary_bowl_mesh_test.dart` **2 réussis, 3 échecs** sur le commit `30fbfcb`. Détails : comparaison d'identité d'objets pour des points latéraux régénérés ; aire projetée des triangles `58247.82323821751` contre aire du contour source `58247.91105950529` (écart `0.087821...`) ; `Degenerate final shell triangle` lorsque `sideSegments=24`.
+
+**Diagnostic et correction ciblée :** les deux méridiens de silhouette sont échantillonnés sur `EggShellModel` ; à densité latérale trop faible, les cordes discrètes peuvent légèrement inverser la frontière près de leurs intersections avec le raccord de couronne F1, laissant un polygone localement non simple. `EggStationaryBowlMeshBuilder` applique désormais un **minimum de 64 subdivisions de méridiens**, tout en acceptant des demandes plus fines. Aucune modification de la vraie courbe, de F1, des fissures V10.4, du moteur de triangulation des panneaux ou de l'atelier.
+
+**Assertions V11.4 améliorées :** comparaison des coordonnées 3D pour les points de silhouette recalculés (l'égalité par identité était invalide) et **identité des échantillons des arêtes matérielles** testée séparément ; aire des triangles comparée rigoureusement à l'aire du **contour effectivement raffiné** (les nouveaux sommets sont reprojetés sur la coquille courbe, ce qui peut modifier légèrement l'aire par rapport aux cordes initiales) et dérive du contour d'origine bornée à `5e-6` en relatif ; couverture explicite des densités demandées `2`, `24` et `64`.
+
+**Validation :** aucun résultat des nouveaux tests n'est encore connu. Rejouer `flutter test --no-pub test/egg_stationary_bowl_mesh_test.dart` et, en régression, `flutter test --no-pub test/egg_shell_fragment_mesh_test.dart` et `flutter test --no-pub test/egg_stationary_bowl_boundary_test.dart`. Les deux volumes statiques et leur contour restent validés au regard des résultats locaux antérieurs, mais **le bol V11.4 n'est pas encore validé**. Les T-junction possibles lors de futurs bords raffinés partagés restent explicitement à résoudre avant le rendu mobile.
+
 ## V11.4 — Triangulation du bol fixe restant (tests locaux à confirmer, 8 octobre 2026)
 
 **Accord de poursuite :** l'utilisateur a répondu `ok` après la livraison de V11.3. V11.2 : **5/5 tests locaux réussis**, confirmé par PowerShell. Les tests dédiés V11.3 n'ont pas encore été rapportés et ne sont donc pas déclarés réussis.
