@@ -843,6 +843,37 @@ void main() {
     expect(majorOblique, greaterThanOrEqualTo(6));
   });
 
+  test('Réseau V7 : deux liaisons franchement diagonales', () {
+    final network = EggFractureNetwork.fixed();
+    final edges = network.edges
+        .where((edge) => edge.kind == EggCrackKind.connection)
+        .toList();
+
+    expect(edges.length, 6);
+    // Three graph edges per connection; use their actual common endpoints.
+    final connections = [
+      (edges[0].startNode, edges[2].endNode),
+      (edges[3].startNode, edges[5].endNode),
+    ];
+    for (final endpoints in connections) {
+      final start = network.nodes[endpoints.$1].onShell(network.model);
+      final end = network.nodes[endpoints.$2].onShell(network.model);
+      final dx = (end.x - start.x).abs();
+      final dy = (end.y - start.y).abs();
+      expect(dx, greaterThan(35));
+      expect(dy, greaterThan(30),
+          reason: 'A transverse fracture cannot be horizontal');
+      expect(dy / dx, inInclusiveRange(.35, 1.6),
+          reason: 'The two connections should be distinct diagonals');
+    }
+    final first = network.nodes[connections[0].$1];
+    final last = network.nodes[connections[1].$2];
+    expect(first.y, lessThan(-40));
+    expect(last.y, lessThan(-40));
+    // V7 is a change in placement, not a change in graph complexity.
+    expect(network.edges.length - network.nodes.length + 1, 3);
+  });
+
   test('Réseau V6 : aucune intersection fortuite entre branches visibles', () {
     final network = EggFractureNetwork.fixed();
     final branches = network.edges

@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## Réseau V7 — suppression de la bande transversale en escalier (capture Chrome du 8 octobre 2026)
+
+**Observation V6, 0 % :** la nouvelle capture montre un réseau bien connecté mais les deux liaisons transversales se combinent visuellement en une **longue bande quasi horizontale à petits escaliers** dans la partie haute/médiane de l'œuf, rappelant davantage une découpe géométrique qu'une cassure organique. Le code confirme la cause : la première liait des nœuds aux hauteurs `-20/-15`, la seconde des nœuds aux hauteurs `13/13`. Il ne s'agit pas d'un défaut de F1.
+
+**Correction unique V7 :** repositionner uniquement ces deux chemins de trois arêtes en **diagonales réellement distinctes** : première liaison de `left[1]` (`y=-59`) vers `middle[2]` (`y=-15`), seconde de `middle[3]` (`y=13`) vers `right[1]` (`y=-48`). Les deux points intermédiaires de chacun des chemins sont recalculés sur `EggShellModel`. La courte branche secondaire gauche conserve sa géométrie mais son attache passe de `left[1]` à `left[2]` afin qu'aucun nœud ne dépasse le degré 3. Aucun autre axe, ramification, échantillonnage ou rendu modifié.
+
+**Invariants maintenus :** le graphe conserve trois cycles dont le F1 validé, six arêtes de connexion, la même seed `20261008`, les trois longues fractures, les deux fissures du chapeau F1 et la coupe commune inchangées. Contrôle arithmétique préparatoire : aucune intersection **entre branches non connectées** dans la projection examinée, aucun point nouveau hors surface, deux liaisons obliques et jonctions partagées. Les croisements apparents déjà observés entre des fissures courtes du chapeau et le parcours arrière projeté de la couronne ne sont pas concernés par cette itération.
+
+**Tests :** test ciblé sur les deux différences de hauteur et angles diagonaux ajouté aux tests V6. Dart/Flutter non exécutés dans cet environnement. **Validation artistique à venir :** capture Chrome à 0 % sans repères, puis ouverture F1 aux pourcentages intermédiaires. Ne pas déclarer le style du réseau validé avant comparaison avec le dessin rouge (orientation de référence, non tracé à copier) et la planche d'origine.
+
 ## Réseau V6 — grandes fractures structurantes (en attente de validation Chrome)
 
 **Demande du 8 octobre 2026 :** prendre le croquis rouge comme orientation stylistique, et non comme un tracé exact. Les fissures indépendantes V5 sont remplacées par **trois axes de fracture longs** (gauche, centre, droite), **deux liaisons transversales** et quelques ramifications mortes. Les segments principaux sont irréguliers et asymétriques pour former un réseau cohérent, plutôt qu'une texture de traits.

@@ -94,22 +94,25 @@ class EggFractureNetwork {
       _CrackLocation(46, .79),
     ]);
 
-    // Each connection terminates at a pre-existing graph node. This
-    // produces two bounded shell regions, not decorative crossing strokes.
-    final leftConnector = graph.chain(left[2], const [
-      _CrackLocation(-6, -.50),
-      _CrackLocation(-7, -.23),
+    // V7: the crossings of the main fracture chains must form two
+    // distinct diagonals, not a near-horizontal sawtooth belt. Each
+    // connector terminates at an EXISTING graph node so the topology
+    // still defines two prospective shell regions.
+    final leftConnector = graph.chain(left[1], const [
+      _CrackLocation(-41, -.45),
+      _CrackLocation(-25, -.20),
     ], kind: EggCrackKind.connection);
     graph.edge(leftConnector.last, middle[2], EggCrackKind.connection);
 
     final rightConnector = graph.chain(middle[3], const [
-      _CrackLocation(29, .48),
-      _CrackLocation(34, .76),
+      _CrackLocation(-6, .43),
+      _CrackLocation(-29, .53),
     ], kind: EggCrackKind.connection);
-    graph.edge(rightConnector.last, right[3], EggCrackKind.connection);
+    graph.edge(rightConnector.last, right[1], EggCrackKind.connection);
 
-    // A few unequal dead ends; no isolated cracks or repetitive stars.
-    graph.chain(left[1], const [
+    // Move only the left dead-end attachment to preserve degree <= 3.
+    // Its geometry and all the three major spines remain unchanged.
+    graph.chain(left[2], const [
       _CrackLocation(-36, -1.07),
       _CrackLocation(-12, -1.12),
     ], kind: EggCrackKind.secondary);
