@@ -1,5 +1,49 @@
 # ECLOSION — REFERENCE PERMANENTE POUR CHAT
 
+## GUIDE DE REPRISE — Nouvelle conversation si l'ancien chat devient inaccessible
+
+**Cette procédure fonctionne sans partager, exporter ou rouvrir l'ancienne conversation ChatGPT.** Le dépôt GitHub conserve le code et les décisions documentées ; il **ne reconstitue pas** les messages, vidéos ou fichiers joints à une conversation disparue.
+
+### Message à copier dans le premier message du nouveau chat
+
+> Je reprends le projet **MorfoTime — Éclosion** après la perte d'accès à la conversation précédente. **Ne recommence pas le projet de zéro.**
+>
+> Dépôt GitHub : `https://github.com/yoshimoot/Eclosion`
+> Branche : `prototype/fragment-lab-v1`
+>
+> **Avant toute modification**, consulte sur cette branche, dans cet ordre :
+> 1. `AGENTS.md` — règles permanentes et vérifications obligatoires ;
+> 2. `PROGRESS.md` — état actif, validations, défaut prioritaire et prochaine tâche ;
+> 3. `ECLOSION_CHAT_REFERENCE.md` — historique, décisions et critères visuels ;
+> 4. `egg_timer/lib/lab/egg_shell_model.dart`, `egg_timer/lib/lab/fragment_lab.dart` et les derniers commits pertinents.
+>
+> `reference/Planche Eclosion.png` est la référence visuelle immuable. Distingue l'ancien moteur `fragment_scene.dart` de l'atelier 3D unifié **F1 seul** ; le nom F1 n'est pas identique dans les deux géométries.
+>
+> **État actuellement documenté (8 octobre 2026)** : sur le prototype F1 seul, l'escalier du bord et le contour fantôme ont été corrigés ; **l'occlusion entre le chapeau F1 et le bol inférieur reste non validée**. Le dernier commit Flutter de cette séquence est `86562cd`. Les commits documentaires ultérieurs n'impliquent pas de correction du moteur. Lis le **HEAD actuel** et `PROGRESS.md` pour savoir si cet état a évolué.
+>
+> Contraintes : préserver le profil de `EggShellModel`, la silhouette et l'ouverture déjà acquises, l'épaisseur `2.5` et l'oscillation `1.5` ; **une itération = un défaut principal**. Pas de crossfade ni de patch graphique, pas de GitHub Actions. Tester/formatter si l'outillage est disponible, distinguer clairement code vérifié et rendu validé par vidéo Chrome. Préserver les changements locaux non committés.
+>
+> **Réponds d'abord avec** la branche et le HEAD vérifiés, l'état validé / non validé, le défaut prioritaire et le plan minimal de la prochaine itération. **N'écris pas de code tant que je n'ai pas confirmé.**
+
+### Si la nouvelle conversation n'a pas accès à GitHub
+
+Ouvrir les trois fichiers dans le navigateur à partir des URLs :
+- [AGENTS.md](https://github.com/yoshimoot/Eclosion/blob/prototype/fragment-lab-v1/AGENTS.md)
+- [PROGRESS.md](https://github.com/yoshimoot/Eclosion/blob/prototype/fragment-lab-v1/PROGRESS.md)
+- [ECLOSION_CHAT_REFERENCE.md](https://github.com/yoshimoot/Eclosion/blob/prototype/fragment-lab-v1/ECLOSION_CHAT_REFERENCE.md)
+
+Les déposer dans le nouveau chat avec le message ci-dessus, puis joindre la **dernière vidéo ou capture locale pertinente** si une analyse visuelle est attendue. Les anciennes pièces jointes ne sont pas garanties accessibles dans un nouveau chat.
+
+### Préservation entre deux itérations
+
+- Le code livré doit être committé sur la branche avant la fin du cycle. Ne pas supposer que des modifications locales ou des fichiers non committés se trouvent sur GitHub.
+- Mettre à jour `PROGRESS.md` lorsqu'une étape est **visuellement validée**, qu'un défaut prioritaire change, ou qu'un blocage de reprise doit être consigné. Identifier sans ambiguïté « corrigé dans le code » versus « validé dans Chrome ».
+- Garder cette référence durable pour les choix historiques et les critères. `AGENTS.md` reste le contrat permanent ; éviter de multiplier les documents parallèles.
+- Si `git status --short` montre `fragment_scene.dart` modifié, ne jamais le supprimer ni écraser sans inspection/sauvegarde. Le programme actuel l'importe encore et plusieurs tests en dépendent.
+- **Pour relancer localement** après sauvegarde éventuelle des modifications : `git switch prototype/fragment-lab-v1`, puis `git pull --ff-only origin prototype/fragment-lab-v1` et `cd egg_timer; flutter run -d chrome`.
+
+---
+
 
 > **Dernière mise à jour : 8 octobre 2026.** Cette référence conserve les règles permanentes des sections 1 à 14 et les complète avec l’historique des échanges du 7–8 octobre 2026. La source de vérité du code reste GitHub. `AGENTS.md` définit les contraintes permanentes, `PROGRESS.md` suit les validations techniques et `ECLOSION_CHAT_REFERENCE.md` documente les décisions et la reprise entre conversations.
 >
