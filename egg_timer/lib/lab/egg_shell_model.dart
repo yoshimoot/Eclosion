@@ -520,15 +520,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
 
     final stride = columns + 1;
     for (var row = 0; row < rows; row++) {
-      final y0 = -model.halfHeight + 2 * model.halfHeight * row / rows;
-      final y1 = -model.halfHeight + 2 * model.halfHeight * (row + 1) / rows;
-      final centerY = (y0 + y1) / 2;
       for (var column = 0; column < columns; column++) {
-        final angle0 = -math.pi / 2 + math.pi * column / columns;
-        final angle1 = -math.pi / 2 + math.pi * (column + 1) / columns;
-        final centerAngle = (angle0 + angle1) / 2;
-        if (centerY < _boundaryY(centerAngle)) continue;
-
         final a = row * stride + column;
         final b = a + 1;
         final c = a + stride;
@@ -537,6 +529,18 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
 
+    // Clip the continuous body mesh by the exact fracture aperture instead of
+    // dropping whole mesh cells. The former cell test created the rectangular
+    // staircase visible below F1 and made the shell edge disagree with the
+    // actual crack network.
+    final visibleBody = Path.combine(
+      PathOperation.difference,
+      model.silhouettePath(),
+      _aperturePath(),
+    )..fillType = PathFillType.evenOdd;
+
+    canvas.save();
+    canvas.clipPath(visibleBody, doAntiAlias: true);
     canvas.drawVertices(
       ui.Vertices(
         ui.VertexMode.triangles,
@@ -547,6 +551,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
       BlendMode.srcOver,
       Paint()..color = Colors.white,
     );
+    canvas.restore();
   }
 
   void _drawCap(Canvas canvas) {
