@@ -759,14 +759,6 @@ class EggShellF1PreviewPainter extends CustomPainter {
     _drawBody(canvas);
     _drawCap(canvas);
 
-    canvas.drawPath(
-      model.silhouettePath(),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = .85 / scale
-        ..color = const Color(0x554f301d),
-    );
-
     if (guides) {
       final guidePaint = Paint()
         ..style = PaintingStyle.stroke
