@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.5 — Raffinement commun des frontières entre les trois maillages (tests en attente, 8 octobre 2026)
+
+**Retour utilisateur confirmé :** les trois suites V11.2/V11.3/V11.4 réussissent ensemble, `00:01 +15: All tests passed!` sur le commit `68399e1`. La structure actuelle du bol fixe est donc validée techniquement sur ces tests, mais reste non intégrée au rendu.
+
+**Problème unique de cette itération :** le raffinement adaptatif actuel choisit séparément ses passes 1→4 par région ; deux faces voisines peuvent ainsi avoir des sommets différents entre les mêmes échantillons de fissure, donnant des T-junctions lors de leur séparation. Le tracé de la fissure et les points d'origine ne doivent pas bouger.
+
+**Solution :** l'option `refinementPasses` (0–5) permet d'utiliser un nombre explicite de passes sur les maillages existants sans modifier le mode adaptatif par défaut. `egg_shell_front_assembly.dart` construit d'abord les deux panneaux et le bol, mesure leurs vrais niveaux de subdivision, sélectionne le plus élevé, puis reconstruit les seuls maillages qui étaient moins raffinés. Pour chacun des **15 segments de graphe panneau–bol et 3 segments de graphe panneau–panneau** (18 arêtes de matière au total), le constructeur compare les sommets 3D de chaque sous-segment d'origine et refuse une divergence de densité (T-junction) ou de position. L'algorithme n'impose pas arbitrairement un nombre de subdivisions ; il se base sur les triangulations réelles.
+
+**Invariants :** V10.4, F1, couronne, modèle, seed, oscillation `1.5`, épaisseur nominale `2.5`, propagation, peintre et rendu Chrome inchangés. Ce travail est **uniquement géométrique**, sans trou rendu, nouvelle animation, pivot, chute ou poussin. Le coût du raffinement commun et la jonction avec les surfaces intérieures et tranches du bol devront être évalués avant tout rendu animé Android.
+
+**Tests ajoutés, pas encore exécutés dans ce chat :** `flutter test --no-pub test/egg_shell_front_assembly_test.dart`, puis les 3 suites de régression V11.2/V11.3/V11.4. Ne pas considérer le raccord comme validé avant la réussite des tests locaux.
+
 ## V11.4 — correction après tests locaux (8 octobre 2026)
 
 **Résultats confirmés par PowerShell :** V11.3 `egg_stationary_bowl_boundary_test.dart` **5/5 réussis**, V11.2 `egg_shell_fragment_mesh_test.dart` **5/5 réussis** ; V11.4 `egg_stationary_bowl_mesh_test.dart` **2 réussis, 3 échecs** sur le commit `30fbfcb`. Détails : comparaison d'identité d'objets pour des points latéraux régénérés ; aire projetée des triangles `58247.82323821751` contre aire du contour source `58247.91105950529` (écart `0.087821...`) ; `Degenerate final shell triangle` lorsque `sideSegments=24`.

@@ -56,6 +56,7 @@ class EggShellPanelMeshBuilder {
     EggFragmentRegionPlan plan, {
     double thickness = 2.5,
     double maxEdgeXY = 24,
+    int? refinementPasses,
   }) {
     if (!thickness.isFinite || thickness <= 0) {
       throw ArgumentError.value(thickness, 'thickness');
@@ -65,7 +66,7 @@ class EggShellPanelMeshBuilder {
     }
     return List<EggShellPanelMesh>.unmodifiable([
       for (final region in plan.regions)
-        _mesh(plan, region, thickness, maxEdgeXY),
+        _mesh(plan, region, thickness, maxEdgeXY, refinementPasses),
     ]);
   }
 
@@ -129,7 +130,12 @@ class EggShellPanelMeshBuilder {
     required EggShellModel model,
     required List<EggShellPoint3> closedPerimeter,
     double maxEdgeXY = 24,
+    int? refinementPasses,
   }) {
+    if (refinementPasses != null &&
+        (refinementPasses < 0 || refinementPasses > 5)) {
+      throw ArgumentError.value(refinementPasses, 'refinementPasses');
+    }
     if (!maxEdgeXY.isFinite || maxEdgeXY <= 0) {
       throw ArgumentError.value(maxEdgeXY, 'maxEdgeXY');
     }
@@ -171,7 +177,10 @@ class EggShellPanelMeshBuilder {
       throw StateError('Too large a triangle for bounded subdivision');
     }
 
-    for (var pass = 0; pass < refinements; pass++) {
+    // Common material boundaries must share the same midpoint count.
+    // Standalone tessellation keeps its original adaptive refinement.
+    final passes = refinementPasses ?? refinements;
+    for (var pass = 0; pass < passes; pass++) {
       final sharedMidpoints = <String, int>{};
       int midpoint(int a, int b) {
         final lo = math.min(a, b), hi = math.max(a, b);
@@ -236,12 +245,14 @@ class EggShellPanelMeshBuilder {
     EggCandidateShellRegion region,
     double thickness,
     double maxEdgeXY,
+    int? refinementPasses,
   ) {
     final model = plan.network.model;
     final patch = tessellateExterior(
       model: model,
       closedPerimeter: region.sampledPerimeter(plan.network),
       maxEdgeXY: maxEdgeXY,
+      refinementPasses: refinementPasses,
     );
     final points = patch.vertices;
     final triangles = patch.triangles;

@@ -18,6 +18,7 @@ class EggStationaryBowlMeshBuilder {
     EggStationaryBowlBoundary boundary, {
     int sideSegments = 64,
     double maxEdgeXY = 24,
+    int? refinementPasses,
   }) {
     if (sideSegments < 2) {
       throw ArgumentError.value(sideSegments, 'sideSegments');
@@ -33,6 +34,7 @@ class EggStationaryBowlMeshBuilder {
         sideSegments: resolvedSides,
       ),
       maxEdgeXY: maxEdgeXY,
+      refinementPasses: refinementPasses,
     );
     return EggStationaryBowlFrontMesh._(boundary, surface);
   }
