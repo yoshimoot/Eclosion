@@ -1,5 +1,18 @@
 ﻿# Eclosion — état courant
 
+## Audit structurel préliminaire — 8 octobre 2026 (lecture seule du moteur)
+
+**Portée exacte :** examen du code `egg_timer/lib/lab/egg_shell_model.dart` sur `5ea7d3d`, vérification numérique indépendante des formules `EggShellModel` et des transformations F1, et relecture de la vidéo Chrome de diagnostic du 8 octobre (ouvertures ~1, 37, 81 et 100 %). Aucun code Dart modifié, ni test Flutter exécuté ; aucun rendu non diagnostique supplémentaire vérifié pendant cet audit.
+
+**Constats étayés :**
+- `EggShellModel` définit les rayons, les points, les normales et l'inset suivant la normale. Le chapeau et les faces du bol s'appuient sur ce modèle ; les frontières F1/bol avant emploient la même fonction de rupture et les mêmes angles d'échantillonnage. Vérification arithmétique indépendante : raccordement échantillonné sans écart et épaisseur à `2.5` (écart numérique maximal mesuré ~`5.3e-14`) sur les ouvertures 0/25/50/75/100 %. La transformation du chapeau est rigide sur les échantillons examinés.
+- `_DepthScene` compare les valeurs Z interpolées des triangles projetés et masque les groupes de faces par un propriétaire visible par pixel de modèle. Un cas synthétique de deux triangles se croisant vérifie que l'avant-plan change bien quand leurs profondeurs se croisent. Cela établit la **logique de comparaison**, non la qualité garantie du rasteriseur Flutter ni de tous les recouvrements.
+- La vidéo de diagnostic montre F1 extérieur, F1 intérieur, paroi arrière intérieure et bol avant sans retour manifeste du contour fantôme. Leur faible lisibilité volumique à grande ouverture demeure, sans preuve que la cause soit exclusivement l'occlusion : la pose d'ouverture est encore provisoire.
+
+**Limites et risques non levés :** `dart format`, `flutter analyze` et `flutter test --no-pub test/widget_test.dart` non exécutés (Dart/Flutter indisponibles dans cet environnement). L'échantillonnage du tampon de profondeur reste à environ 1 unité modèle, indépendamment de la densité de pixels et du zoom ; anti-crénelage, qualité des recouvrements à toutes les résolutions et coût CPU n'ont pas été mesurés. Ne **pas** déclarer le volume F1 entièrement validé ni sa cinématique définitive.
+
+**Décision de progression :** aucun défaut structurel bloquant **démontré** par cet audit restreint. La prochaine itération peut porter exclusivement sur **la topologie statique du réseau de fissures 3D à seed fixe**, indépendamment du pivot provisoire, en conservant les invariants géométriques. Avant toute animation de détachement multi-fragments, revalider les recouvrements F1/bol à 0/25/50/75/100 %, y compris rendu normal, et effectuer les vérifications Flutter disponibles. Si un défaut structurel est révélé, suspendre le réseau pour le corriger isolément.
+
 ## Décision active — ordre de développement confirmé le 8 octobre 2026
 
 **Statut : plan de travail approuvé, non équivalent à une validation du moteur.** Cette section remplace les anciennes listes « Prochaine étape » et « Ordre de développement » situées plus bas, qui restent historiques. Ne pas conclure que l'occlusion, la concavité ou l'animation F1 ont été validées.
