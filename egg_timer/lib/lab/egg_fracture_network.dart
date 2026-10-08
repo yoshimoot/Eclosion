@@ -94,24 +94,21 @@ class EggFractureNetwork {
       _CrackLocation(46, .79),
     ]);
 
-    // V7: the crossings of the main fracture chains must form two
-    // distinct diagonals, not a near-horizontal sawtooth belt. Each
-    // connector terminates at an EXISTING graph node so the topology
-    // still defines two prospective shell regions.
-    final leftConnector = graph.chain(left[1], const [
-      _CrackLocation(-41, -.45),
-      _CrackLocation(-25, -.20),
+    // V8: vertically separated diagonal links, attached to EXISTING nodes.
+    // Their differing heights avoid a horizontal staircase across the shell.
+    final leftConnector = graph.chain(left[0], const [
+      _CrackLocation(-65, -.47),
+      _CrackLocation(-39, -.20),
     ], kind: EggCrackKind.connection);
     graph.edge(leftConnector.last, middle[2], EggCrackKind.connection);
 
-    final rightConnector = graph.chain(middle[3], const [
-      _CrackLocation(-6, .43),
-      _CrackLocation(-29, .53),
+    final rightConnector = graph.chain(middle[4], const [
+      _CrackLocation(17, .31),
+      _CrackLocation(-20, .47),
     ], kind: EggCrackKind.connection);
     graph.edge(rightConnector.last, right[1], EggCrackKind.connection);
 
-    // Move only the left dead-end attachment to preserve degree <= 3.
-    // Its geometry and all the three major spines remain unchanged.
+    // The three main spines and secondary fissures remain unchanged.
     graph.chain(left[2], const [
       _CrackLocation(-36, -1.07),
       _CrackLocation(-12, -1.12),
@@ -217,12 +214,17 @@ class _CrackGraphBuilder {
       // Crack directions change at one to three meaningful corners, with
       // different lengths between them. Avoid independent jitter at every
       // sample, which previously produced a mechanical sawtooth pattern.
-      final bendCount =
-          1 + (((_fixedSignedOffset(id, 0, 4) + 1) * 1.5)
+      // Connections have only one restrained corner per graph edge.
+      // Other cracks keep the existing, more varied angularity.
+      final bendCount = kind == EggCrackKind.connection
+          ? 1
+          : 1 + (((_fixedSignedOffset(id, 0, 4) + 1) * 1.5)
               .floor()
               .clamp(0, 2)).toInt();
       final corners = <EggShellPoint3>[startPoint];
-      final amplitude = (span * .13).clamp(2.5, 5.5).toDouble();
+      final amplitude = kind == EggCrackKind.connection
+          ? (span * .065).clamp(1.4, 3.0).toDouble()
+          : (span * .13).clamp(2.5, 5.5).toDouble();
       final lateralX = span > 1e-6 ? -dy / span : 0.0;
       final lateralY = span > 1e-6 ? dx / span : 0.0;
 

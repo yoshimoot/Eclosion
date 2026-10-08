@@ -843,34 +843,41 @@ void main() {
     expect(majorOblique, greaterThanOrEqualTo(6));
   });
 
-  test('Réseau V7 : deux liaisons franchement diagonales', () {
+  test('Réseau V8 : liaisons obliques étagées sans escalier', () {
     final network = EggFractureNetwork.fixed();
     final edges = network.edges
         .where((edge) => edge.kind == EggCrackKind.connection)
         .toList();
-
     expect(edges.length, 6);
-    // Three graph edges per connection; use their actual common endpoints.
-    final connections = [
-      (edges[0].startNode, edges[2].endNode),
-      (edges[3].startNode, edges[5].endNode),
-    ];
-    for (final endpoints in connections) {
-      final start = network.nodes[endpoints.$1].onShell(network.model);
-      final end = network.nodes[endpoints.$2].onShell(network.model);
-      final dx = (end.x - start.x).abs();
-      final dy = (end.y - start.y).abs();
-      expect(dx, greaterThan(35));
-      expect(dy, greaterThan(30),
-          reason: 'A transverse fracture cannot be horizontal');
-      expect(dy / dx, inInclusiveRange(.35, 1.6),
-          reason: 'The two connections should be distinct diagonals');
+
+    for (final edge in edges) {
+      expect(edge.samples.length, 7,
+          reason: 'Only one structural bend per connector edge');
     }
-    final first = network.nodes[connections[0].$1];
-    final last = network.nodes[connections[1].$2];
-    expect(first.y, lessThan(-40));
-    expect(last.y, lessThan(-40));
-    // V7 is a change in placement, not a change in graph complexity.
+
+    final firstStart = network.nodes[edges[0].startNode]
+        .onShell(network.model);
+    final firstEnd = network.nodes[edges[2].endNode]
+        .onShell(network.model);
+    final secondStart = network.nodes[edges[3].startNode]
+        .onShell(network.model);
+    final secondEnd = network.nodes[edges[5].endNode]
+        .onShell(network.model);
+    for (final pair in [
+      (firstStart, firstEnd),
+      (secondStart, secondEnd),
+    ]) {
+      final dx = (pair.$2.x - pair.$1.x).abs();
+      final dy = (pair.$2.y - pair.$1.y).abs();
+      expect(dx, greaterThan(35));
+      expect(dy, greaterThan(60));
+      expect(dy / dx, inInclusiveRange(.65, 2.2));
+    }
+    expect(firstEnd.y - firstStart.y, greaterThan(65));
+    expect(secondEnd.y - secondStart.y, lessThan(-80));
+    final firstHeight = (firstStart.y + firstEnd.y) / 2;
+    final secondHeight = (secondStart.y + secondEnd.y) / 2;
+    expect((firstHeight - secondHeight).abs(), greaterThan(45));
     expect(network.edges.length - network.nodes.length + 1, 3);
   });
 

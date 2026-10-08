@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## Réseau V8 — liaisons décalées, validation Chrome en attente (8 octobre 2026)
+
+**Observation V7 à 0 % :** le réseau conserve une apparence d'escalier transversal au centre. Les deux liaisons restaient proches en hauteur à travers la chaîne centrale, et chaque petite arête ajoutait plusieurs coudes indépendants.
+
+**Correction ciblée V8 :** la première connexion descend de `left[0]` (`y=-93`) vers `middle[2]` (`y=-15`) en passant par deux nouveaux nœuds intermédiaires sur `EggShellModel`. La seconde remonte de `middle[4]` (`y=47`) vers `right[1]` (`y=-48`), avec deux points intermédiaires distincts. Ainsi, les deux grandes diagonales ne composent plus une bande au même niveau. Les arêtes de type `connection` conservent **un seul coude limité par arête** ; le tracé des fissures principales et secondaires reste inchangé.
+
+**Gels préservés :** F1 et ses deux fissures, coupe de couronne, pivot F1, trois chaînes principales, ramifications secondaires, seed `20261008`, épaisseur `2.5`, oscillation `1.5` et atelier unique. Les deux liaisons gardent des nœuds communs aux chaînes et deux zones théoriquement fermées, non encore fragmentées.
+
+**Statut :** implémentation livrée, vérification Dart/Flutter non exécutée ici. Tests de décalage vertical et de limitation des coudes ajoutés. À confirmer visuellement dans Chrome à 0 % sans repères, puis aux ouvertures F1 intermédiaires ; ne pas marquer V8 validée sans ce retour.
+
 ## Réseau V7 — suppression de la bande transversale en escalier (capture Chrome du 8 octobre 2026)
 
 **Observation V6, 0 % :** la nouvelle capture montre un réseau bien connecté mais les deux liaisons transversales se combinent visuellement en une **longue bande quasi horizontale à petits escaliers** dans la partie haute/médiane de l'œuf, rappelant davantage une découpe géométrique qu'une cassure organique. Le code confirme la cause : la première liait des nœuds aux hauteurs `-20/-15`, la seconde des nœuds aux hauteurs `13/13`. Il ne s'agit pas d'un défaut de F1.
