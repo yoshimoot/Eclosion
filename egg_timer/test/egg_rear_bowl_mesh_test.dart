@@ -51,6 +51,15 @@ void main() {
     expect(mesh.vertexCount, mesh.exterior.length * 2);
     for (var i = 0; i < mesh.exterior.length; i++) {
       final p = mesh.exterior[i];
+      // V11.7 owns all boundary coordinates. Newly generated vertices,
+      // in contrast, must be strictly on the *rear* curved surface.
+      if (i >= mesh.perimeterLength) {
+        final back = network.model.surfaceAt(p.x, p.y, back: true);
+        expect(p.x, closeTo(back.x, 1e-7));
+        expect(p.y, closeTo(back.y, 1e-7));
+        expect(p.z, closeTo(back.z, 1e-6));
+        expect(p.z, lessThanOrEqualTo(1e-7));
+      }
       final r = network.model.radiusAt(p.y);
       final z = network.model.depthRadiusAt(p.y);
       if (r > 1e-7) {

@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.8 — Correctif de paramétrisation arrière (9 octobre 2026 ; tests locaux en attente)
+
+**Échec utilisateur confirmé sur `a0d17ac` :** le test V11.8 compile après l'ajout de l'import `EggShellPoint3`, mais `setUpAll` échoue avec `Bad state: Rear boundary has an unexpected angular winding` dans `EggRearBowlMeshBuilder._angle`. **Aucun des cinq tests géométriques V11.8 n'a pu s'exécuter.** Le contour V11.7 est déjà validé par ses propres cinq tests et ne doit pas être modifié.
+
+**Cause matérielle :** les côtés de la demi-coquille avant ont été raffinés par projection `EggShellModel.surfaceAt(x,y)`. En particulier près du **pôle inférieur**, ces vrais sommets se décalent légèrement hors des méridiens angulaires idéaux `π/2` et `3π/2`. L'ancienne V11.8 tentait de convertir tous les points en angles continus sur le seul hémisphère arrière puis d'interpoler ces angles vers `π`. La garde rejetait donc des points physiques valides ; supprimer la garde sans changer la construction est également incorrect, car l'interpolation angulaire autour du pôle peut engendrer des triangles repliés.
+
+**Correctif géométrique ciblé :** dans `egg_rear_bowl_mesh.dart`, supprimer seulement le calcul d'angle `_angle` et conserver **par identité** tous les sommets du périmètre V11.7. Pour les nouvelles bandes intérieures, interpoler chaque coordonnée `(x,y)` vers un centre arrière fixe `(0,centerY)`, puis calculer les sommets 3D par **`EggShellModel.surfaceAt(x,y,back:true)`**. Le centre lui-même utilise la même projection arrière. La continuité de la couture avant/arrière n'est pas touchée ; les triangles, la face intérieure de 2.5 et les tranches de F1 reprennent les mêmes règles d'indices, sans masque ni substitution visuelle.
+
+**Contrôle renforcé :** le deuxième test V11.8 vérifie en plus que tous les **sommets nouvellement créés** sont effectivement sur la surface arrière (z négatif ou nul, même x/y que `surfaceAt(back:true)`). Les sommets originaux des côtés gardent leurs coordonnées 3D originales et n'ont pas à vérifier `z<=0`. Le test d'orientation des triangles déjà présent reste intact : il **doit** passer, sans désactivation ni inversion arbitraire des normales. Le contour V11.7, les maillages V11.2–V11.6, F1, les fissures, l'atelier, le poussin et l'animation restent gelés.
+
+**Vérification exigée :** `flutter test --no-pub test/egg_rear_bowl_mesh_test.dart test/egg_rear_bowl_boundary_test.dart`. Attendre la réussite locale des dix tests avant de démarrer V11.9. Aucun test Flutter exécuté ici : validation GitHub/statique uniquement.
+
 ## V11.8 — Faces incurvées du bol arrière et tranche de couronne F1 (tests en attente, 9 octobre 2026)
 
 **Retour local V11.7 confirmé :** `flutter test --no-pub test/egg_rear_bowl_boundary_test.dart test/egg_stationary_bowl_shell_test.dart` → **`00:01 +10: All tests passed!`**. Le contour arrière V11.7 et le bol avant V11.6 sont donc techniquement vérifiés par ces suites, sans validation de l'affichage.

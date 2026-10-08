@@ -1,12 +1,11 @@
-import 'dart:math' as math;
-
 import 'egg_rear_bowl_boundary.dart';
 import 'egg_shell_fragment_mesh.dart';
 import 'egg_shell_model.dart';
 
 /// Stationary curved rear shell patch. All initial perimeter vertices are
 /// EXACT original V11.7 objects, including the shared front-side samples.
-/// Interior rows are projected through EggShellModel.pointAt(y, angle).
+/// Interior bands are projected to EggShellModel.surfaceAt(back: true),
+/// respecting the actual seam even when its longitude shifts near the pole.
 ///
 /// This still is a geometry-only diagnostic: the live F1 painter is frozen.
 class EggRearBowlMesh {
@@ -42,26 +41,6 @@ class EggRearBowlMesh {
 class EggRearBowlMeshBuilder {
   const EggRearBowlMeshBuilder._();
 
-  static double _angle(EggShellPoint3 point, EggShellModel model) {
-    if ((model.halfHeight - point.y).abs() <= 1e-8) {
-      return math.pi; // The single bottom pole has no angular direction.
-    }
-    final r = model.radiusAt(point.y);
-    final zRadius = model.depthRadiusAt(point.y);
-    if (r <= 1e-10 || zRadius <= 1e-10) {
-      throw StateError('Rear boundary cannot be parametrized');
-    }
-    var angle = math.atan2(point.x / r, point.z / zRadius);
-    if (angle < 0) angle += 2 * math.pi;
-    // The original back crown and the slightly front-offset silhouette
-    // both unwrap continuously from right (pi/2) to left (3pi/2).
-    if (angle < math.pi / 2 - .12 ||
-        angle > math.pi * 1.5 + .12) {
-      throw StateError('Rear boundary has an unexpected angular winding');
-    }
-    return angle;
-  }
-
   /// Build a curved patch using concentric parameter-space bands.
   ///
   /// Unlike clipping a pre-existing grid, this construction has exactly
@@ -94,20 +73,25 @@ class EggRearBowlMeshBuilder {
     }
     final size = original.length - 1;
     final shell = List<EggShellPoint3>.of(original.take(size));
-    final angles = <double>[
-      for (final p in shell) _angle(p, model),
-    ];
-    final center = model.pointAt(centerY, math.pi);
+    // Keep the V11.7 original boundary untouched. Its refined silhouette
+    // is not guaranteed to have an azimuth confined to the ideal rear half.
+    // Reconstructing an angular winding around the bottom pole is therefore
+    // both unnecessary and capable of folding the patch.
+    final center = model.surfaceAt(0, centerY, back: true);
 
-    // Place each internal band BETWEEN the shared exterior perimeter and
-    // the rear center, always on the physical revolution surface.
+    // Interpolate the boundary's projected x/y towards the back center,
+    // then project *only the new vertices* onto the rear egg surface.
+    // This does not change a single shared front/rear seam vertex.
+    // Unlike azimuth interpolation, it has no discontinuity at the
+    // bottom pole and avoids foldovers beside the curved silhouette.
     for (var layer = 1; layer <= interiorBands; layer++) {
       final fraction = layer / (interiorBands + 1);
       for (var i = 0; i < size; i++) {
-        final y = shell[i].y + (centerY - shell[i].y) * fraction;
-        final angle =
-            angles[i] + (math.pi - angles[i]) * fraction;
-        shell.add(model.pointAt(y, angle));
+        final originalPoint = shell[i];
+        final y = originalPoint.y +
+            (centerY - originalPoint.y) * fraction;
+        final x = originalPoint.x * (1 - fraction);
+        shell.add(model.surfaceAt(x, y, back: true));
       }
     }
     final centerIndex = shell.length;
