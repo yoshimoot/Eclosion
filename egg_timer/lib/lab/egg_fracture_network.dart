@@ -70,48 +70,49 @@ class EggFractureNetwork {
       graph.edge(i, (i + 1) % sections, EggCrackKind.crown);
     }
 
-    // The two internal Y junctions are genuine shared 3D graph nodes.
-    // Diagonal trajectories are deliberately asymmetric: their direction is
-    // governed by distinct material edges, not cosmetic screen-space strokes.
-    // The crown itself (and therefore the existing F1 cut) is unchanged.
+    // Spatial layout follows the reference's pre-hatching upper-shell zone:
+    // uneven oblique cracks, two shared Y junctions and shortened dead ends.
+    // Only the BELOW-CROWN network changes; the existing F1 boundary and its
+    // two short cap cracks are not reauthored.
     final left = graph.chain(8, const [
-      _CrackLocation(-89, -.94),
-      _CrackLocation(-69, -.75),
-      _CrackLocation(-47, -.46),
-      _CrackLocation(-30, -.39),
-      _CrackLocation(-8, -.50),
+      _CrackLocation(-99, -.77),
+      _CrackLocation(-83, -.56),
+      _CrackLocation(-65, -.40),
+      _CrackLocation(-51, -.49),
+      _CrackLocation(-31, -.57),
+      _CrackLocation(-18, -.67),
     ]);
-    // Y1: two branches diverge from exactly left[1].
+    // Y1 spreads across the left flank instead of descending in parallel.
     graph.chain(left[1], const [
-      _CrackLocation(-50, -1.04),
-      _CrackLocation(-31, -1.13),
-      _CrackLocation(-12, -1.18),
+      _CrackLocation(-72, -1.00),
+      _CrackLocation(-52, -1.10),
+      _CrackLocation(-36, -1.02),
     ], kind: EggCrackKind.secondary);
 
-    // A visibly oblique central fissure, intentionally without a third Y.
+    // Upper-front transverse/diagonal fault. No extra Y junction.
     graph.chain(11, const [
-      _CrackLocation(-83, -.15),
-      _CrackLocation(-66, .01),
-      _CrackLocation(-48, .21),
-      _CrackLocation(-26, .28),
-      _CrackLocation(9, .14),
+      _CrackLocation(-88, .08),
+      _CrackLocation(-74, .36),
+      _CrackLocation(-58, .44),
+      _CrackLocation(-47, .13),
+      _CrackLocation(-25, -.08),
     ]);
 
     final right = graph.chain(14, const [
-      _CrackLocation(-88, .70),
-      _CrackLocation(-69, .93),
-      _CrackLocation(-48, 1.14),
-      _CrackLocation(-28, 1.06),
-      _CrackLocation(-10, 1.09),
+      _CrackLocation(-92, .83),
+      _CrackLocation(-84, 1.03),
+      _CrackLocation(-66, 1.19),
+      _CrackLocation(-49, .94),
+      _CrackLocation(-31, .72),
     ]);
-    // Y2: a shorter inward branch separates from the outward main crack.
+    // Y2 bends inward from the right flank, with unequal arm lengths.
     graph.chain(right[1], const [
-      _CrackLocation(-52, .64),
-      _CrackLocation(-35, .51),
-      _CrackLocation(-12, .49),
+      _CrackLocation(-76, .72),
+      _CrackLocation(-56, .68),
+      _CrackLocation(-38, .75),
     ], kind: EggCrackKind.secondary);
 
-    // Keep minor branches of different lengths around the main cluster.
+    // One peripheral interruption stays shorter than the main failures.
     graph.chain(17, const [
       _CrackLocation(-92, 1.43),
       _CrackLocation(-71, 1.48),

@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## Réseau statique V5 — repositionnement des fissures hors F1 (8 octobre 2026)
+
+**Décision utilisateur :** l'ouverture F1 est jugée OK. Ne pas la retoucher. Prochaine priorité : **positionner correctement les autres fissures** selon la planche de référence, notamment les stades 25 % et 5 % où les ruptures les plus importantes se concentrent sur le haut et le haut-milieu de la coquille, au lieu de longues fissures verticales isolées.
+
+**Implémentation ciblée :** dans `EggFractureNetwork.fixed`, les trois trajectoires situées **sous la couronne** sont redistribuées en une branche gauche oblique, un parcours transversal au centre et un groupe asymétrique droit. Les deux jonctions internes en Y sont conservées, les branches secondaires divergent et les terminaisons ne sont plus alignées à une même hauteur. Les deux fissures courtes situées sur le chapeau F1, la boucle de couronne de 24 arêtes et `EggShellModel.crownFractureY` ne sont pas modifiées. Aucun changement du modèle, du pivot F1, de l'épaisseur `2.5`, du mode atelier ou de la seed `20261008`.
+
+**Vérifications :** contrôle géométrique indépendant des nouvelles coordonnées projetées : aucune intersection entre branches non connectées dans le réseau examiné ; deux jonctions en Y maintenues ; absence de sortie de surface dans l'échantillonnage utilisé. Les capillaires du chapeau déjà existants ne sont pas modifiés. Tests Flutter de topologie V4 et nouveau test V5 de répartition écrits ; **non exécutés ici** sans Dart/Flutter. La conformité visuelle reste à valider sous Chrome à 0 % (réseau visible) puis F1 aux ouvertures intermédiaires, sans dégrader les acquis.
+
+**À ne pas confondre :** « F1 OK » correspond au retour utilisateur sur F1 ; cela ne certifie pas encore la future découpe multi-fragments ni la fermeture complète de toutes les arêtes du réseau. La topologie des régions et la variabilité par session restent à développer séparément.
+
 ## Atelier 3D unique — retrait du switch Ouverture F1 (8 octobre 2026)
 
 **Décision utilisateur :** le mode OFF du commutateur `Ouverture F1 (diagnostic)` n'apporte rien : le curseur d'ouverture permet déjà de fermer F1 à 0 %. Le commutateur est supprimé de `fragment_lab.dart` ; le seul peintre utilisé par l'atelier est désormais `EggShellF1PreviewPainter`, avec le réseau statique permanent, même à ouverture nulle.

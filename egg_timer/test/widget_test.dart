@@ -885,6 +885,45 @@ void main() {
     }
   });
 
+  test('Réseau V5 : implantation ciblée sous la couronne inchangée', () {
+    final network = EggFractureNetwork.fixed();
+    final model = network.model;
+    final fixedEdges = network.edges.where((edge) {
+      if (edge.kind == EggCrackKind.crown) return false;
+      final end = network.nodes[edge.endNode];
+      return end.y >= model.crownFractureY(end.angle);
+    }).toList();
+    final fixedSamples = fixedEdges.expand((edge) => edge.samples).toList();
+
+    // The new faults occupy the upper visible shell instead of descending
+    // in long parallel lines toward the base. Short cap branches are exempt.
+    expect(fixedEdges.length, greaterThanOrEqualTo(20));
+    expect(fixedSamples.every((sample) => sample.y < 0), isTrue);
+    expect(fixedSamples.any((sample) => sample.x < -95), isTrue);
+    expect(fixedSamples.any((sample) => sample.x > 105), isTrue);
+    expect(fixedSamples.any((sample) => sample.x.abs() < 20), isTrue);
+
+    final tips = network.edges.where((edge) {
+      if (edge.kind == EggCrackKind.crown) return false;
+      return network.edges.where(
+        (other) => other.startNode == edge.endNode ||
+                   other.endNode == edge.endNode,
+      ).length == 1;
+    }).map((edge) => network.nodes[edge.endNode]).toList();
+    expect(tips.where((node) => node.y > -40 && node.y < 0).length,
+        greaterThanOrEqualTo(3));
+    expect(
+      tips.where((node) => node.y < -60 && node.y > -100).length,
+      greaterThanOrEqualTo(1),
+    );
+
+    // The already accepted cap/F1 cut is the unique material boundary.
+    for (var i = 0; i < 24; i++) {
+      final node = network.nodes[i];
+      expect(node.y, closeTo(model.crownFractureY(node.angle), 1e-10));
+    }
+  });
+
   testWidgets('Atelier intégré : F1 permanent, contrôle par curseur', (
     tester,
   ) async {
