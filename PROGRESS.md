@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.3 — Contour matériel du bol fixe restant (code livré, tests locaux en attente, 8 octobre 2026)
+
+**Retour utilisateur V11.2 :** sur le commit `ca39e57`, `git pull --ff-only` indique `Already up to date`, puis `flutter test --no-pub test/egg_shell_fragment_mesh_test.dart` → **`00:01 +5: All tests passed!`**. Les cinq contrôles dédiés de génération des deux volumes statiques de coquille ont donc réussi sur la machine de l'utilisateur. Cela ne constitue pas encore une validation de leur rendu ou de leur animation.
+
+**Nouvelle intervention ciblée :** préparer le *véritable contour* permettant de reconstruire ultérieurement le bol fixe sans les deux régions candidates. Le bol actuel `EggShellF1PreviewPainter._drawBody` est triangulé en grille indépendante des fissures ; éliminer uniquement les triangles proches des fissures créerait des bords en escalier et violerait la géométrie commune. Il faut donc utiliser un contour contraint avant de trianguler.
+
+**Nouveau module `egg_stationary_bowl_boundary.dart` :** part de `EggFragmentRegionPlan` V11.1, compte les appartenances des arêtes aux deux panneaux, élimine les **trois arêtes centrales partagées `28,29,30`** (frontière interne, qui ne doit pas devenir une fausse ouverture), et déduit **une unique chaîne de 15 arêtes** de fissure originale reliant les nœuds de couronne F1 `7` et `16`. Elle contient exactement les arêtes `24–27,31–41` (sauf `28–30`). Le bord supérieur du bol fixe restant garde **les seuls trois segments de couronne frontale F1 `6,16,17`**, et enchaîne `node6 → node7 → [découpe] → node16 → node18`. Le contour fermé diagnostic complète ce sommet par les deux méridiens du modèle `EggShellModel` jusqu'au bas de l'œuf. Il réutilise directement les échantillons 3D d'origine pour toutes les fissures ; pas de contour ajouté à l'écran.
+
+**État exact :** le *contour 3D contraint de la future surface du bol fixe* est établi, **pas encore sa triangulation ni la suppression des triangles du bol peint**, qui restera inchangé dans Chrome. Le contour de silhouette est construit exclusivement depuis `EggShellModel`, pas depuis un masque alpha ni un tracé plat. Ni le modèle, ni la géométrie validée V10.4/F1, ni les volumes V11.2, ni la propagation, ni le peintre n'ont été modifiés.
+
+**Tests ajoutés non exécutés ici :** `flutter test --no-pub test/egg_stationary_bowl_boundary_test.dart` : chaîne unique, exclusion des frontières internes, continuité de la couronne F1, points 3D préservés, échantillonnage des deux méridiens, déterminisme. **Prochaine itération (après réussite locale) :** triangulation contrainte de cette surface restante, comparaison des frontières avec V11.2 et vérification d'absence d'intersection avant la substitution du maillage fixe dans l'aperçu. Aucune animation F2/F3, pas de trou via patch ou transparence, pas de moteur temporel.
+
 ## V11.2 — Construction statique des deux volumes de coquille (tests locaux en attente, 8 octobre 2026)
 
 **V11.1 testée :** retour PowerShell utilisateur après `d829666` : `flutter test --no-pub test/egg_fragment_regions_test.dart` → **`00:01 +5: All tests passed!`**. Les contours fermés et leurs frontières communes sont donc techniquement vérifiés par ces cinq tests. L'utilisateur conserve la répartition V10.4 comme base visuelle.
