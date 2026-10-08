@@ -311,11 +311,16 @@ class _FragmentLabState extends State<FragmentLab>
           }),
         ),
         if (_identifySurfaces)
-          const Text(
-            'Diagnostic : coquille jaune · face extérieure cyan · '
-            'face intérieure magenta · tranche mobile orange · '
-            'lèvre fixe verte (2,5 selon la normale) · intérieur bleu · '
-            'fond gris · ombres violettes.',
+          Text(
+            _eggModelOnly && _f1ModelPreview
+                ? 'F1 unifié : extérieur vert · intérieur magenta · '
+                  'tranche orange · bol extérieur cyan · '
+                  'intérieur arrière bleu · fond brun non couvert. '
+                  'Comparer avec l’option désactivée.'
+                : 'Diagnostic : coquille jaune · face extérieure cyan · '
+                  'face intérieure magenta · tranche mobile orange · '
+                  'lèvre fixe verte (2,5 selon la normale) · intérieur bleu · '
+                  'fond gris · ombres violettes.',
           ),
         if (_identifySurfaces) ...[
           const SizedBox(height: 8),
@@ -358,6 +363,7 @@ class _FragmentLabState extends State<FragmentLab>
                                     shadow: _shadow,
                                     thickness: _fragmentThickness,
                                     openAmount: _f1Open,
+                                    identifySurfaces: _identifySurfaces,
                                   )
                                 : EggShellModelPainter(
                                     guides: _guides,

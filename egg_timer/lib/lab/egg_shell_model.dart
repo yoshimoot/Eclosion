@@ -366,16 +366,21 @@ class EggShellModelPainter extends CustomPainter {
 
 
 class _DepthMesh {
-  _DepthMesh(this.points, this.colors, this.indices, {this.fracture = false});
+  _DepthMesh(this.points, this.colors, this.indices,
+      {required this.diagnosticColor, this.fracture = false});
   final List<EggShellPoint3> points;
   final List<Color> colors;
   final List<int> indices;
   final bool fracture;
+  final Color diagnosticColor;
 
-  void draw(Canvas canvas) => canvas.drawVertices(
+  void draw(Canvas canvas, {required bool identifySurfaces}) => canvas.drawVertices(
     ui.Vertices(ui.VertexMode.triangles,
       points.map((point) => point.xy).toList(),
-      colors: colors, indices: indices),
+      colors: identifySurfaces
+          ? List<Color>.filled(points.length, diagnosticColor)
+          : colors,
+      indices: indices),
     BlendMode.srcOver, Paint()..color = Colors.white);
 }
 
@@ -386,13 +391,15 @@ class _DepthScene {
   final meshes = <_DepthMesh>[];
 
   void add(List<EggShellPoint3> points, List<Color> colors,
-      List<int> indices, {bool fracture = false}) {
+      List<int> indices, {bool fracture = false,
+      required Color diagnosticColor}) {
     if (indices.isNotEmpty) {
-      meshes.add(_DepthMesh(points, colors, indices, fracture: fracture));
+      meshes.add(_DepthMesh(points, colors, indices,
+          fracture: fracture, diagnosticColor: diagnosticColor));
     }
   }
 
-  void paint(Canvas canvas, Path crack) {
+  void paint(Canvas canvas, Path crack, {required bool identifySurfaces}) {
     if (meshes.isEmpty) return;
     var minX = double.infinity, minY = double.infinity;
     var maxX = double.negativeInfinity, maxY = double.negativeInfinity;
@@ -472,17 +479,19 @@ class _DepthScene {
     for(var i=0;i<meshes.length;i++) {
       canvas.save();
       canvas.clipPath(paths[i],doAntiAlias:true);
-      meshes[i].draw(canvas);
+      meshes[i].draw(canvas, identifySurfaces: identifySurfaces);
       canvas.restore();
     }
-    canvas.save();
-    canvas.clipPath(crackPath,doAntiAlias:true);
-    canvas.drawPath(crack, Paint()
-        ..style=PaintingStyle.stroke
-        ..strokeWidth=1.2
-        ..strokeCap=StrokeCap.round
-        ..color=const Color(0x8a76503a));
-    canvas.restore();
+    if (!identifySurfaces) {
+      canvas.save();
+      canvas.clipPath(crackPath, doAntiAlias: true);
+      canvas.drawPath(crack, Paint()
+          ..style=PaintingStyle.stroke
+          ..strokeWidth=1.2
+          ..strokeCap=StrokeCap.round
+          ..color=const Color(0x8a76503a));
+      canvas.restore();
+    }
   }
 }
 
@@ -493,6 +502,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
     this.shadow = true,
     this.thickness = 2.5,
     this.openAmount = .55,
+    this.identifySurfaces = false,
   });
 
   final EggShellModel model;
@@ -500,6 +510,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
   final bool shadow;
   final double thickness;
   final double openAmount;
+  final bool identifySurfaces;
 
   static const _shellLight = Color(0xffffd59b);
   static const _shellBase = Color(0xffe7ab70);
@@ -629,7 +640,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
 
-    scene.add(points, colors, indices);
+    scene.add(points, colors, indices,
+        diagnosticColor: const Color(0xff3366dd)); // Rear bowl interior
   }
 
   void _drawBody(_DepthScene scene) {
@@ -664,7 +676,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
 
-    scene.add(points, colors, indices);
+    scene.add(points, colors, indices,
+        diagnosticColor: const Color(0xff40c8ed)); // Fixed bowl exterior
   }
 
   Path _drawCap(_DepthScene scene) {
@@ -723,7 +736,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
 
-    scene.add(inner3, innerColors, innerIndices);
+    scene.add(inner3, innerColors, innerIndices,
+        diagnosticColor: const Color(0xffff3db8)); // F1 inner
 
     if (openAmount > .02) {
       final edgePoints = <EggShellPoint3>[];
@@ -760,10 +774,12 @@ class EggShellF1PreviewPainter extends CustomPainter {
         edgeIndices.addAll([a, b, c, c, b, d]);
       }
 
-      scene.add(edgePoints, edgeColors, edgeIndices, fracture: true);
+      scene.add(edgePoints, edgeColors, edgeIndices,
+          fracture: true, diagnosticColor: const Color(0xffff8c2e)); // Rim
     }
 
-    scene.add(outer3, outerColors, outerIndices, fracture: true);
+    scene.add(outer3, outerColors, outerIndices,
+        fracture: true, diagnosticColor: const Color(0xff87c961)); // F1 outer
 
     // Visible front half of the fracture line.
     final crack = Path();
@@ -821,7 +837,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
     _drawRearInnerBowl(scene);
     _drawBody(scene);
     final crack = _drawCap(scene);
-    scene.paint(canvas, crack);
+    scene.paint(canvas, crack, identifySurfaces: identifySurfaces);
 
     if (guides) {
       final guidePaint = Paint()
@@ -844,5 +860,6 @@ class EggShellF1PreviewPainter extends CustomPainter {
       oldDelegate.guides != guides ||
       oldDelegate.shadow != shadow ||
       oldDelegate.thickness != thickness ||
-      oldDelegate.openAmount != openAmount;
+      oldDelegate.openAmount != openAmount ||
+      oldDelegate.identifySurfaces != identifySurfaces;
 }
