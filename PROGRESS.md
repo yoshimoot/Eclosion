@@ -1,5 +1,26 @@
 ﻿# Eclosion — état courant
 
+## V10.4 — abaissement léger des fissures, à valider dans Chrome (8 octobre 2026)
+
+**Demande utilisateur :** la répartition V10.3 convient à peu près ; proposer et essayer des fissures descendant légèrement plus bas, sans reconstruire le réseau ni densifier la partie inférieure. **Seul changement visuel : abaissement des portions inférieures** et de leurs jonctions, selon les valeurs acceptées.
+
+**Déplacements 3D (coordonnée Y du modèle, positive vers le bas) :**
+- extrémité gauche `13 → 31` ;
+- jonctions centrale supérieure `10 → 26`, centrale inférieure `37 → 55` ;
+- extrémité droite `-9 → 11` ;
+- liaison basse gauche `26 → 44` puis `28 → 48` ;
+- liaison basse droite `6 → 26` puis `23 → 42` ;
+- sortie latérale gauche basse `32 → 48` puis `62 → 78` ;
+- sortie droite `10 → 28` puis `44 → 61`.
+
+**Strictement préservés :** premiers points des trois fissures et leurs racines de couronne, branche latérale gauche supérieure, topologie du graphe, ids des nœuds et connexions, couronne F1 et ses deux fissures, modèle et pivot F1, seed `20261008`, valeurs `2.5` et `1.5`, peintre et propagation V9/V10, atelier et minuteur. Les liaisons restent des **frontières candidates**, aucun véritable fragment physique n'est créé.
+
+**Contrôle préparatoire indépendant** (reproduction des règles de génération de points du réseau) : **50 nœuds / 52 arêtes / 3 cycles** avant et après ; degré maximal 3 ; aucun nouveau croisement parasite hors F1, aucun échantillon hors de la coquille, aucun franchissement de la frontière F1 ; durée maximale calculée de propagation `0.8751` sur une échelle `0–1`. Les deux croisements historiques entre la couronne et les deux fines fissures du chapeau sont inchangés. Cela ne vaut **ni test Dart/Flutter exécuté ni validation esthétique**.
+
+**Tests :** mise à jour des anciennes hauteurs attendues dans le test de topologie V10.3, adaptation de la limite verticale du réseau à `0.37 × halfHeight` et ajout du contrôle ciblé `V10.4 : abaissement ciblé sans ajouter de fragments` (positions, conservation de F1, absence de doublons et jonctions partagées). **Tests Flutter non exécutés dans cet environnement.** Exécuter localement `flutter test --no-pub test/egg_crack_propagation_test.dart` et `flutter test --no-pub test/widget_test.dart`.
+
+**Validation visuelle attendue :** comparer V10.4 avec la V10.3 à F1 fermé (0 %), propagation des fissures à 100 %, repères désactivés. Observer surtout l'équilibre entre espace de libération du poussin et partie inférieure encore intacte. Ne pas passer à la séparation physique avant validation explicite de la répartition.
+
 ## V10.3 — adaptation du dernier croquis rouge (8 octobre 2026)
 
 **Nouvelle priorité confirmée :** conserver la logique de l'annotation rouge de l'utilisateur sur la capture V10.2 : trois fissures mères verticales/obliques, deux liaisons basses non rectilignes rejoignant la fissure centrale à deux hauteurs différentes, trois sorties vers les côtés. Le défaut unique est la **répartition hors F1**, pas l'animation.

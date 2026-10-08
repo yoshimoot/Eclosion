@@ -70,40 +70,40 @@ class EggFractureNetwork {
       graph.edge(i, (i + 1) % sections, EggCrackKind.crown);
     }
 
-    // V10.3: three descending fractures, two distinct lower junctions
-    // and sparse lateral exits based on the user's annotated red drawing.
+    // V10.4: keep V10.3 topology; lower its endpoints and junctions
+    // moderately, with the same lateral exits and validated parent nodes.
     // Material edges and junctions are always sampled on EggShellModel.
     // The unchanged F1 crown and cap scratches are deliberately excluded.
     final left = graph.chain(7, const [
       _CrackLocation(-90, -1.11),
       _CrackLocation(-62, -.99),
       _CrackLocation(-30, -.77),
-      _CrackLocation(13, -.56),
+      _CrackLocation(31, -.56),
     ]);
     final middle = graph.chain(11, const [
       _CrackLocation(-91, -.23),
       _CrackLocation(-55, -.12),
-      _CrackLocation(10, .05),
-      _CrackLocation(37, .15),
+      _CrackLocation(26, .05),
+      _CrackLocation(55, .15),
     ]);
     final right = graph.chain(16, const [
       _CrackLocation(-88, .97),
       _CrackLocation(-52, .81),
       _CrackLocation(-23, .68),
-      _CrackLocation(-9, .66),
+      _CrackLocation(11, .66),
     ]);
 
     // Two low boundaries join DIFFERENT central mother nodes, avoiding
     // a four-way intersection and keeping real graph-edge provenance.
     final leftLower = graph.chain(left.last, const [
-      _CrackLocation(26, -.41),
-      _CrackLocation(28, -.16),
+      _CrackLocation(44, -.41),
+      _CrackLocation(48, -.16),
     ], kind: EggCrackKind.connection);
     graph.edge(leftLower.last, middle[2], EggCrackKind.connection);
 
     final rightLower = graph.chain(right.last, const [
-      _CrackLocation(6, .54),
-      _CrackLocation(23, .38),
+      _CrackLocation(26, .54),
+      _CrackLocation(42, .38),
     ], kind: EggCrackKind.connection);
     graph.edge(rightLower.last, middle[3], EggCrackKind.connection);
 
@@ -114,12 +114,12 @@ class EggFractureNetwork {
       _CrackLocation(-12, -1.45),
     ], kind: EggCrackKind.secondary);
     graph.chain(left.last, const [
-      _CrackLocation(32, -1.08),
-      _CrackLocation(62, -1.47),
+      _CrackLocation(48, -1.08),
+      _CrackLocation(78, -1.47),
     ], kind: EggCrackKind.secondary);
     graph.chain(right.last, const [
-      _CrackLocation(10, 1.03),
-      _CrackLocation(44, 1.47),
+      _CrackLocation(28, 1.03),
+      _CrackLocation(61, 1.47),
     ], kind: EggCrackKind.secondary);
 
     // F1 cap scratches: both validated chains stay exactly unchanged.

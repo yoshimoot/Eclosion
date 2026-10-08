@@ -843,7 +843,7 @@ void main() {
     expect(majorOblique, greaterThanOrEqualTo(6));
   });
 
-  test('V10.3 : deux jonctions basses et sorties latérales partagées', () {
+  test('V10.4 : jonctions basses déplacées et sorties latérales partagées', () {
     final network = EggFractureNetwork.fixed();
     final edges = network.edges;
     final crown = edges.where((e) => e.kind == EggCrackKind.crown).toList();
@@ -874,7 +874,7 @@ void main() {
       }
       tipHeights.add(network.nodes[tip].y);
     }
-    expect(tipHeights, [13, 37, -9],
+    expect(tipHeights, [31, 55, 11],
         reason: 'Mother cracks are asymmetrical, not equally long');
 
     // Two lower bridges join distinct nodes of the SAME central mother.
@@ -917,6 +917,69 @@ void main() {
         reason: 'One upper left, one lower left and one right exit');
     expect(lateralEnds.every((edge) => edge.samples.last.z > 0), isTrue,
         reason: 'The projected silhouette does not close a 3D fragment');
+  });
+
+  test('V10.4 : abaissement ciblé sans ajouter de fragments', () {
+    final network = EggFractureNetwork.fixed();
+    final edges = network.edges;
+    final mothers = edges.where(
+      (edge) => edge.kind == EggCrackKind.primary,
+    ).toList();
+    final links = edges.where(
+      (edge) => edge.kind == EggCrackKind.connection,
+    ).toList();
+    final secondaries = edges.where(
+      (edge) => edge.kind == EggCrackKind.secondary,
+    ).toList();
+
+    double yOf(int nodeId) => network.nodes[nodeId].y;
+
+    // Same shared graph identities as V10.3; just lower the endpoints.
+    expect(network.nodes.length, 50);
+    expect(edges.length, 52);
+    expect(edges.length - network.nodes.length + 1, 3);
+    expect(mothers.length, 12);
+    expect(links.length, 6);
+    expect(secondaries.length, 10);
+    expect([
+      yOf(mothers[3].endNode),
+      yOf(mothers[6].endNode),
+      yOf(mothers[7].endNode),
+      yOf(mothers[11].endNode),
+    ], [31, 26, 55, 11]);
+
+    expect([
+      yOf(links[0].endNode),
+      yOf(links[1].endNode),
+      yOf(links[3].endNode),
+      yOf(links[4].endNode),
+    ], [44, 48, 26, 42]);
+
+    // Secondary chains: upper-left unchanged, lower-left and right
+    // shifted moderately down; F1's two scratches must not move.
+    expect(yOf(secondaries[0].endNode), -35);
+    expect(yOf(secondaries[1].endNode), -12);
+    expect(yOf(secondaries[2].endNode), 48);
+    expect(yOf(secondaries[3].endNode), 78);
+    expect(yOf(secondaries[4].endNode), 28);
+    expect(yOf(secondaries[5].endNode), 61);
+    expect([
+      for (final edge in secondaries.skip(6))
+        yOf(edge.endNode),
+    ], [-142, -164, -147, -170]);
+
+    final linked = <String>{};
+    final degrees = List<int>.filled(network.nodes.length, 0);
+    for (final edge in edges) {
+      degrees[edge.startNode]++;
+      degrees[edge.endNode]++;
+      final a = math.min(edge.startNode, edge.endNode);
+      final b = math.max(edge.startNode, edge.endNode);
+      expect(linked.add('$a:$b'), isTrue);
+    }
+    expect(degrees.every((degree) => degree <= 3), isTrue);
+    expect(links[2].endNode, mothers[6].endNode);
+    expect(links[5].endNode, mothers[7].endNode);
   });
 
   test('Réseau V6 : aucune intersection fortuite entre branches visibles', () {
@@ -962,7 +1025,7 @@ void main() {
     }
   });
 
-  test('V10.3 : fissures haut-médianes et sorties latérales', () {
+  test('V10.4 : réseau abaissé et sorties latérales', () {
     final network = EggFractureNetwork.fixed();
     final model = network.model;
     final fixedEdges = network.edges.where((edge) {
@@ -976,9 +1039,9 @@ void main() {
     // in long parallel lines toward the base. Short cap branches are exempt.
     expect(fixedEdges.length, greaterThanOrEqualTo(20));
     expect(
-      fixedSamples.every((sample) => sample.y < model.halfHeight * .35),
+      fixedSamples.every((sample) => sample.y < model.halfHeight * .37),
       isTrue,
-      reason: 'Only lateral exits extend toward the middle of the shell',
+      reason: 'All fractures stay above the largely intact lower shell',
     );
     expect(fixedSamples.any((sample) => sample.x < -95), isTrue);
     expect(fixedSamples.any((sample) => sample.x > 105), isTrue);
