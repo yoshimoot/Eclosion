@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.6 — Face intérieure et tranches réelles du bol fixe avant (tests en attente, 8 octobre 2026)
+
+**Retour PowerShell V11.5 confirmé :** `flutter test --no-pub test/egg_shell_front_assembly_test.dart` → **`00:01 +4: All tests passed!`**. Après les 15 tests V11.2/V11.3/V11.4 déjà réussis, la topologie commune de l'assemblage V11.5 a passé ses quatre nouveaux tests. Cela reste une validation technique, pas une validation du rendu.
+
+**Objectif unique V11.6 :** créer la face intérieure incurvée et les tranches de découpe du **bol fixe AVANT**, à partir de l'assemblage V11.5 déjà cohérent. Nouveau module `egg_stationary_bowl_shell.dart` : garde sans modification les sommets et triangles externes du bol fixe ; génère une face intérieure par `EggShellModel.inset(outer, 2.5)` et inverse les triangles internes ; suit le bord supérieur depuis le nœud F1 `6` vers `18`, en intégrant les trois segments de couronne F1 encore intacts et la chaîne des 15 arêtes de fissure partagée. Les subdivisions sont exactement celles du maillage V11.5 (`2^refinementPasses` par segment source). Les parois de tranche sont construites directement entre sommets extérieurs et intérieurs de ce bord, avec 2 triangles par segment.
+
+**Précaution architecturale :** **NE PAS créer de tranche sur les méridiens de silhouette**. Ceux-ci forment une frontière temporairement ouverte entre la demi-surface avant et la future demi-surface arrière ; les fermer indépendamment produirait une fausse bande de coquille plate. Le nouveau volume partiel est donc intentionnellement **ouvert sur les côtés**, pas un maillage solide complet de l'œuf. L'enveloppe arrière et le raccord final restent des étapes distinctes. Aucun patch alpha ni forme écran.
+
+**Gel :** aucun changement de `EggShellModel`, de F1, des fissures V10.4, de la seed, des épaisseurs et oscillations validées, des volumes V11.2, de la propagation, du moteur temporel ou du peintre atelier. Pas de mouvement, charnière, chute ou poussin à cette étape. Le rendu Chrome actuel reste strictement identique.
+
+**Tests V11.6 ajoutés (non exécutés dans cet environnement) :** `flutter test --no-pub test/egg_stationary_bowl_shell_test.dart` ; vérification de l'épaisseur et des normales, conservation de la surface avant, continuité de la tranche supérieure, incidences topologiques à deux faces et ouvertures latérales intentionnelles, déterminisme et paramètres invalides. Si réussis, passer au raccord avec l'arrière avant toute substitution du rendu existant. Rejouer en régression V11.5 et V11.4 si nécessaire.
+
 ## V11.5 — Raffinement commun des frontières entre les trois maillages (tests en attente, 8 octobre 2026)
 
 **Retour utilisateur confirmé :** les trois suites V11.2/V11.3/V11.4 réussissent ensemble, `00:01 +15: All tests passed!` sur le commit `68399e1`. La structure actuelle du bol fixe est donc validée techniquement sur ces tests, mais reste non intégrée au rendu.
