@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## V9 — calendrier causal de propagation (implémenté ; tests locaux à exécuter)
+
+**Nouvelle décision (8 octobre 2026) :** la capture V8 n'est **pas artistiquement validée**. Les retouches successives des liaisons géométriques ne donnent pas une éclosion naturelle. La bonne direction est de **séparer la topologie potentielle, la propagation visible et la fragmentation réelle** ; les fissures peuvent n'apparaître que progressivement, les jonctions et fermetures restant latentes tant que la rupture ne les atteint pas.
+
+**Périmètre unique V9 : architecture temporelle uniquement**, sans déplacer un seul nœud de `EggFractureNetwork.fixed`, sans modifier les peintres, l'atelier, F1, le pivot ou le timer. Nouveau module `egg_crack_propagation.dart` : un `EggCrackPropagationPlan` immuable pour chaque `EggCrackEdge.id` existant, avec instant de départ/fin, parent réel au nœud commun, avancement continu entre 0 et 1 et temps déterministes indépendants des frames. Les mères commencent en premier, les branches n'apparaissent qu'après la complétion de leur parent, et les liaisons `connection` se propagent plus tard pour fermer des régions. Les 24 arêtes de couronne F1 et les quatre arêtes des deux petites fissures du chapeau sont marquées **préservées**, donc non reprogrammées. Pour les liaisons tardives rejoignant des axes déjà actifs, la provenance des axes mères n'est pas retardée par cette jonction.
+
+**Critère V9 :** un calendrier reproductible, purement calculé à partir du réseau 3D et d'une progression normalisée, capable de donner la portion visible de chaque arête **sans altérer son échantillonnage ni ses jonctions**. Ce n'est pas une simulation physique validée ; les timings sont provisoires et devront être synchronisés au minuteur ultérieurement. Tests ciblés ajoutés dans `test/egg_crack_propagation_test.dart` : invariance F1, déterminisme, dépendances aux jonctions, connexions tardives, continuité, réversibilité et aucune mutation des points 3D. **Tests écrits, non encore exécutés localement.**
+
+**À ne pas confondre :** V9 ne change **volontairement pas** la capture Chrome : l'affichage actuel reste celui de V8, même si celui-ci n'est pas validé. **V10** sera une itération distincte consacrée au dévoilement progressif des *mêmes* arêtes géométriques dans `EggShellF1PreviewPainter`, avec un contrôle de progression dans l'atelier. Ne pas ajouter de nouveau mode ON/OFF ni de crossfade. **V11**, seulement ensuite, traitera les véritables séparations, tranches et attaches permettant l'apparition du poussin.
+
 ## Réseau V8 — liaisons décalées, validation Chrome en attente (8 octobre 2026)
 
 **Observation V7 à 0 % :** le réseau conserve une apparence d'escalier transversal au centre. Les deux liaisons restaient proches en hauteur à travers la chaîne centrale, et chaque petite arête ajoutait plusieurs coudes indépendants.
