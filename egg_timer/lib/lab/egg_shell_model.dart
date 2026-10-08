@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'egg_shell_crack_network.dart';
+
 class EggShellPoint3 {
   const EggShellPoint3(this.x, this.y, this.z);
 
@@ -364,19 +366,22 @@ class EggShellModelPainter extends CustomPainter {
 
 
 class EggShellF1PreviewPainter extends CustomPainter {
-  const EggShellF1PreviewPainter({
+  EggShellF1PreviewPainter({
     this.model = EggShellModel.reference,
     this.guides = false,
     this.shadow = true,
     this.thickness = 2.5,
     this.openAmount = .55,
-  });
+    required this.seed,
+  }) : _network = EggShellCrackNetwork(seed);
 
   final EggShellModel model;
   final bool guides;
   final bool shadow;
   final double thickness;
   final double openAmount;
+  final int seed;
+  final EggShellCrackNetwork _network;
 
   static const _shellLight = Color(0xffffd59b);
   static const _shellBase = Color(0xffe7ab70);
@@ -401,24 +406,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
     )!;
   }
 
-  static const _boundaryKnots = <double>[
-    // 360° loop from rear (-pi) through the front (0) back to rear (+pi).
-    // Deliberately angular/asymmetric: this is a broken shell edge, not a wave.
-    -128, -124, -126, -118, -121, -112, -115, -106, -109,
-    -101, -104, -96, -100, -94, -99, -103, -98,
-    -102, -108, -105, -112, -109, -117, -114, -122,
-    -119, -126, -128, -125, -130, -127, -129, -128,
-  ];
-
-  double _boundaryY(double angle) {
-    var u = (angle + math.pi) / (2 * math.pi);
-    u -= u.floorToDouble();
-    final scaled = u * (_boundaryKnots.length - 1);
-    final index = scaled.floor().clamp(0, _boundaryKnots.length - 2);
-    final t = scaled - index;
-    return _boundaryKnots[index] +
-        (_boundaryKnots[index + 1] - _boundaryKnots[index]) * t;
-  }
+  double _boundaryY(double angle) => _network.f1BoundaryY(angle);
 
   EggShellPoint3 _rotateX(EggShellPoint3 point, double angle) {
     final c = math.cos(angle);
@@ -488,6 +476,29 @@ class EggShellF1PreviewPainter extends CustomPainter {
       path.lineTo(-model.radiusAt(y), y);
     }
     return path..close();
+  }
+
+  void _drawCrackNetwork(Canvas canvas) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .68
+      ..strokeCap = StrokeCap.square
+      ..strokeJoin = StrokeJoin.miter
+      ..color = const Color(0x5f76503a);
+
+    for (final branch in _network.branches) {
+      final path = Path();
+      for (var i = 0; i < branch.points.length; i++) {
+        final point = branch.points[i];
+        final projected = model.pointAt(point.y, point.angle).xy;
+        if (i == 0) {
+          path.moveTo(projected.dx, projected.dy);
+        } else {
+          path.lineTo(projected.dx, projected.dy);
+        }
+      }
+      canvas.drawPath(path, paint);
+    }
   }
 
   void _drawBody(Canvas canvas) {
@@ -758,6 +769,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
     );
 
     _drawBody(canvas);
+    _drawCrackNetwork(canvas);
     _drawCap(canvas);
 
     canvas.drawPath(
@@ -789,5 +801,6 @@ class EggShellF1PreviewPainter extends CustomPainter {
       oldDelegate.guides != guides ||
       oldDelegate.shadow != shadow ||
       oldDelegate.thickness != thickness ||
-      oldDelegate.openAmount != openAmount;
+      oldDelegate.openAmount != openAmount ||
+      oldDelegate.seed != seed;
 }
