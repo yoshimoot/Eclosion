@@ -41,7 +41,6 @@ class _FragmentLabState extends State<FragmentLab> {
       _strokesFor(onCap: false);
   static final List<ShellCrackStroke> _movingCracks =
       _strokesFor(onCap: true);
-  bool _showF1 = true;
   bool _identifySurfaces = false;
   double _f1Open = .55;
 
@@ -59,31 +58,18 @@ class _FragmentLabState extends State<FragmentLab> {
         'Les autres fragments et le poussin ne sont pas encore intégrés.',
       ),
       const SizedBox(height: 20),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Ouverture F1 (diagnostic)'),
-        subtitle: const Text(
-          'Désactivé : œuf intact, avec les mêmes fissures 3D.',
-        ),
-        value: _showF1,
-        onChanged: (value) => setState(() => _showF1 = value),
-      ),
       Text(
-        _showF1
-            ? 'Œuf 3D · fissures et ouverture F1'
-            : 'Œuf 3D intact · fissures permanentes',
+        'Œuf 3D · fissures et ouverture F1',
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      if (_showF1) ...[
-        const SizedBox(height: 12),
-        Text('Ouverture F1 · ${(_f1Open * 100).round()} %'),
-        Slider(
-          value: _f1Open,
-          min: 0,
-          max: 1,
-          onChanged: (value) => setState(() => _f1Open = value),
-        ),
-      ],
+      const SizedBox(height: 12),
+      Text('Ouverture F1 · ${(_f1Open * 100).round()} %'),
+      Slider(
+        value: _f1Open,
+        min: 0,
+        max: 1,
+        onChanged: (value) => setState(() => _f1Open = value),
+      ),
       const SizedBox(height: 12),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
@@ -91,15 +77,14 @@ class _FragmentLabState extends State<FragmentLab> {
         value: _guides,
         onChanged: (value) => setState(() => _guides = value ?? false),
       ),
-      if (_showF1)
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Identifier les surfaces'),
-          value: _identifySurfaces,
-          onChanged: (value) =>
-              setState(() => _identifySurfaces = value ?? false),
-        ),
-      if (_showF1 && _identifySurfaces)
+      CheckboxListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Identifier les surfaces'),
+        value: _identifySurfaces,
+        onChanged: (value) =>
+            setState(() => _identifySurfaces = value ?? false),
+      ),
+      if (_identifySurfaces)
         const Text(
           'F1 : extérieur vert · intérieur magenta · tranche orange. '
           'Bol : extérieur cyan · intérieur arrière bleu. '
@@ -117,11 +102,11 @@ class _FragmentLabState extends State<FragmentLab> {
                 'atelier': 'EggShellModel 3D avec fissures intégrées',
                 'staticCracks': true,
                 'seed': _staticCracks.seed,
-                'showF1': _showF1,
+                'showF1': true,
                 'f1Opening': _f1Open,
                 'thickness': _fragmentThickness,
                 'guides': _guides,
-                'identifySurfaces': _showF1 && _identifySurfaces,
+                'identifySurfaces': _identifySurfaces,
                 'portraitRatio': '9:16',
                 'devicePixelRatio': MediaQuery.devicePixelRatioOf(context),
               }),
@@ -144,20 +129,15 @@ class _FragmentLabState extends State<FragmentLab> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: CustomPaint(
-            painter: _showF1
-                ? EggShellF1PreviewPainter(
-                    guides: _guides,
-                    shadow: true,
-                    thickness: _fragmentThickness,
-                    openAmount: _f1Open,
-                    identifySurfaces: _identifySurfaces,
-                    fixedCracks: _fixedCracks,
-                    movingCracks: _movingCracks,
-                  )
-                : EggCrackNetworkPainter(
-                    network: _staticCracks,
-                    guides: _guides,
-                  ),
+            painter: EggShellF1PreviewPainter(
+              guides: _guides,
+              shadow: true,
+              thickness: _fragmentThickness,
+              openAmount: _f1Open,
+              identifySurfaces: _identifySurfaces,
+              fixedCracks: _fixedCracks,
+              movingCracks: _movingCracks,
+            ),
             child: const SizedBox.expand(),
           ),
         ),

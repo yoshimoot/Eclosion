@@ -885,7 +885,7 @@ void main() {
     }
   });
 
-  testWidgets('Atelier intégré : fissures permanentes et ouverture F1', (
+  testWidgets('Atelier intégré : F1 permanent, contrôle par curseur', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
@@ -899,39 +899,37 @@ void main() {
         .single;
 
     expect(find.text('Réseau de fissures 3D (statique)'), findsNothing);
-    expect(find.text('Valider le modèle 3D unifié'), findsNothing);
+    expect(find.text('Ouverture F1 (diagnostic)'), findsNothing);
     expect(find.byType(FragmentScene), findsNothing);
+    expect(find.byType(Slider), findsOneWidget);
+    expect(
+      tester
+          .widgetList<CustomPaint>(find.byType(CustomPaint))
+          .map((widget) => widget.painter)
+          .whereType<EggCrackNetworkPainter>(),
+      isEmpty,
+    );
     expect(f1Painter().thickness, 2.5);
     expect(f1Painter().fixedCracks, isNotEmpty);
     expect(f1Painter().movingCracks, isNotEmpty);
 
+    // Zero opening is the intact-shell state; no separate toggle is needed.
     for (final opening in [0.0, .25, .50, .75, 1.0]) {
       tester.widget<Slider>(find.byType(Slider)).onChanged!(opening);
       await tester.pump();
       expect(f1Painter().openAmount, opening);
       expect(f1Painter().fixedCracks, isNotEmpty);
       expect(f1Painter().movingCracks, isNotEmpty);
+      expect(find.byType(Slider), findsOneWidget);
     }
 
     await tester.tap(find.text('Identifier les surfaces'));
     await tester.pump();
     expect(f1Painter().identifySurfaces, isTrue);
-
-    await tester.tap(find.text('Ouverture F1 (diagnostic)'));
+    await tester.widget<Slider>(find.byType(Slider)).onChanged!(0);
     await tester.pump();
-    final intact = tester
-        .widgetList<CustomPaint>(find.byType(CustomPaint))
-        .map((widget) => widget.painter)
-        .whereType<EggCrackNetworkPainter>();
-    expect(intact.length, 1);
-    expect(intact.single.network.seed, EggFractureNetwork.fixedSeed);
-    expect(find.byType(Slider), findsNothing);
-
-    await tester.tap(find.text('Ouverture F1 (diagnostic)'));
-    await tester.pump();
-    expect(f1Painter().openAmount, 1);
+    expect(f1Painter().openAmount, 0);
     expect(f1Painter().identifySurfaces, isTrue);
-    expect(f1Painter().movingCracks, isNotEmpty);
   });
 
   FragmentScene frame(double progress) => FragmentScene(

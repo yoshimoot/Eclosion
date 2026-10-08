@@ -1,5 +1,13 @@
 ﻿# Eclosion — état courant
 
+## Atelier 3D unique — retrait du switch Ouverture F1 (8 octobre 2026)
+
+**Décision utilisateur :** le mode OFF du commutateur `Ouverture F1 (diagnostic)` n'apporte rien : le curseur d'ouverture permet déjà de fermer F1 à 0 %. Le commutateur est supprimé de `fragment_lab.dart` ; le seul peintre utilisé par l'atelier est désormais `EggShellF1PreviewPainter`, avec le réseau statique permanent, même à ouverture nulle.
+
+**Contrôles restants :** `Ouverture F1` (curseur 0–100 %), `Repères de cadrage`, `Identifier les surfaces`, `Copier les réglages`. La seed `20261008`, la topologie V4, la coupe commune, le pivot, la géométrie et l'épaisseur `2.5` sont inchangés. L'aperçu intact alternatif `EggCrackNetworkPainter` reste dans le code mais n'est plus sélectionné dans l'atelier, pour conserver cet outil historique sans suppression destructrice.
+
+**Validation :** test d'interface adapté pour vérifier l'absence des deux anciens switches et un unique peintre F1 aux ouvertures 0/25/50/75/100 %. Test écrit, non exécuté ici sans Flutter. État : **code livré, validation Chrome en attente** ; notamment vérifier la continuité de la coquille et des fissures à 0 %.
+
 ## Atelier 3D unifié — réseau permanent (8 octobre 2026)
 
 **Décision mise en œuvre :** le bouton ON/OFF `Réseau de fissures 3D (statique)` est retiré. Le réseau V4 reste présent sur la coquille intacte **et pendant l'ouverture F1** ; `Ouverture F1 (diagnostic)` ne sert plus qu'à examiner deux états de la même géométrie. `Repères de cadrage` et `Identifier les surfaces` restent des contrôles de diagnostic.
