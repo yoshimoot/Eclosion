@@ -386,7 +386,6 @@ class EggShellF1PreviewPainter extends CustomPainter {
   static const _shellLight = Color(0xffffd59b);
   static const _shellBase = Color(0xffe7ab70);
   static const _shellDark = Color(0xff9c633d);
-  static const _cavity = Color(0xff8f6656);
   static const _innerShell = Color(0xffe4c1a0);
   static const _edgeShell = Color(0xffcf9b72);
 
@@ -449,35 +448,6 @@ class EggShellF1PreviewPainter extends CustomPainter {
     return result.normalized;
   }
 
-  Path _aperturePath() {
-    const samples = 72;
-    final path = Path();
-    for (var i = 0; i <= samples; i++) {
-      final angle = -math.pi / 2 + math.pi * i / samples;
-      final point = model.pointAt(_boundaryY(angle), angle).xy;
-      if (i == 0) {
-        path.moveTo(point.dx, point.dy);
-      } else {
-        path.lineTo(point.dx, point.dy);
-      }
-    }
-
-    final rightBoundaryY = _boundaryY(math.pi / 2);
-    for (var i = 0; i <= 48; i++) {
-      final y = rightBoundaryY +
-          (-model.halfHeight - rightBoundaryY) * i / 48;
-      path.lineTo(model.radiusAt(y), y);
-    }
-
-    final leftBoundaryY = _boundaryY(-math.pi / 2);
-    for (var i = 0; i <= 48; i++) {
-      final y = -model.halfHeight +
-          (leftBoundaryY + model.halfHeight) * i / 48;
-      path.lineTo(-model.radiusAt(y), y);
-    }
-    return path..close();
-  }
-
   void _drawCrackNetwork(Canvas canvas) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
@@ -499,6 +469,114 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
       canvas.drawPath(path, paint);
     }
+  }
+
+  Color _shadeInner(EggShellPoint3 inwardNormal) {
+    const light = EggShellPoint3(-.38, -.48, .79);
+    final diffuse =
+        (inwardNormal.x * light.x +
+                inwardNormal.y * light.y +
+                inwardNormal.z * light.z)
+            .clamp(-1.0, 1.0)
+            .toDouble();
+    final amount = ((diffuse + 1) * .5).clamp(0.0, 1.0).toDouble();
+    return Color.lerp(
+      const Color(0xff8b6252),
+      const Color(0xffe2c0a2),
+      .24 + .52 * amount,
+    )!;
+  }
+
+  void _drawRearInnerBowl(Canvas canvas) {
+    // True rear half of the SAME lower shell. This is the concave inner wall
+    // that becomes visible through the opening once F1 lifts.
+    const rows = 64;
+    const columns = 96;
+    final positions = <Offset>[];
+    final colors = <Color>[];
+    final indices = <int>[];
+
+    for (var row = 0; row <= rows; row++) {
+      final t = row / rows;
+      for (var column = 0; column <= columns; column++) {
+        final angle = math.pi / 2 + math.pi * column / columns;
+        final topY = _boundaryY(angle);
+        final y = topY + (model.halfHeight - topY) * t;
+        final rearOuter = model.pointAt(y, angle);
+        final rearInner = model.inset(rearOuter, thickness);
+        final outerNormal = model.normalAt(rearOuter);
+        final inwardNormal = EggShellPoint3(
+          -outerNormal.x,
+          -outerNormal.y,
+          -outerNormal.z,
+        );
+        positions.add(rearInner.xy);
+        colors.add(_shadeInner(inwardNormal));
+      }
+    }
+
+    final stride = columns + 1;
+    for (var row = 0; row < rows; row++) {
+      for (var column = 0; column < columns; column++) {
+        final a = row * stride + column;
+        final b = a + 1;
+        final c = a + stride;
+        final d = c + 1;
+        // Rear inner wall faces the camera from inside the bowl.
+        indices.addAll([a, b, c, b, d, c]);
+      }
+    }
+
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        positions,
+        colors: colors,
+        indices: indices,
+      ),
+      BlendMode.srcOver,
+      Paint()..color = Colors.white,
+    );
+  }
+
+  void _drawRearFixedRim(Canvas canvas) {
+    // Rear half of the broken rim. It is drawn behind the front shell, so only
+    // the portions genuinely visible through the opening survive occlusion.
+    const columns = 96;
+    final positions = <Offset>[];
+    final colors = <Color>[];
+    final indices = <int>[];
+
+    for (var column = 0; column <= columns; column++) {
+      final angle = math.pi / 2 + math.pi * column / columns;
+      final outer = model.pointAt(_boundaryY(angle), angle);
+      final inner = model.inset(outer, thickness);
+      positions
+        ..add(outer.xy)
+        ..add(inner.xy);
+      colors
+        ..add(const Color(0xffb67f5d))
+        ..add(const Color(0xffd9b18f));
+    }
+
+    for (var column = 0; column < columns; column++) {
+      final a = column * 2;
+      final b = a + 1;
+      final c = a + 2;
+      final d = a + 3;
+      indices.addAll([a, c, b, c, d, b]);
+    }
+
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        positions,
+        colors: colors,
+        indices: indices,
+      ),
+      BlendMode.srcOver,
+      Paint()..color = Colors.white,
+    );
   }
 
   void _drawBody(Canvas canvas) {
@@ -788,8 +866,11 @@ class EggShellF1PreviewPainter extends CustomPainter {
       );
     }
 
-    // Real geometric gap: F1 and the fixed lower shell are separate 3D
-    // surfaces. The space between their cut rims is intentionally empty.
+    // Paint back-to-front. The rear INNER half of the lower shell is real
+    // geometry and becomes visible through the empty opening. The front outer
+    // shell then occludes it naturally below its broken rim.
+    _drawRearInnerBowl(canvas);
+    _drawRearFixedRim(canvas);
     _drawBody(canvas);
     _drawFixedRim(canvas);
     _drawCrackNetwork(canvas);
