@@ -501,105 +501,22 @@ class EggShellF1PreviewPainter extends CustomPainter {
     }
   }
 
-  void _drawCavity(Canvas canvas) {
-    final aperture = _aperturePath();
-
-    // Dark base prevents any pinholes at the tessellation boundary.
-    canvas.drawPath(aperture, Paint()..color = const Color(0xff795448));
-
-    const rows = 32;
-    const columns = 52;
-    const cameraDistance = 900.0;
-    final top = -model.halfHeight;
-    const bottom = -78.0;
-    final positions = <Offset>[];
-    final colors = <Color>[];
-    final valid = <bool>[];
-    final indices = <int>[];
-
-    for (var row = 0; row <= rows; row++) {
-      final y = top + (bottom - top) * row / rows;
-      final radius = model.radiusAt(y);
-      for (var column = 0; column <= columns; column++) {
-        final x =
-            -model.maxRadius + 2 * model.maxRadius * column / columns;
-        final inside = radius > 1e-6 && x.abs() <= radius;
-        valid.add(inside);
-
-        if (!inside) {
-          positions.add(Offset.zero);
-          colors.add(const Color(0x00000000));
-          continue;
-        }
-
-        // The visible cavity is the FAR INNER wall of the same 3D shell model.
-        // Using the rear surface and a small perspective projection makes the
-        // opening read as concave volume instead of a flat brown ribbon.
-        final rearOuter = model.surfaceAt(x, y, back: true);
-        final rearInner = model.inset(rearOuter, thickness);
-        final perspective =
-            cameraDistance / (cameraDistance - rearInner.z);
-        positions.add(
-          Offset(rearInner.x * perspective, rearInner.y * perspective),
-        );
-
-        final depthRadius = math.max(1.0, model.depthRadiusAt(y));
-        final opticalDepth =
-            (-rearInner.z / depthRadius).clamp(0.0, 1.0).toDouble();
-        final sideLight =
-            math.pow((1 - opticalDepth).clamp(0.0, 1.0), .30).toDouble();
-        final exposure =
-            (.18 + .48 * sideLight - .07 * opticalDepth)
-                .clamp(.16, .58)
-                .toDouble();
-        colors.add(
-          Color.lerp(
-            const Color(0xff765044),
-            const Color(0xffe8c8aa),
-            exposure,
-          )!,
-        );
-      }
-    }
-
-    final stride = columns + 1;
-    for (var row = 0; row < rows; row++) {
-      for (var column = 0; column < columns; column++) {
-        final a = row * stride + column;
-        final b = a + 1;
-        final c = a + stride;
-        final d = c + 1;
-        if (!(valid[a] && valid[b] && valid[c] && valid[d])) continue;
-        indices.addAll([a, c, b, b, c, d]);
-      }
-    }
-
-    canvas.save();
-    canvas.clipPath(aperture, doAntiAlias: true);
-    canvas.drawVertices(
-      ui.Vertices(
-        ui.VertexMode.triangles,
-        positions,
-        colors: colors,
-        indices: indices,
-      ),
-      BlendMode.srcOver,
-      Paint()..color = Colors.white,
-    );
-    canvas.restore();
-  }
-
   void _drawBody(Canvas canvas) {
+    // Build the fixed lower shell directly from the same 3D surface as F1.
+    // Row 0 is the exact fracture loop; subsequent rows travel down the shell.
+    // No 2D aperture clip is used here.
     const rows = 72;
-    const columns = 48;
+    const columns = 96;
     final positions = <Offset>[];
     final colors = <Color>[];
     final indices = <int>[];
 
     for (var row = 0; row <= rows; row++) {
-      final y = -model.halfHeight + 2 * model.halfHeight * row / rows;
+      final t = row / rows;
       for (var column = 0; column <= columns; column++) {
         final angle = -math.pi / 2 + math.pi * column / columns;
+        final topY = _boundaryY(angle);
+        final y = topY + (model.halfHeight - topY) * t;
         final point = model.pointAt(y, angle);
         positions.add(point.xy);
         colors.add(_shade(model.normalAt(point)));
@@ -617,18 +534,6 @@ class EggShellF1PreviewPainter extends CustomPainter {
       }
     }
 
-    // Clip the continuous body mesh by the exact fracture aperture instead of
-    // dropping whole mesh cells. The former cell test created the rectangular
-    // staircase visible below F1 and made the shell edge disagree with the
-    // actual crack network.
-    final visibleBody = Path.combine(
-      PathOperation.difference,
-      model.silhouettePath(),
-      _aperturePath(),
-    )..fillType = PathFillType.evenOdd;
-
-    canvas.save();
-    canvas.clipPath(visibleBody, doAntiAlias: true);
     canvas.drawVertices(
       ui.Vertices(
         ui.VertexMode.triangles,
@@ -639,7 +544,46 @@ class EggShellF1PreviewPainter extends CustomPainter {
       BlendMode.srcOver,
       Paint()..color = Colors.white,
     );
-    canvas.restore();
+  }
+
+  void _drawFixedRim(Canvas canvas) {
+    // The fixed lower shell has its own real cut surface. This strip connects
+    // the outer fracture loop to the inset inner shell along local normals.
+    const columns = 96;
+    final positions = <Offset>[];
+    final colors = <Color>[];
+    final indices = <int>[];
+
+    for (var column = 0; column <= columns; column++) {
+      final angle = -math.pi / 2 + math.pi * column / columns;
+      final outer = model.pointAt(_boundaryY(angle), angle);
+      final inner = model.inset(outer, thickness);
+      positions
+        ..add(outer.xy)
+        ..add(inner.xy);
+      colors
+        ..add(_edgeShell)
+        ..add(_innerShell);
+    }
+
+    for (var column = 0; column < columns; column++) {
+      final a = column * 2;
+      final b = a + 1;
+      final c = a + 2;
+      final d = a + 3;
+      indices.addAll([a, b, c, c, b, d]);
+    }
+
+    canvas.drawVertices(
+      ui.Vertices(
+        ui.VertexMode.triangles,
+        positions,
+        colors: colors,
+        indices: indices,
+      ),
+      BlendMode.srcOver,
+      Paint()..color = Colors.white,
+    );
   }
 
   void _drawCap(Canvas canvas) {
@@ -844,8 +788,10 @@ class EggShellF1PreviewPainter extends CustomPainter {
       );
     }
 
-    _drawCavity(canvas);
+    // Real geometric gap: F1 and the fixed lower shell are separate 3D
+    // surfaces. The space between their cut rims is intentionally empty.
     _drawBody(canvas);
+    _drawFixedRim(canvas);
     _drawCrackNetwork(canvas);
     _drawCap(canvas);
 
