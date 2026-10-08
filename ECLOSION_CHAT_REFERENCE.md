@@ -1,4 +1,9 @@
-﻿# ECLOSION — REFERENCE PERMANENTE POUR CHAT
+# ECLOSION — REFERENCE PERMANENTE POUR CHAT
+
+
+> **Dernière mise à jour : 8 octobre 2026.** Cette référence conserve les règles permanentes des sections 1 à 14 et les complète avec l’historique des échanges du 7–8 octobre 2026. La source de vérité du code reste GitHub. `AGENTS.md` définit les contraintes permanentes, `PROGRESS.md` suit les validations techniques et `ECLOSION_CHAT_REFERENCE.md` documente les décisions et la reprise entre conversations.
+>
+> **Point de reprise technique (avant le présent commit documentaire) :** branche `prototype/fragment-lab-v1`, commit `86562cd`. Vue expérimentale : `EggShellModel` commun + **F1 seul**, sans F2–F5 actifs. **La structure volumique et l’occlusion de F1 ne sont PAS encore validées.** Priorité : diagnostic/correction de profondeur entre F1 et le bol, pas nouvelles retouches cosmétiques.
 
 ## 1. Projet
 
@@ -346,3 +351,150 @@ préférer celle qui produit une continuité physique réelle et une architectur
 Éviter les artifices destinés uniquement à masquer un défaut à quelques frames.
 
 Le prototype doit progressivement constituer une base propre pour l’éclosion complète et le futur multi-fragments.
+
+---
+
+## 15. Décisions et changements d’architecture (7 octobre 2026)
+
+### 15.1. Pourquoi le modèle précédent a été écarté
+
+Auparavant, la silhouette était dessinée par un `Path()` 2D tandis que des fragments étaient construits/projetés selon une géométrie distincte. Les essais sur la partition F1–F5 (dont `c84ab72` et les changements précédents) n’avaient pas résolu le défaut de fond : morceaux perçus comme des plaques collées en façade, couronne insuffisamment enveloppée et silhouette d’œuf imparfaite.
+
+La décision utilisateur est : **cesser les retouches du contour `Path()` indépendant et employer une source géométrique unique**.
+
+### 15.2. Modèle de référence unique
+
+`EggShellModel` doit définir et relier :
+- hauteur, rayon horizontal variable avec l’altitude, profondeur et profil longitudinal mesuré sur l’œuf intact de la planche ;
+- surface 3D de révolution continue, courbure sommet → épaules → ventre → base ;
+- silhouette 2D **déduite automatiquement de cette surface**, et non retracée séparément ;
+- normales, épaisseur suivant la normale, coque intérieure, éclairage, arêtes, charnières et forces reposant sur la même géométrie ;
+- fragments appartenant réellement à la coquille et enveloppant ses flancs et sa couronne.
+
+Cette décision concerne à terme F1–F5 ; **elle ne signifie pas que l’ancien moteur multi-fragments est déjà entièrement migré**. La vue de validation du modèle unifié est aujourd’hui séparée de `fragment_scene.dart`, ancien moteur encore présent.
+
+### 15.3. Décomposition cible et nomenclature
+
+Dans la **partition ancienne**, le grand chapeau sommital était appelé **F3** et F1 désignait une plaque supérieure/droite. Dans le **nouvel atelier de validation 3D**, **F1 est le grand chapeau supérieur testé seul**. Cette différence de nom est historique : **ne pas confondre les deux topologies** ni déclarer F2–F5 migrés par simple analogie.
+
+Objectif à terme selon la planche : chapeau supérieur de coquille courbe, poussin au centre au moment de l’éclosion, bol inférieur conservé, autres fragments latéraux issus d’arêtes partagées. La numérotation définitive devra être harmonisée **après validation** de la base F1.
+
+---
+
+## 16. Séquence de validation du nouveau modèle 3D
+
+1. **Œuf seul** : tester le `EggShellModel` intact, sa vraie silhouette 3D et ses proportions face à `reference/Planche Eclosion.png`. Aucun fragment dans cette vue. Les commits fondateurs sont `6cf0bb0` et `0ac63d2`.
+2. **F1 seul** (demande explicite de l’utilisateur) : tester le chapeau supérieur sur cette même surface. Le fragment doit envelopper la couronne, prolonger sa matière sur les côtés **et vers l’arrière**, avec face extérieure, face intérieure et tranche d’épaisseur 2.5. L’ouverture se teste de 0 à 100 % dans Chrome. Cette étape a été implémentée initialement à partir de `0a42640`, `08f8a74` et améliorée avec `04f282b`.
+3. **Valider le volume avant le mouvement détaillé** : l’ouverture ne doit pas créer une membrane beige, une bande artificielle, un fond brun peint à plat, une silhouette fantôme ni des bords à escalier ; les occlusions doivent évoluer correctement avec la rotation.
+4. **Seulement ensuite** : re-projeter/réintégrer F2–F5 et l’ancien cluster sur le modèle commun, puis reprendre la mécanique de pression, la fissuration, les pivots, la chute, le poussin et le rendu artistique.
+
+Réglages de la vue diagnostique (dans `egg_timer/lib/lab/fragment_lab.dart`) :
+- « Valider le modèle 3D unifié » ;
+- « Afficher F1 3D seul » ;
+- « Ouverture F1 » : de 0 à 100 %.
+
+Le réglage F1 seul est intentionnel ; **ne pas réactiver le multi-fragments ni l’ancien `FragmentScene` pour une validation de volume F1**.
+
+---
+
+## 17. Historique Git utile et décisions de retour arrière
+
+Les SHA suivants permettent de retrouver les états exacts. Tous les retours arrière ont été réalisés avec de **nouveaux commits contenant l’ancien arbre**, en conservant l’historique Git (pas de réécriture destructive).
+
+| Époque | Commit(s) | Signification |
+| --- | --- | --- |
+| Avant modèle unifié | `c84ab72` | Dernier état de la géométrie antérieure, encore basé sur plusieurs représentations ; F3 couvrant la couronne. Ce n’est **pas** le point de reprise choisi. |
+| Création source 3D | `6cf0bb0`, `0ac63d2` | `EggShellModel` + validation de l’œuf seul, silhouette dérivée de la surface. |
+| Premier test F1 | `0a42640`, `08f8a74`, `0946bff`, `2829495`, `e619703` | Prévisualisation F1 sur le modèle, contrôle d’ouverture et suivi de l’étape. |
+| F1 autour de la couronne | `04f282b` | Chapeau 360° sur la couronne et l’arrière ; référence technique de la **reprise F1 seule**. |
+| Expérimentations suivantes | jusqu’à `d466b483` | Fissures déterministes, cavité, bol inférieur 3D, lèvres et paroi arrière ; état testé mais rendu toujours problématique. |
+| Premier retour arrière erroné | `a3c4831` | Retour à `c84ab72` : ne correspondait pas au souhait de reprise utilisateur. |
+| Restauration intermédiaire | `718005e` | Rétablissement de l’état `d466b483`, mais ce n’était pas le point précis demandé ensuite. |
+| **Reprise correcte du dialogue F1 seul** | **`e7feb3d`** | Réinstaure exactement l’arbre `04f282b` : modèle unifié, aperçu F1 uniquement, aucune expérience ultérieure sur le bol. |
+| Correction bord inférieur | `eb3470b` | Maillage du bol calé sur la même limite de fracture ; disparition de la découpe par triangles entiers et des marches rectangulaires (confirmée visuellement). |
+| Éclairage intérieur | `9ff48ab` | Normales tournées selon la même rotation que F1 et ombrage intérieur dérivé des normales ; amélioration partielle, **pas de validation volumique**. |
+| Cavité arrière | `6cf38a7` | Remplace un `_aperturePath()` brun plat par un maillage intérieur arrière calculé à partir du modèle 3D. |
+| Contour fantôme | `4a57b07` | Retire le contour 2D de l’œuf intact dessiné par-dessus l’aperçu F1 ; disparition confirmée dans la vidéo suivante. Le mode œuf seul reste intact. |
+| Dernier changement technique | **`86562cd`** | Peinture réordonnée : arrière du bol → intérieur F1 → devant du bol → tranche et extérieur F1. **Le défaut de superposition demeure sur la dernière vidéo.** |
+
+Attention : un correctif commité n’est pas automatiquement validé visuellement. Les tests Dart/Flutter des petites corrections réalisées directement via GitHub n’ont pas été exécutés dans ce flux. Il ne faut jamais les présenter comme réussis.
+
+---
+
+## 18. Observations visuelles, régressions et diagnostic actuel (8 octobre)
+
+Les captures et vidéos fournies ont été comparées à l’œuf intact et au chapeau supérieur de la planche de référence.
+
+### Confirmé / à préserver
+
+- Le chapeau F1 conserve globalement sa silhouette extérieure et épouse la couronne de l’œuf.
+- Le bord inférieur **en escalier** a été supprimé par la reconstruction du premier rang de triangles sur la ligne de rupture.
+- Le **contour fantôme** de l’œuf entier, visible à travers F1 ouvert, a été supprimé.
+- La continuité temporelle de l’ouverture est observable ; cette seule continuité ne prouve pas la justesse du volume.
+- Le modèle et les paramètres `2.5` / `1.5` restent les références ; ne pas les modifier pour masquer un défaut de rendu.
+
+### Toujours non validé
+
+- La face intérieure de F1 demeure trop proche d’une **membrane beige**.
+- Des **bandes ondulées / surfaces superposées** persistent entre F1 et le bol à grande ouverture.
+- On ne lit pas de manière fiable le **vide réel**, la **tranche fine** et les **faces concaves** respectives.
+- L’ouverture à **0, 25, 50, 75, 100 %** doit être revue après correction de profondeur avant validation F1.
+
+### Cause architecturale constatée dans le code
+
+Dans `EggShellF1PreviewPainter` (`egg_timer/lib/lab/egg_shell_model.dart`), les maillages ont des coordonnées 3D, mais le rendu Flutter utilise des projections `.xy` passées à `canvas.drawVertices()`. L’occlusion est simulée par **l’ordre de peinture fixe**, y compris un rappel de `_drawBody()` entre les faces de F1.
+
+**Il n’y a pas de test de profondeur général (Z-buffer)** entre tous les triangles visibles. Réordonner simplement les appels de dessin ne garantit pas de bon masquage lorsque les surfaces pivotent et se recouvrent. C’est la **cause structurelle la plus probable**, à vérifier visuellement après correction ; ne pas la considérer comme démonstration que la géométrie 3D est entièrement bonne.
+
+**Prochaine priorité décidée :** remplacer la gestion de visibilité manuelle par une solution d’occlusion réellement fondée sur la profondeur ; conserver `EggShellModel`, le profil, la fissure, l’épaisseur et la transformation actuelle de F1. Évaluer une technique adaptée à Flutter et aux contraintes 2.5D/Android (test de profondeur réel ou solution équivalente correctement démontrée), en distinguant un simple tri de maillages d’un vrai Z-buffer. **Aucun correctif de profondeur n’a encore été commité** à la date de ce bilan.
+
+Après deux retouches sans progrès visuel : arrêter les ajustements ponctuels, établir la cause et reprendre l’architecture. Ne pas réintroduire de surfaces artificielles, de crossfade ni de patch pour cacher les mauvais recouvrements.
+
+---
+
+## 19. Workflow GitHub, travail local et validation
+
+### Sources et responsabilités
+
+- Dépôt : `https://github.com/yoshimoot/Eclosion`.
+- Branche de travail : `prototype/fragment-lab-v1` ; `main` n’est pas la branche de ce prototype.
+- Fichiers importants : `AGENTS.md` (règles et vérifications), `PROGRESS.md` (état des validations), `ECLOSION_CHAT_REFERENCE.md` (référence entre conversations), `egg_timer/lib/lab/egg_shell_model.dart`, `egg_timer/lib/lab/fragment_lab.dart`, ancien `fragment_scene.dart`.
+- `reference/Planche Eclosion.png` est immuable.
+- Conserver le travail dans Chat/Codex et les tests visuels locaux dans Chrome ; **ne pas lancer GitHub Actions** pour ces itérations.
+- Une itération = un défaut principal, avec un commit ciblé, un résultat des vérifications sincère, puis une validation vidéo par l’utilisateur.
+- Selon `AGENTS.md` : après modification Dart, `dart format` des seuls fichiers changés, `flutter analyze`, puis `flutter test --no-pub test/widget_test.dart`. Le succès de compilation ne remplace pas la validation visuelle.
+
+### Synchronisation locale à partir de GitHub
+
+L’utilisateur a observé dans son clone local : ` M egg_timer/lib/lab/fragment_scene.dart`. Le dépôt distant était plus avancé. Cette modification locale **ne doit pas être écrasée silencieusement**, mais elle ne doit pas non plus être réintroduite dans le modèle validé.
+
+Commandes PowerShell (à lancer sur le bon poste et dans le bon clone) :
+
+```powershell
+cd "$env:USERPROFILE\Dev\Eclosion"
+git status --short
+git stash push -m "Sauvegarde avant synchronisation" -- egg_timer/lib/lab/fragment_scene.dart
+git switch prototype/fragment-lab-v1
+git pull --ff-only origin prototype/fragment-lab-v1
+git status --short
+git log -1 --oneline
+cd egg_timer
+flutter run -d chrome
+```
+
+Ne **pas** exécuter `git stash pop` automatiquement : cela restaurerait une modification potentiellement dépassée. `git pull --ff-only` protège contre un merge automatique inattendu. La synchronisation est **une procédure proposée**, pas une preuve qu’elle a été effectivement terminée sur le PC.
+
+Le chemin dépend de `$env:USERPROFILE` : il ne faut pas supposer que les différents comptes Windows (`User`, `alrad`, etc.) pointent vers le même clone. Vérifier `git remote -v` et `git branch --show-current` en cas d’ambiguïté.
+
+---
+
+## 20. État de reprise et limites de la consolidation
+
+**État au 8 octobre 2026, avant mise à jour du présent document :** commit technique `86562cd`, atelier F1 seul sur `EggShellModel` ; défaut d’occlusion toujours présent. La prochaine tâche est **une seule correction architecturale de profondeur**, suivie de comparaison Chrome. Aucune intégration F2–F5, poussin, finalisation artistique ou nouveau mouvement ne doit être mélangée à cette itération.
+
+Cette synthèse repose sur :
+- les échanges effectivement présents dans ce fil ;
+- les extraits de la conversation liée retranscrits par l’utilisateur et les éléments d’historique disponibles ;
+- `AGENTS.md`, `PROGRESS.md` et l’historique des commits GitHub.
+
+Le contenu intégral de la conversation ChatGPT accessible uniquement par l’URL fournie n’a **pas été importé mot pour mot**. D’éventuels détails non présents dans ces sources ne sont donc pas présumés connus. Lorsqu’une validation visuelle n’est pas explicite, elle est considérée comme **en attente**.
