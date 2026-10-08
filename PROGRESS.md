@@ -47,11 +47,11 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-Le modèle `EggShellModel` reste la source de vérité géométrique. La validation passe maintenant par un test minimal : F1 seul, le grand fragment supérieur/chapeau de la référence, est construit directement sur cette même surface 3D. Le corps de l'œuf, l'ouverture laissée par F1, la face extérieure, la face intérieure et la tranche de 2,5 utilisent tous `EggShellModel`; aucun ancien fragment de `fragment_scene.dart` n'intervient dans cette vue.
+Le modèle `EggShellModel` reste la source de vérité géométrique et F1 reste le seul fragment actif. Son bord inférieur n'est plus une forme indépendante : il est maintenant dérivé d'un `EggShellCrackNetwork` déterministe par seed, défini directement sur la surface 3D de la coquille. Le même réseau génère trois ramifications ouvertes sous F1 qui serviront plus tard de base aux fragments voisins. La géométrie d'une session est figée dès le choix de la seed ; aucun aléatoire n'est produit frame par frame.
 
-L'atelier démarre avec « Afficher F1 3D seul » activé. Un curseur « Ouverture F1 » permet de vérifier de 0 à 100 % que le fragment enveloppe réellement la couronne et les flancs du haut, au lieu de se comporter comme une plaque frontale. Valider sous Chrome uniquement cette intégration 3D et la proximité avec le chapeau de la référence. Ne pas encore réintroduire F2–F5 ni reprendre la mécanique de chute.
+L'atelier affiche la seed courante et propose « Nouvelle session ». Une nouvelle seed modifie légèrement le contour de rupture, le point de pression et les ramifications, mais conserve les mêmes lois et les mêmes bornes géométriques. Valider sous Chrome uniquement deux points : (1) la fissure doit se lire comme un vrai réseau irrégulier sur la coquille 3D ; (2) plusieurs seeds doivent rester proches visuellement tout en n'étant pas identiques. Ne pas encore réintroduire F2–F5 ni reprendre le polish artistique global.
 
-La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
+Une fois ce réseau F1 validé, l'étape suivante sera de faire naître F2/F3 à partir de ces mêmes arêtes partagées, sans créer de trous indépendants.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
