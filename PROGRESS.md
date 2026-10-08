@@ -18,6 +18,16 @@ Acquis explicitement validés, à préserver :
 - Tri d'occlusion dynamique validé visuellement le 5 octobre 2026 : l'ordre de peinture dépend désormais de la profondeur 3D courante des fragments et non de leur ordre dans la liste.
 - Modèle de pression interne clarifié le 5 octobre 2026 : les événements représentent des efforts du poussin (appuis locaux puis effort plus large tête/corps sur la zone fragilisée). Un même effort peut affecter plusieurs plaques et produire des détachements simultanés ou quasi simultanés.
 
+## Diagnostic F1 avec identification des surfaces — vidéo du 8 octobre 2026
+
+La vidéo Chrome `20261008-1317-08.7434472.mp4` montre l'atelier **3D unifié** en couleurs de diagnostic lors d'une ouverture de 1 à 100 %. Le chapeau extérieur (vert), la face intérieure F1 (magenta), la paroi arrière intérieure du bol (bleu) et l'extérieur avant du bol (cyan) sont visibles comme quatre surfaces distinctes. La silhouette extérieure et le bord de rupture apparaissent continus sur les images observées. Ce constat n'établit pas une validation exhaustive du Z-buffer ni de la qualité volumique.
+
+**Défaut dominant maintenant isolé :** même à 80–100 %, le chapeau expose surtout une bande de face intérieure, plutôt qu'une concavité évidente ; le bol arrière apparaît également comme une bande. Le rendu évoque deux parties de coquille séparées, non une véritable ouverture volumique. La correction de profondeur `196718e` ne suffit donc pas à valider F1.
+
+**Cause probable à diagnostiquer :** la transformation `_transformPoint` n'applique au maximum qu'une rotation X de `0.34 rad` (≈ 19,5°), ainsi qu'une faible rotation Z et un décalage. Selon le point de vue fixe et la projection orthographique, cette orientation peut présenter l'intérieur presque de profil. Ne pas confondre ce problème potentiel de pose/projection avec un nouvel ordre de peinture défectueux sans preuve.
+
+**Décision en attente :** pour obtenir une ouverture volumique plus lisible, il pourrait falloir changer la cinématique F1 (angle/axe/position de charnière), actuellement **gelée** dans les règles de reprise. Demander accord utilisateur avant de modifier ce mouvement ; ne pas toucher en attendant au modèle géométrique commun, à l'épaisseur 2.5, à l'oscillation 1.5, ni au multi-fragments. Aucun correctif Dart supplémentaire apporté à ce stade. Les contrôles avec et sans mode diagnostic, à plusieurs ouvertures, restent requis pour valider le rendu final.
+
 ## Atelier 3D seul — simplification du 8 octobre 2026
 
 À la demande de l'utilisateur, l'ancien mode de visualisation 2D n'est plus accessible depuis `FragmentLab`. Le commutateur « Valider le modèle 3D unifié » et les réglages liés à l'ancien mode (ralenti, format, visibilité de l'œuf et des ombres, ancienne progression/lecture) sont retirés. L'atelier ne présente désormais que l'œuf unifié intact et le chapeau F1 unifié, avec son curseur d'ouverture, les repères et l'identification des surfaces.
