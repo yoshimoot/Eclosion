@@ -843,42 +843,64 @@ void main() {
     expect(majorOblique, greaterThanOrEqualTo(6));
   });
 
-  test('Réseau V8 : liaisons obliques étagées sans escalier', () {
+  test('V10.1 : répartition asymétrique et deux fermetures locales', () {
     final network = EggFractureNetwork.fixed();
-    final edges = network.edges
-        .where((edge) => edge.kind == EggCrackKind.connection)
-        .toList();
-    expect(edges.length, 6);
+    final edges = network.edges;
+    final crown = edges.where((e) => e.kind == EggCrackKind.crown).toList();
+    final mothers = edges.where((e) => e.kind == EggCrackKind.primary).toList();
+    final links = edges.where((e) => e.kind == EggCrackKind.connection).toList();
 
+    expect(crown.length, 24);
+    expect(mothers.length, 15);
+    expect(links.length, 6);
+    expect(network.seed, EggFractureNetwork.fixedSeed);
+    final motherRoots = mothers
+        .where((edge) => edge.startNode < 24)
+        .map((edge) => edge.startNode).toList();
+    expect(motherRoots, [7, 11, 16],
+        reason: 'Three unevenly distributed rupture origins');
+
+    final rootTips = <double>[];
+    for (final root in motherRoots) {
+      final first = mothers.singleWhere((e) => e.startNode == root);
+      var currentNode = first.endNode;
+      while (true) {
+        final continuation = mothers.where(
+          (e) => e.startNode == currentNode,
+        );
+        if (continuation.isEmpty) break;
+        expect(continuation.length, 1);
+        currentNode = continuation.single.endNode;
+      }
+      rootTips.add(network.nodes[currentNode].y);
+    }
+    expect(rootTips, [-18, -47, 48],
+        reason: 'One long flank rupture, two shorter asymmetric failures');
+
+    // Each closure splits and returns to the SAME mother, rather than
+    // spanning across unrelated mother fractures in the centre.
+    expect(links[0].startNode, mothers[0].endNode);
+    expect(links[2].endNode, mothers[3].endNode);
+    expect(links[3].startNode, mothers[10].endNode);
+    expect(links[5].endNode, mothers[13].endNode);
+
+    final degrees = List<int>.filled(network.nodes.length, 0);
     for (final edge in edges) {
-      expect(edge.samples.length, 7,
-          reason: 'Only one structural bend per connector edge');
+      degrees[edge.startNode]++;
+      degrees[edge.endNode]++;
     }
+    expect(degrees.every((d) => d <= 3), isTrue);
+    expect(edges.length - network.nodes.length + 1, 3);
+    expect(links.every((e) => e.samples.length == 7), isTrue);
 
-    final firstStart = network.nodes[edges[0].startNode]
-        .onShell(network.model);
-    final firstEnd = network.nodes[edges[2].endNode]
-        .onShell(network.model);
-    final secondStart = network.nodes[edges[3].startNode]
-        .onShell(network.model);
-    final secondEnd = network.nodes[edges[5].endNode]
-        .onShell(network.model);
-    for (final pair in [
-      (firstStart, firstEnd),
-      (secondStart, secondEnd),
-    ]) {
-      final dx = (pair.$2.x - pair.$1.x).abs();
-      final dy = (pair.$2.y - pair.$1.y).abs();
-      expect(dx, greaterThan(35));
-      expect(dy, greaterThan(60));
-      expect(dy / dx, inInclusiveRange(.65, 2.2));
+    // A potential fragment is bounded only once the late connection closes.
+    // Rooted chains remain a single material graph with shared nodes.
+    final allPairs = <String>{};
+    for (final edge in edges) {
+      final lo = math.min(edge.startNode, edge.endNode);
+      final hi = math.max(edge.startNode, edge.endNode);
+      expect(allPairs.add('$lo:$hi'), isTrue);
     }
-    expect(firstEnd.y - firstStart.y, greaterThan(65));
-    expect(secondEnd.y - secondStart.y, lessThan(-80));
-    final firstHeight = (firstStart.y + firstEnd.y) / 2;
-    final secondHeight = (secondStart.y + secondEnd.y) / 2;
-    expect((firstHeight - secondHeight).abs(), greaterThan(45));
-    expect(network.edges.length - network.nodes.length + 1, 3);
   });
 
   test('Réseau V6 : aucune intersection fortuite entre branches visibles', () {
@@ -924,7 +946,7 @@ void main() {
     }
   });
 
-  test('Réseau V5 : implantation ciblée sous la couronne inchangée', () {
+  test('V10.1 : fissures hors F1 sur le haut et le haut-milieu', () {
     final network = EggFractureNetwork.fixed();
     final model = network.model;
     final fixedEdges = network.edges.where((edge) {
