@@ -799,6 +799,92 @@ void main() {
         reason: 'Different edges need distinct fracture rhythms');
   });
 
+  test('Réseau V4 : deux Y internes et orientations obliques', () {
+    final network = EggFractureNetwork.fixed();
+    final degrees = List<int>.filled(network.nodes.length, 0);
+    for (final edge in network.edges) {
+      degrees[edge.startNode]++;
+      degrees[edge.endNode]++;
+    }
+
+    final forks = network.nodes.where(
+      (node) => node.id >= 24 && degrees[node.id] == 3,
+    ).toList();
+    expect(forks.length, 2, reason: 'Two internal Y junctions, not three');
+
+    for (final fork in forks) {
+      final outgoing = network.edges
+          .where((edge) => edge.startNode == fork.id)
+          .toList();
+      expect(outgoing.length, 2);
+      final origin = fork.onShell(network.model);
+      final a = network.nodes[outgoing[0].endNode].onShell(network.model);
+      final b = network.nodes[outgoing[1].endNode].onShell(network.model);
+      final ax = a.x - origin.x;
+      final ay = a.y - origin.y;
+      final bx = b.x - origin.x;
+      final by = b.y - origin.y;
+      final denom = math.sqrt(
+        (ax * ax + ay * ay) * (bx * bx + by * by),
+      );
+      expect(denom, greaterThan(1e-9));
+      expect((ax * bx + ay * by) / denom, lessThan(.8),
+          reason: 'A Y must have two visibly diverging branches');
+    }
+
+    final diagonals = network.edges.where((edge) {
+      if (edge.kind != EggCrackKind.primary) return false;
+      final a = network.nodes[edge.startNode].onShell(network.model);
+      final b = network.nodes[edge.endNode].onShell(network.model);
+      return (a.x - b.x).abs() > (a.y - b.y).abs() * .7;
+    }).length;
+    expect(diagonals, greaterThanOrEqualTo(5),
+        reason: 'Main fractures must not all run vertically');
+  });
+
+  test('Réseau V4 : aucune intersection fortuite entre branches visibles', () {
+    final network = EggFractureNetwork.fixed();
+    final branches = network.edges
+        .where((edge) => edge.kind != EggCrackKind.crown)
+        .toList();
+
+    double orient(EggShellPoint3 a, EggShellPoint3 b, EggShellPoint3 c) =>
+        (b.x - a.x) * (c.y - a.y) -
+        (b.y - a.y) * (c.x - a.x);
+
+    for (var i = 0; i < branches.length; i++) {
+      final a = branches[i];
+      for (var j = i + 1; j < branches.length; j++) {
+        final b = branches[j];
+        // A shared endpoint is intentional, even for adjacent Y arms.
+        if (a.startNode == b.startNode ||
+            a.startNode == b.endNode ||
+            a.endNode == b.startNode ||
+            a.endNode == b.endNode) {
+          continue;
+        }
+        for (var k = 0; k < a.samples.length - 1; k++) {
+          final p = a.samples[k];
+          final q = a.samples[k + 1];
+          for (var n = 0; n < b.samples.length - 1; n++) {
+            final r = b.samples[n];
+            final s = b.samples[n + 1];
+            // Proper crossings, not adjacent collinear touch points.
+            final ab1 = orient(p, q, r);
+            final ab2 = orient(p, q, s);
+            final cd1 = orient(r, s, p);
+            final cd2 = orient(r, s, q);
+            expect(
+              ab1 * ab2 < -1e-6 && cd1 * cd2 < -1e-6,
+              isFalse,
+              reason: 'Unconnected fissures must not cross ($i, $j)',
+            );
+          }
+        }
+      }
+    }
+  });
+
   testWidgets('Atelier unifié : ouverture F1 et œuf intact', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));

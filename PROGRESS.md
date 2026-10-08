@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## Réseau statique V4 — diversification directionnelle, à valider dans Chrome
+
+**Demande validée le 8 octobre 2026 :** les fissures principales de V3 descendaient presque toutes verticalement. La prochaine correction vise **uniquement les directions et les bifurcations du réseau**. La simplification de l'interface en un seul mode a été décidée mais est **reportée à une itération distincte**, afin de ne pas mélanger topologie et interface.
+
+**Modification :** trois fissures principales réorientées avec des segments franchement obliques. Deux vrais embranchements en **Y** sont créés par deux nœuds internes partagés (`left[1]`, `right[1]`) : deux arêtes distinctes en repartent, avec longueurs/directions dissymétriques. La troisième bifurcation interne de V3 est retirée, sans interrompre la fissure centrale ; les ramifications secondaires gardent des terminaisons libres. Tous les points sont définis sur `EggShellModel`, les coudes rares/déterministes de V3 sont conservés, la seed reste `20261008` et les nœuds/arêtes sont construits une seule fois.
+
+**Gel :** boucle F1 360° et `EggShellModel.crownFractureY`, pivot F1, forme de l'œuf, couleurs/matières, moteur temporel, épaisseur `2.5`, oscillation `1.5` et poussin inchangés. Pas encore de fragmentation ni de changement d'écran.
+
+**Tests ajoutés (pas de succès présumé avant exécution Dart/Flutter) :** exactement deux Y internes de degré 3 avec branches réellement divergentes ; plusieurs arêtes principales obliques ; absence d'intersections fortuites entre fissures visibles non connectées. La validation artistique nécessite une capture Chrome du mode réseau statique, sans repères de cadrage, comparée à la planche de référence.
+
 ## Retour Chrome réseau statique V2 — réduction du motif en dents de scie (V3)
 
 **Observation utilisateur, capture du 8 octobre 2026 :** les déviations sont devenues trop fréquentes, de longueur presque identique et produisent des dents de scie très régulières sur plusieurs branches. Le réseau paraît mécanique malgré des arêtes 3D partagées. La couronne reste trop lisse, mais elle est commune à F1 et ne doit pas être retouchée pendant cette correction.
