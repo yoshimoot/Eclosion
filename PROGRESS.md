@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## Reprise opérationnelle — V10, captures Chrome du 8 octobre 2026
+
+**HEAD technique avant cette mise à jour documentaire :** `b471f51`, branche `prototype/fragment-lab-v1`. **V9 : cinq tests dédiés réussis localement** après `flutter test --no-pub test/egg_crack_propagation_test.dart` (retour PowerShell utilisateur : `00:02 +5: All tests passed!`, sur le commit `7097007`). **Les tests V10 nouvellement ajoutés ne sont pas encore confirmés exécutés** ; ne pas extrapoler le résultat V9.
+
+**Deux captures V10 reçues :** (1) vue fermée F1, `Propagation fissures = 0 %` : la couronne et les deux fissures du chapeau restent visibles, pas de réseau sous F1 ; (2) capture de l'atelier avec `Ouverture F1 = 0 %`, `Propagation fissures = 100 %` : le réseau hors F1 est présent. Ces deux extrémités sont conformes **visuellement sur les captures**, mais ne prouvent **ni continuité intermédiaire ni bonne chronologie des bifurcations**. Aucune vidéo du curseur 0→100 % fournie.
+
+**État artistique :** le réseau complet, fondé sur la géométrie provisoire V8, reste **non validé** : lignes trop géométriques et connexions peu naturelles, difficile de voir comment naîtra une véritable éclosion. La couronne et l'ouverture F1 ont été acceptées pour le stade actuel par l'utilisateur ; conserver ce qui est acquis sans confondre avec un pivot final adapté au poussin.
+
+**Prochain travail :** observer une **courte vidéo Chrome de propagation 0→100 % avec F1 à 0 %**, puis vérifier F1 partiellement ouvert ; contrôler apparition, continuité, dépendances causales aux jonctions et connexions tardives avant de retoucher la géométrie. Exécuter si besoin les tests locaux V10 : `flutter test --no-pub test/egg_crack_propagation_test.dart`, puis `flutter test --no-pub test/widget_test.dart --plain-name "V10 : fissures pilotées par un curseur sans modifier F1"`. Aucun résultat V10 n'est présumé réussi. La séparation physique/fragments/poussin (V11 et suivantes) reste non implémentée.
+
+**Méthode :** une correction principale par itération, GitHub direct sur la branche → commit ciblé → PowerShell → validation Chrome ; aucune GitHub Action, aucun crossfade, aucun nouveau ON/OFF. Le futur chat commence par relire `AGENTS.md`, `PROGRESS.md`, `ECLOSION_CHAT_REFERENCE.md` et vérifier le HEAD.
+
 ## V10 — apparition progressive sur les arêtes 3D (code livré ; Chrome à valider)
 
 **Validation technique V9 obtenue localement le 8 octobre 2026 :** l'utilisateur a exécuté `flutter test --no-pub test/egg_crack_propagation_test.dart` sous Windows/PowerShell sur le commit `7097007`. Résultat communiqué : **`00:02 +5: All tests passed!`** (5 tests dédiés). Cette preuve porte uniquement sur les tests de V9, pas sur le rendu visuel V8 ni sur l'ensemble des tests Flutter.

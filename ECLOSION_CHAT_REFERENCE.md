@@ -19,7 +19,7 @@
 >
 > `reference/Planche Eclosion.png` est la référence visuelle immuable. Distingue l'ancien moteur `fragment_scene.dart` de l'atelier 3D unifié **F1 seul** ; le nom F1 n'est pas identique dans les deux géométries.
 >
-> **État de reprise (8 octobre 2026)** : atelier 3D unifié avec F1 seul ; l'ancien mode 2D n'est plus accessible depuis l'interface. Les commits `196718e` (Z-buffer logiciel), `59fd82c` (identification des faces) et `2b6af2d` (nettoyage de l'atelier) sont présents ; **fiabilité structurelle et concavité finale restent à distinguer et à vérifier**. Nouvelle priorité : contrôle technique limité de la profondeur, puis réseau statique de fissures sur `EggShellModel` à seed fixe ; reporter le pivot définitif jusqu'à l'intégration du poussin. Lis toujours le **HEAD actuel** et la **Décision active** en haut de `PROGRESS.md`.
+> **État de reprise actualisé (8 octobre 2026)** : prototype 3D unifié sur `EggShellModel`, couronne et ouverture F1 acceptées pour ce stade. Dernier commit technique avant cette passation : `b471f51` (V10), avec deux curseurs indépendants `Ouverture F1` et `Propagation fissures`. V9 : 5 tests dédiés réussis selon le retour PowerShell ; tests V10 pas encore confirmés. Captures V10 reçues à propagation 0 % et 100 %, F1 fermé ; le réseau à 100 % reste **non validé artistiquement**. **Prochaine priorité : vérifier en vidéo la propagation continue de 0 à 100 % avant toute nouvelle retouche du réseau.** Lire le HEAD réel et la section **Reprise opérationnelle** en haut de `PROGRESS.md`.
 >
 > Contraintes : préserver le profil de `EggShellModel`, la silhouette et l'ouverture déjà acquises, l'épaisseur `2.5` et l'oscillation `1.5` ; **une itération = un défaut principal**. Pas de crossfade ni de patch graphique, pas de GitHub Actions. Tester/formatter si l'outillage est disponible, distinguer clairement code vérifié et rendu validé par vidéo Chrome. Préserver les changements locaux non committés.
 >
@@ -543,3 +543,17 @@ Cet ordre a été confirmé après analyse du nouveau rendu diagnostic F1. Il ac
 **Différencier deux critères d'acceptation :** (A) système géométrique et profondeur fiables, nécessaire **avant** le réseau ; (B) volume intérieur artistiquement convaincant et pivot final compatible avec le poussin, à finaliser **après** la topologie et la mécanique. Le rendu F1 actuel **n'est pas déclaré validé** sur le critère B.
 
 **État du dépôt à la décision :** dernier HEAD connu avant cette mise à jour documentaire `9109c2a`. `PROGRESS.md` est l'état actif ; l'historique antérieur `86562cd` reste archivé. `AGENTS.md` contient les règles permanentes. Aucune modification Dart, aucun test Flutter, aucune GitHub Action lors de cette mise à jour de documentation.
+
+---
+
+## 22. Passation à une nouvelle conversation — état V10 au 8 octobre 2026
+
+**Dépôt :** `https://github.com/yoshimoot/Eclosion`. Branche : `prototype/fragment-lab-v1`. Dernier commit technique avant la passation : `b471f51`. Les règles sont dans `AGENTS.md`, l'état actif et la priorité dans `PROGRESS.md`. Les consignes du **GUIDE DE REPRISE** figurent en tête de ce document.
+
+**Ce qui est acquis :** F1, sa couronne et son ouverture sont validés pour le stade actuel ; profil `EggShellModel`, épaisseur `2.5`, oscillation `1.5`, seed fixe `20261008`. V9 : cinq tests dédiés exécutés et réussis localement (`7097007`). V10 : le curseur `Propagation fissures` dévoile des portions des arêtes 3D existantes indépendamment du curseur `Ouverture F1`.
+
+**Captures V10 du dernier chat :** état fermé à propagation 0 % (fissures hors F1 absentes) et capture d'atelier à F1 0 %, propagation 100 % (réseau complet apparent). **La continuité entre ces deux états n'a pas encore été examinée en vidéo** ; tests V10 supplémentaires non confirmés. Le réseau V8 reste trop géométrique et n'est pas esthétiquement validé. La fragmentation physique et le poussin ne sont pas intégrés.
+
+**Prochaine étape concrète :** analyser une **vidéo de progression 0→100 % avec F1 fermé**, ensuite inspecter la propagation avec F1 partiellement ouvert, et confirmer les tests V10. Ne pas corriger à nouveau les formes avant cette observation. La suite doit préparer la révélation crédible du poussin et une fragmentation physiquement cohérente.
+
+**Images/vidéos :** les deux dernières captures du fil ne sont pas stockées dans le dépôt GitHub. Si une nouvelle conversation doit les comparer directement, les joindre à nouveau ; le compte rendu de leurs observations est conservé dans `PROGRESS.md`.
