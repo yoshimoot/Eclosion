@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:egg_timer/main.dart';
+import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:egg_timer/lab/fragment_scene.dart';
 import 'package:egg_timer/lab/fragment_playback.dart';
 
@@ -580,16 +581,6 @@ void main() {
     expect(failures, isEmpty);
   });
 
-  // Simulate delivered frames, not a single frame after a wall-clock jump.
-  Future<void> deliverFrames(WidgetTester tester, Duration duration) async {
-    var remaining = duration.inMicroseconds;
-    while (remaining > 0) {
-      final delta = math.min(remaining, 33333);
-      await tester.pump(Duration(microseconds: delta));
-      remaining -= delta;
-    }
-  }
-
   testWidgets('Lecture continue et meme parcours au ralenti x4', (
     tester,
   ) async {
@@ -675,63 +666,49 @@ void main() {
     clock.stop();
   });
 
-  testWidgets('Slider, etiquette et painter partagent la meme progression', (
-    tester,
-  ) async {
+  testWidgets('Atelier unifié : ouverture F1 et œuf intact', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(const MyApp());
-    FragmentScene scene() => tester
+
+    EggShellF1PreviewPainter f1Painter() => tester
         .widgetList<CustomPaint>(find.byType(CustomPaint))
-        .map((w) => w.painter)
-        .whereType<FragmentScene>()
+        .map((widget) => widget.painter)
+        .whereType<EggShellF1PreviewPainter>()
         .single;
-    for (final t in [.49, .494, .495, .499, .500, .501, .506, .51]) {
-      tester.widget<Slider>(find.byType(Slider)).onChanged!(t);
+
+    expect(find.text('Valider le modèle 3D unifié'), findsNothing);
+    expect(find.text('Ralenti ×4'), findsNothing);
+    expect(find.text('Format 9:20 (sinon 9:16)'), findsNothing);
+    expect(find.text('Afficher l’œuf'), findsNothing);
+    expect(find.text('Afficher les ombres'), findsNothing);
+    expect(find.byType(FragmentScene), findsNothing);
+    expect(f1Painter().thickness, 2.5);
+
+    for (final opening in [0.0, .25, .50, .75, 1.0]) {
+      tester.widget<Slider>(find.byType(Slider)).onChanged!(opening);
       await tester.pump();
-      final painter = scene();
-      expect(painter.progress, t);
-      expect(painter.thickness, 2.5);
-      expect(painter.motion, 1.5);
-      expect(painter.showEgg, isTrue);
-      expect(painter.shadow, isTrue);
-      expect(painter.guides, isTrue);
-      expect(find.text(fragmentPhase(t)), findsOneWidget);
+      expect(f1Painter().openAmount, opening);
+      expect(f1Painter().identifySurfaces, isFalse);
     }
-    tester.widget<Slider>(find.byType(Slider)).onChanged!(.49);
+
+    await tester.tap(find.text('Identifier les surfaces'));
     await tester.pump();
-    await tester.tap(find.text('Lire'));
+    expect(f1Painter().identifySurfaces, isTrue);
+    await tester.tap(find.text('Afficher F1 3D seul'));
     await tester.pump();
-    var previous = scene().progress;
-    for (var i = 0; i < 28; i++) {
-      await tester.pump(Duration(milliseconds: i == 1 ? 1140 : 33));
-      final value = scene().progress;
-      expect(value, greaterThanOrEqualTo(previous));
-      expect(value - previous, lessThanOrEqualTo(33334 / 6000000 + 1e-12));
-      expect(tester.widget<Slider>(find.byType(Slider)).value, value);
-      final labels = tester
-          .widgetList<Text>(find.byType(Text))
-          .map((w) => w.data ?? '');
-      expect(
-        labels.any(
-          (s) =>
-              s.startsWith('Progression du test') &&
-              s.endsWith('${(value * 100).round()} %'),
-        ),
-        isTrue,
-      );
-      previous = value;
-    }
-    expect(scene().progress, greaterThan(.6));
-    await tester.tap(find.text('Pause'));
+    expect(
+      tester.widgetList<CustomPaint>(find.byType(CustomPaint))
+          .map((widget) => widget.painter)
+          .whereType<EggShellModelPainter>()
+          .length,
+      1,
+    );
+    expect(find.byType(Slider), findsNothing);
+    await tester.tap(find.text('Afficher F1 3D seul'));
     await tester.pump();
-    tester.widget<Slider>(find.byType(Slider)).onChanged!(.999);
-    await tester.pump();
-    await tester.tap(find.text('Lire'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
-    expect(scene().progress, 1);
-    expect(find.text('Lire'), findsOneWidget);
+    expect(f1Painter().identifySurfaces, isTrue);
+    expect(f1Painter().openAmount, 1);
   });
 
   FragmentScene frame(double progress) => FragmentScene(
@@ -1182,67 +1159,6 @@ void main() {
       0,
       reason: 'Resting partition must not announce its perimeter',
     );
-  });
-
-  testWidgets('Lecture, pause et retour au début reproductibles', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1200, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const MyApp());
-    FragmentScene scene() => tester
-        .widgetList<CustomPaint>(find.byType(CustomPaint))
-        .map((w) => w.painter)
-        .whereType<FragmentScene>()
-        .single;
-    expect(scene().progress, 0);
-    await tester.tap(find.text('Lire'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 2));
-    expect(scene().progress, greaterThan(0));
-    await tester.tap(find.text('Pause'));
-    await tester.pump();
-    final stopped = scene().progress;
-    await tester.pump(const Duration(seconds: 1));
-    expect(scene().progress, stopped);
-    await tester.tap(find.text('Début'));
-    await tester.pump();
-    expect(scene().progress, 0);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('Le rejeu atteint le sol sans erreur de peinture', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1200, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const MyApp());
-    await tester.tap(find.text('Rejouer la chute'));
-    await tester.pump();
-    for (var i = 0; i < 100; i++) {
-      await tester.pump(const Duration(milliseconds: 30));
-      expect(tester.takeException(), isNull);
-    }
-    expect(find.text('Fragment au sol'), findsOneWidget);
-  });
-
-  testWidgets('Le ralenti traverse fissure, ouverture et chute', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1200, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const MyApp());
-    await tester.tap(find.text('Ralenti ×4'));
-    await tester.pump();
-    await tester.tap(find.text('Lire'));
-    await tester.pump();
-    await deliverFrames(tester, const Duration(seconds: 8));
-    expect(find.text('Propagation de la fissure'), findsOneWidget);
-    await deliverFrames(tester, const Duration(seconds: 4));
-    expect(find.text('Soulèvement du fragment'), findsOneWidget);
-    await deliverFrames(tester, const Duration(seconds: 4));
-    expect(find.text('Chute du fragment'), findsOneWidget);
-    expect(tester.takeException(), isNull);
   });
 
   testWidgets('La surface garde sa couleur au début du détachement', (

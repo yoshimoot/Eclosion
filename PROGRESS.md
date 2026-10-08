@@ -18,6 +18,14 @@ Acquis explicitement validés, à préserver :
 - Tri d'occlusion dynamique validé visuellement le 5 octobre 2026 : l'ordre de peinture dépend désormais de la profondeur 3D courante des fragments et non de leur ordre dans la liste.
 - Modèle de pression interne clarifié le 5 octobre 2026 : les événements représentent des efforts du poussin (appuis locaux puis effort plus large tête/corps sur la zone fragilisée). Un même effort peut affecter plusieurs plaques et produire des détachements simultanés ou quasi simultanés.
 
+## Atelier 3D seul — simplification du 8 octobre 2026
+
+À la demande de l'utilisateur, l'ancien mode de visualisation 2D n'est plus accessible depuis `FragmentLab`. Le commutateur « Valider le modèle 3D unifié » et les réglages liés à l'ancien mode (ralenti, format, visibilité de l'œuf et des ombres, ancienne progression/lecture) sont retirés. L'atelier ne présente désormais que l'œuf unifié intact et le chapeau F1 unifié, avec son curseur d'ouverture, les repères et l'identification des surfaces.
+
+Le moteur historique `fragment_scene.dart` et `fragment_playback.dart` **ne sont pas supprimés** : les tests techniques historiques y font encore référence. Les tests d'interface de l'ancien atelier ont été remplacés par un test de l'interface F1 active. La géométrie, la cinématique F1 et les valeurs `2.5`/`1.5` ne sont pas modifiées. Le format 9:16 est fixe **dans cet atelier uniquement** ; le support 9:20 reste une exigence produit future.
+
+Attention : la capture fournie montrait le mode unifié désactivé (ancien rendu 2D). Ce rendu ne permet donc pas de valider ni d'invalider le correctif F1 de profondeur `196718e`. Une nouvelle capture du modèle F1 seul avec et sans « Identifier les surfaces » reste nécessaire pour établir la cause de la bande.
+
 ## Validé sur le nouveau prototype F1 (8 octobre 2026)
 
 Portée de la validation : atelier `EggShellModel`, **chapeau F1 seul**. Dans l'ancien cluster F1–F5, F1 ne désignait pas ce même chapeau : ne pas confondre les numérotations. L'ancien moteur `fragment_scene.dart` reste historiquement documenté, mais ses résultats n'établissent pas la validité volumique de F1 dans le nouvel aperçu.
