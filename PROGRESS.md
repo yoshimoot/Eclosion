@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.1 — Validation de la répartition et cartographie des deux régions candidates (8 octobre 2026)
+
+**Validation utilisateur :** après examen de la vidéo V10.4, l'utilisateur confirme **« ok »** à la demande explicite de retenir la **répartition des fissures V10.4 comme base de la fragmentation**. C'est une validation de la **répartition artistique comme base de travail**, pas une approbation de l'existence de maillages séparés, d'une cavité réaliste, de charnières, d'un passage libre du poussin ou d'une animation d'éclosion.
+
+**Nouvelle priorité (une seule étape) :** identifier les **régions effectivement closes par des arêtes 3D partagées** avant de découper une quelconque surface. Le module `egg_fragment_regions.dart` reconstruit directement sur `EggFractureNetwork.fixed()` deux circuits orientés `left` et `right` à partir des deux chaînes `connection`, des chemins `primary` jusqu'aux racines F1 et du plus court arc sur les 24 arêtes de la couronne F1. Les contours se referment **par identifiants de nœuds communs**, et non par une projection 2D ou une juxtaposition approximative. Trois arêtes centrales (`28, 29, 30`) sont communes aux deux régions et parcourues dans des sens opposés. Une région peut retourner son périmètre pour diagnostic en **réutilisant exclusivement les échantillons 3D des arêtes d'origine**.
+
+**Périmètre strict :** aucune modification de `EggShellModel`, du profil de l'œuf, de F1, de la couronne, des fissures et angles V10.4, de la seed, de la propagation V9/V10, des peintres ni de l'atelier. Les sorties latérales sont des **fissures ouvertes**, pas des bords de fragments : elles n'atteignent pas l'arrière 3D. Le bol inférieur non délimité n'est **pas** compté comme un fragment mobile. Le nouveau plan ne génère **ni triangle, ni face intérieure, ni tranche, ni charnière, ni mouvement, ni espace de sortie vérifié pour le poussin**.
+
+**Vérification préalable :** calcul indépendant des parcours dans le graphe à 50 nœuds / 52 arêtes : région gauche de **14 arêtes orientées** (4 de couronne + 7 principales + 3 de connexion), région droite de **16 arêtes orientées** (5 de couronne + 8 principales + 3 de connexion). Les deux parcours sont fermés ; ils partagent exactement les trois arêtes principales centrales `28, 29, 30`, sans ajout de géométrie. Cette vérification ne remplace **pas** les tests Dart/Flutter.
+
+**Tests ajoutés mais non exécutés ici :** `flutter test --no-pub test/egg_fragment_regions_test.dart` ; contrôle de fermeture, orientation opposée des arêtes communes, conservation des objets `EggShellPoint3`, exclusion des fissures ouvertes et de F1 chapeau, stabilité du seed. Prochaine phase séparée (après retour de tests) : segmentation volumique à faces extérieure/intérieure/tranche communes, identification des attaches et validation de l'ouverture réellement dégagée pour le poussin **avant** toute animation.
+
 ## V10.4 — abaissement léger des fissures, à valider dans Chrome (8 octobre 2026)
 
 **Demande utilisateur :** la répartition V10.3 convient à peu près ; proposer et essayer des fissures descendant légèrement plus bas, sans reconstruire le réseau ni densifier la partie inférieure. **Seul changement visuel : abaissement des portions inférieures** et de leurs jonctions, selon les valeurs acceptées.
