@@ -562,7 +562,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
     );
   }
 
-  void _drawCap(Canvas canvas) {
+  void _drawCap(Canvas canvas, {required VoidCallback paintFixedBody}) {
     const rows = 34;
     const columns = 96;
     final vertexCount = (rows + 1) * (columns + 1);
@@ -634,6 +634,11 @@ class EggShellF1PreviewPainter extends CustomPainter {
         Paint()..color = Colors.white,
       );
     }
+
+    // The moving cap's inward surface is behind the fixed shell's front
+    // exterior in this rear-hinged preview. Paint that front surface now,
+    // before the cap's fracture rim and outward-facing material.
+    paintFixedBody();
 
     if (openAmount > .02) {
       final edgePositions = <Offset>[];
@@ -754,10 +759,10 @@ class EggShellF1PreviewPainter extends CustomPainter {
       );
     }
 
-    // Back interior is naturally occluded by the front lower shell and F1.
+    // Painter's depth order: rear bowl < F1 inner face < fixed front shell
+    // < F1 outer face. Keep F1 mesh generation shared for both sides.
     _drawRearInnerBowl(canvas);
-    _drawBody(canvas);
-    _drawCap(canvas);
+    _drawCap(canvas, paintFixedBody: () => _drawBody(canvas));
 
     if (guides) {
       final guidePaint = Paint()
