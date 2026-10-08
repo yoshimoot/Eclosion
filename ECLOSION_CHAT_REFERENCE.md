@@ -19,7 +19,7 @@
 >
 > `reference/Planche Eclosion.png` est la référence visuelle immuable. Distingue l'ancien moteur `fragment_scene.dart` de l'atelier 3D unifié **F1 seul** ; le nom F1 n'est pas identique dans les deux géométries.
 >
-> **État actuellement documenté (8 octobre 2026)** : sur le prototype F1 seul, l'escalier du bord et le contour fantôme ont été corrigés ; **l'occlusion entre le chapeau F1 et le bol inférieur reste non validée**. Le dernier commit Flutter de cette séquence est `86562cd`. Les commits documentaires ultérieurs n'impliquent pas de correction du moteur. Lis le **HEAD actuel** et `PROGRESS.md` pour savoir si cet état a évolué.
+> **État de reprise (8 octobre 2026)** : atelier 3D unifié avec F1 seul ; l'ancien mode 2D n'est plus accessible depuis l'interface. Les commits `196718e` (Z-buffer logiciel), `59fd82c` (identification des faces) et `2b6af2d` (nettoyage de l'atelier) sont présents ; **fiabilité structurelle et concavité finale restent à distinguer et à vérifier**. Nouvelle priorité : contrôle technique limité de la profondeur, puis réseau statique de fissures sur `EggShellModel` à seed fixe ; reporter le pivot définitif jusqu'à l'intégration du poussin. Lis toujours le **HEAD actuel** et la **Décision active** en haut de `PROGRESS.md`.
 >
 > Contraintes : préserver le profil de `EggShellModel`, la silhouette et l'ouverture déjà acquises, l'épaisseur `2.5` et l'oscillation `1.5` ; **une itération = un défaut principal**. Pas de crossfade ni de patch graphique, pas de GitHub Actions. Tester/formatter si l'outillage est disponible, distinguer clairement code vérifié et rendu validé par vidéo Chrome. Préserver les changements locaux non committés.
 >
@@ -45,7 +45,7 @@ Codex n'est plus une étape obligatoire de ce cycle ; l'ancienne méthode Chat �
 - Le code livré doit être committé sur la branche avant la fin du cycle. Ne pas supposer que des modifications locales ou des fichiers non committés se trouvent sur GitHub.
 - Mettre à jour `PROGRESS.md` lorsqu'une étape est **visuellement validée**, qu'un défaut prioritaire change, ou qu'un blocage de reprise doit être consigné. Identifier sans ambiguïté « corrigé dans le code » versus « validé dans Chrome ».
 - Garder cette référence durable pour les choix historiques et les critères. `AGENTS.md` reste le contrat permanent ; éviter de multiplier les documents parallèles.
-- Si `git status --short` montre `fragment_scene.dart` modifié, ne jamais le supprimer ni écraser sans inspection/sauvegarde. Le programme actuel l'importe encore et plusieurs tests en dépendent.
+- Si `git status --short` montre `fragment_scene.dart` modifié, ne jamais le supprimer ni écraser sans inspection/sauvegarde. L'atelier actif 3D ne l'importe plus, mais des tests et l'ancien moteur historique en dépendent encore.
 - **Pour relancer localement** après sauvegarde éventuelle des modifications : `git switch prototype/fragment-lab-v1`, puis `git pull --ff-only origin prototype/fragment-lab-v1` et `cd egg_timer; flutter run -d chrome`.
 
 ---
@@ -53,7 +53,7 @@ Codex n'est plus une étape obligatoire de ce cycle ; l'ancienne méthode Chat �
 
 > **Dernière mise à jour : 8 octobre 2026.** Cette référence conserve les règles permanentes des sections 1 à 14 et les complète avec l’historique des échanges du 7–8 octobre 2026. La source de vérité du code reste GitHub. `AGENTS.md` définit les contraintes permanentes, `PROGRESS.md` suit les validations techniques et `ECLOSION_CHAT_REFERENCE.md` documente les décisions et la reprise entre conversations.
 >
-> **Point de reprise technique (avant le présent commit documentaire) :** branche `prototype/fragment-lab-v1`, commit `86562cd`. Vue expérimentale : `EggShellModel` commun + **F1 seul**, sans F2–F5 actifs. **La structure volumique et l’occlusion de F1 ne sont PAS encore validées.** Priorité : diagnostic/correction de profondeur entre F1 et le bol, pas nouvelles retouches cosmétiques.
+> **Instantané historique du précédent fil (avant les correctifs `196718e`, `59fd82c` et `2b6af2d`) :** branche `prototype/fragment-lab-v1`, commit `86562cd`. Cet état décrit les anciennes décisions, **pas la priorité actuelle**. Le point de reprise vivant est en tête de `PROGRESS.md` et dans la section 21 ci-dessous.
 
 ## 1. Projet
 
@@ -527,3 +527,19 @@ Cette synthèse repose sur :
 - `AGENTS.md`, `PROGRESS.md` et l’historique des commits GitHub.
 
 Le contenu intégral de la conversation ChatGPT accessible uniquement par l’URL fournie n’a **pas été importé mot pour mot**. D’éventuels détails non présents dans ces sources ne sont donc pas présumés connus. Lorsqu’une validation visuelle n’est pas explicite, elle est considérée comme **en attente**.
+
+---
+
+## 21. Ordre de développement consolidé — décision du 8 octobre 2026
+
+Cet ordre a été confirmé après analyse du nouveau rendu diagnostic F1. Il actualise le plan indiqué dans les sections historiques précédentes, sans effacer celles-ci.
+
+1. **Contrôle technique de base (immédiat) :** vérifier `EggShellModel`, les surfaces externe/interne, la tranche et les masquages Z entre F1 et le bol aux ouvertures 0/25/50/75/100 %. Le Z-buffer logiciel existe depuis `196718e`, mais la démonstration de sa fiabilité reste à achever. Corriger toute cause structurelle prouvée, **sans rechercher le pivot visuellement définitif**.
+2. **Réseau fixe de fissures 3D :** générer sur la surface commune un réseau de fissures organiques, non répétitives, à frontières réellement partagées par les futurs fragments. Une seed fixe sert à reproduire la première configuration ; aucune rupture animée à ce stade. Valider la topologie et la continuité avec la référence.
+3. **Réseau variable entre éclosions :** seed nouvelle par session, conservée durant l'animation, variantes bornées du réseau sans randomisation frame par frame ; garder la reproductibilité des tests.
+4. **Mécanique causale d'éclosion :** fissuration puis ouverture/tranche/attaches/pivots/libération/chute selon des efforts de poussin partagés entre fragments ; adapter alors le pivot F1 et les autres mouvements afin que le poussin puisse apparaître naturellement à `00:00`.
+5. **Finalisation et intégration MorphoTime :** matériaux, lumière, cavité, décor, poussin déjà validé, minuteur/interactions, sons/haptique et performances Android.
+
+**Différencier deux critères d'acceptation :** (A) système géométrique et profondeur fiables, nécessaire **avant** le réseau ; (B) volume intérieur artistiquement convaincant et pivot final compatible avec le poussin, à finaliser **après** la topologie et la mécanique. Le rendu F1 actuel **n'est pas déclaré validé** sur le critère B.
+
+**État du dépôt à la décision :** dernier HEAD connu avant cette mise à jour documentaire `9109c2a`. `PROGRESS.md` est l'état actif ; l'historique antérieur `86562cd` reste archivé. `AGENTS.md` contient les règles permanentes. Aucune modification Dart, aucun test Flutter, aucune GitHub Action lors de cette mise à jour de documentation.

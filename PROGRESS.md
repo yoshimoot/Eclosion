@@ -1,5 +1,24 @@
 ﻿# Eclosion — état courant
 
+## Décision active — ordre de développement confirmé le 8 octobre 2026
+
+**Statut : plan de travail approuvé, non équivalent à une validation du moteur.** Cette section remplace les anciennes listes « Prochaine étape » et « Ordre de développement » situées plus bas, qui restent historiques. Ne pas conclure que l'occlusion, la concavité ou l'animation F1 ont été validées.
+
+### Priorité immédiate : vérification structurelle du socle 3D
+
+- Référence : `EggShellModel` reste **l'unique géométrie** pour silhouette, faces, tranche et futures arêtes de rupture. Le Z-buffer logiciel introduit par `196718e` existe dans le code ; le diagnostic par couleurs `59fd82c` montre plusieurs surfaces distinctes ; **ni la correction de profondeur ni la qualité volumique ne sont entièrement validées**.
+- Vérifier, sans changer d'emblée le pivot ou la forme, aux ouvertures **0 / 25 / 50 / 75 / 100 %** : profondeur/masquage des triangles qui se recouvrent, visibilité correcte du devant et de l'arrière, absence de surfaces artificielles, de trous non voulus, de contour fantôme et de bord en escalier, cohérence de la géométrie unique et de la tranche. Employer les couleurs de diagnostic puis le rendu normal. Contrôler les anomalies de calcul plutôt que rechercher déjà la finition artistique.
+- **Critère de sortie :** fiabilité technique suffisante, examinée en code et en Chrome ; noter honnêtement les tests Flutter non exécutés et les imperfections restantes. Si une anomalie structurelle persiste, corriger celle-ci isolément avant d'avancer. Une concavité encore peu lisible à cause de l'orientation provisoire ne doit **pas** déclencher des retouches de pivot tant que les exigences techniques sont remplies.
+
+### Séquence après passage de ce contrôle
+
+1. **Topologie de fissuration 3D statique**, sur la coquille intacte : fissures fines, irrégulières, asymétriques, ramifiées et partiellement interrompues selon `reference/Planche Eclosion.png`. Éviter les motifs répétitifs. Les fissures sont des frontières de matière réelles : arête commune unique pour deux fragments voisins, géométrie compatible avec futures tranches et attaches. **Première configuration fixe, avec seed fixe pour tests/reproductibilité ; sans animation de rupture.**
+2. **Variabilité déterministe et contrôlée** : seed créée une fois **par session d'éclosion**, géométrie préparée une fois puis conservée sur tous les frames. Variations bornées de forme, trajectoire et ramifications sans casser la topologie commune ; une même seed reproduit exactement le même réseau. Valider d'abord le réseau fixe avant d'activer des variantes.
+3. **Mécanique physique et apparition du poussin** : propagation dans le réseau, pressions communes, fissure → ouverture → tranche → fragmentation, attaches/charnières puis libération, pivot et chute. Concevoir/ajuster alors le pivot de F1 et les autres mouvements selon la place nécessaire à l'apparition du poussin ; éviter des animations indépendantes par fragment.
+4. **Rendu final et intégration** : poussin validé, matériaux/éclairage, intérieur et décor, son/haptique, synchronisation du timer (`00:00` = poussin éclos), performances Web puis Android.
+
+**Gel du cycle en cours :** ne pas modifier prématurément le pivot F1, la forme de la coquille, le poussin, F2–F5, le décor ou l'aspect artistique. Conserver épaisseur `2.5`, oscillation `1.5`, `reference/Planche Eclosion.png`, et l'atelier 3D seul du commit `2b6af2d`. L'ancien `fragment_scene.dart` est historique et toujours requis par des tests ; ne pas le supprimer. Une itération = un défaut principal, commit ciblé, validation Chrome par l'utilisateur.
+
 ## Validé — moteur antérieur et acquis historiques
 
 Acquis explicitement validés, à préserver :
@@ -49,7 +68,7 @@ Portée de la validation : atelier `EggShellModel`, **chapeau F1 seul**. Dans l'
 
 Les validations de l'ancien moteur multi-fragments (notamment son tri dynamique d'occlusion **inter-fragments**) sont conservées plus bas comme **historique**, et ne résolvent pas le problème différent d'intersection et d'occlusion **entre triangles du bol et de F1** dans la nouvelle vue.
 
-## Défaut prioritaire actuel
+## Défaut de profondeur signalé auparavant (historique, à recontrôler)
 
 **Non résolu au 8 octobre 2026 : occlusion et lecture volumique de F1 à l'ouverture.**
 
@@ -59,7 +78,7 @@ La silhouette extérieure du chapeau, le bord désormais continu et l'animation 
 
 Les dernières corrections cosmétiques et les réordonnancements seuls n'ont pas suffi : **ne plus empiler d'artifices 2D**.
 
-## Gelé pour l'itération actuelle
+## Gel appliqué lors des anciens correctifs F1 (historique)
 
 - `EggShellModel` comme source de géométrie unique pour la surface, la silhouette, les normales et l'épaisseur de la coquille.
 - Chapeau F1 360° : forme extérieure, profil et mouvement actuellement observés, ligne de fracture continue ; conserver la progression manuelle 0–100 %.
@@ -68,7 +87,7 @@ Les dernières corrections cosmétiques et les réordonnancements seuls n'ont pa
 - Éléments déjà corrigés : pas de marches au bord du bol ni de contour fantôme réintroduits.
 - Seul objectif autorisé : profondeur/masquage cohérents entre les faces F1, la tranche et le bol inférieur.
 
-## Prochaine étape
+## Plan d'action antérieur au Z-buffer (historique)
 
 1. Inspecter la géométrie et la projection des faces extérieures/intérieures et de la tranche, la convention de profondeur et les triangles visibles, **sans modifier immédiatement leurs formes**.
 2. Implémenter une visibilité réellement dépendante de la profondeur à l'échelle des triangles/surfaces (test de profondeur, rastérisation Z-buffer ou autre solution démontrablement correcte en Flutter/Web et compatible avec le projet Android). Un simple tri de groupes par centre Z ne constitue pas une garantie suffisante si les surfaces s'entrecroisent à l'écran.
@@ -76,9 +95,9 @@ Les dernières corrections cosmétiques et les réordonnancements seuls n'ont pa
 4. Vérifier `dart format` sur les seuls Dart modifiés, `flutter analyze` et `flutter test --no-pub test/widget_test.dart` **si les outils sont disponibles** ; déclarer précisément les vérifications non exécutées. Aucune GitHub Action.
 5. Faire valider sous Chrome les ouvertures **0 %, 25 %, 50 %, 75 % et 100 %** : absence de bandes superposées, faces creuses lisibles, tranche crédible, continuité du mouvement, silhouette intacte, aucun retour du bord en escalier et du contour fantôme. Ne déclarer F1 validé qu'après retour visuel explicite.
 
-**Point de reprise technique :** `86562cd` est le dernier commit modifiant le moteur F1 dans le fil du 8 octobre ; `d41a805` a ensuite mis à jour `ECLOSION_CHAT_REFERENCE.md`, et les commits documentaires suivants n'impliquent aucune modification Flutter.
+**Point de reprise historique (avant `196718e`) :** `86562cd` était le dernier commit modifiant le moteur F1 dans le fil précédent, suivi de mises à jour documentaires. Il ne s'agit plus du HEAD courant : un Z-buffer logiciel a été ajouté par `196718e`, l'identification de surfaces par `59fd82c` et l'atelier a été simplifié par `2b6af2d`. Voir **Décision active** au début du fichier.
 
-La variabilité déterministe par session et les autres fragments sont à traiter **après** validation F1 : seed unique par éclosion, aucune randomisation d'un frame à l'autre.
+Dans le nouveau plan actif, la **topologie statique de fissures** commence après validation **structurelle** du socle 3D ; la variabilité par seed suit la validation du réseau fixe. Les fragments **animés** et le poussin restent postérieurs à ces étapes. Aucune randomisation d'un frame à l'autre.
 
 ## Dette connue / à traiter plus tard
 
@@ -154,7 +173,7 @@ Le futur système devra permettre qu'une nouvelle utilisation du timer ne produi
 - Valider ultérieurement les performances sur appareil Android réel.
 - Objectif de conception : animation fluide à 60 fps sur un appareil Android milieu de gamme, à confirmer par mesures réelles.
 
-### Ordre de développement
+### Ancien ordre de développement (historique ; voir décision active en tête)
 
 1. Obtenir un fragment unique visuellement et physiquement correct.
 2. Rendre l'architecture `Fragment` générique.
