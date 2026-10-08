@@ -70,72 +70,61 @@ class EggFractureNetwork {
       graph.edge(i, (i + 1) % sections, EggCrackKind.crown);
     }
 
-    // V10.1: asymmetrical local pressure zones, not three evenly spaced
-    // parallel cuts joined by a wide transverse lattice.
+    // V10.2: large, sparse shared boundaries inspired by study variants
+    // 2 (organic), 3 (central opening) and 7 (few large regions).
     //
-    // - left: diagonal, limited reach
-    // - middle: shorter, sparse failure
-    // - right: the dominant descending rupture
+    // Three unequal front-facing fractures descend from the same F1 crown
+    // into a lower, shallow U-shaped release zone. The two late joining
+    // paths bound two REAL graph cycles against the crown; no decorative
+    // second geometry, independent islands or premature fragment meshes.
     //
-    // F1's 24 shared crown edges and two preserved cap scratches are frozen.
+    // Keep the 24 crown edges and its two accepted cap scratches untouched.
     final left = graph.chain(7, const [
-      _CrackLocation(-101, -1.15),
-      _CrackLocation(-78, -.87),
-      _CrackLocation(-59, -.67),
-      _CrackLocation(-36, -.51),
-      _CrackLocation(-18, -.48),
+      _CrackLocation(-89, -1.05),
+      _CrackLocation(-54, -.78),
+      _CrackLocation(-20, -.55),
+      _CrackLocation(3, -.45),
     ]);
     final middle = graph.chain(11, const [
-      _CrackLocation(-98, -.16),
-      _CrackLocation(-76, -.08),
-      _CrackLocation(-59, .02),
-      _CrackLocation(-47, .20),
+      _CrackLocation(-91, -.18),
+      _CrackLocation(-48, -.12),
+      _CrackLocation(-13, .03),
+      _CrackLocation(34, .045),
     ]);
     final right = graph.chain(16, const [
-      _CrackLocation(-96, .94),
-      _CrackLocation(-69, .77),
-      _CrackLocation(-39, .59),
-      _CrackLocation(-6, .70),
-      _CrackLocation(22, .91),
-      _CrackLocation(48, .86),
+      _CrackLocation(-87, .91),
+      _CrackLocation(-48, .67),
+      _CrackLocation(-12, .54),
+      _CrackLocation(6, .57),
     ]);
 
-    // Small left wedge: one late branch diverges outward from left[0] and
-    // rejoins left[3], creating a prospective fragment without a long
-    // cross-egg connection. Both ends reuse the actual shared node IDs.
-    final leftClosure = graph.chain(left[0], const [
-      _CrackLocation(-91, -1.27),
-      _CrackLocation(-55, -1.10),
+    // Close two large prospective shell regions only late in propagation.
+    // Both paths share the SAME central junction on the middle mother.
+    // Their directions are independent: left -> centre and right -> centre,
+    // so neither closure depends on completing the other one.
+    final leftBoundary = graph.chain(left.last, const [
+      _CrackLocation(24, -.32),
+      _CrackLocation(46, -.12),
     ], kind: EggCrackKind.connection);
-    graph.edge(leftClosure.last, left[3], EggCrackKind.connection);
+    graph.edge(leftBoundary.last, middle.last, EggCrackKind.connection);
 
-    // Large right wedge: a second, distinctly longer local boundary leaves
-    // right[1] and rejoins right[4]. Unlike V8, neither closure connects
-    // remote mother cracks across the egg's central visible area.
-    final rightClosure = graph.chain(right[1], const [
-      _CrackLocation(-51, 1.04),
-      _CrackLocation(-19, 1.14),
+    final rightBoundary = graph.chain(right.last, const [
+      _CrackLocation(26, .39),
+      _CrackLocation(45, .22),
     ], kind: EggCrackKind.connection);
-    graph.edge(rightClosure.last, right[4], EggCrackKind.connection);
+    graph.edge(rightBoundary.last, middle.last, EggCrackKind.connection);
 
-    // Short, asymmetrically spaced dead ends: legitimate shared-node
-    // branches but not prematurely complete fragment boundaries.
-    graph.chain(left[2], const [
-      _CrackLocation(-44, -.37),
-      _CrackLocation(-25, -.40),
+    // A few short dead-end stress cracks; no dense decorative mesh.
+    graph.chain(left[1], const [
+      _CrackLocation(-39, -1.02),
+      _CrackLocation(-20, -1.05),
     ], kind: EggCrackKind.secondary);
-    graph.chain(middle[1], const [
-      _CrackLocation(-68, .15),
-      _CrackLocation(-57, .31),
+    graph.chain(right[1], const [
+      _CrackLocation(-35, 1.00),
+      _CrackLocation(-15, 1.08),
     ], kind: EggCrackKind.secondary);
-    graph.chain(right[2], const [
-      _CrackLocation(-28, .34),
-      _CrackLocation(-11, .29),
-    ], kind: EggCrackKind.secondary);
-    graph.chain(17, const [
-      _CrackLocation(-92, 1.43),
-      _CrackLocation(-71, 1.48),
-    ], kind: EggCrackKind.secondary);
+
+    // Validated F1 cap scratches: exact nodes and positions preserved.
     graph.chain(10, const [
       _CrackLocation(-142, -.57),
       _CrackLocation(-164, -.36),

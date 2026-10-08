@@ -162,8 +162,39 @@ void main() {
       }
     }
     expect(mothers, greaterThanOrEqualTo(12));
-    expect(dependentBranches, greaterThanOrEqualTo(5));
+    expect(dependentBranches, 4,
+        reason: 'Only two short secondary branches outside preserved F1');
     expect(lateConnections, 6);
+  });
+
+  test('V10.2: closure edges remain latent until after mother cracks', () {
+    final plan = EggCrackPropagationPlan(EggFractureNetwork.fixed());
+    final edges = plan.network.edges;
+    final atHalf = plan.visibleFractionsAt(.5);
+    final atLate = plan.visibleFractionsAt(.8);
+    final atEnd = plan.visibleFractionsAt(1);
+
+    for (final edge in edges.where(
+      (edge) => edge.kind == EggCrackKind.connection,
+    )) {
+      expect(atHalf[edge.id], 0);
+      expect(atEnd[edge.id], 1);
+    }
+    expect(edges.where(
+      (edge) => edge.kind == EggCrackKind.connection &&
+          atLate[edge.id] > 0,
+    ), isNotEmpty);
+    expect(plan.schedules.every(
+      (schedule) => schedule.completion <= 1,
+    ), isTrue);
+
+    final motherRoots = edges.where(
+      (edge) => edge.kind == EggCrackKind.primary && edge.startNode < 24,
+    );
+    expect(motherRoots.length, 3);
+    expect(motherRoots.every(
+      (edge) => plan.schedules[edge.id].onset < .25,
+    ), isTrue);
   });
 
   test('V9: progress is smooth, monotone, reversible and clamp-safe', () {

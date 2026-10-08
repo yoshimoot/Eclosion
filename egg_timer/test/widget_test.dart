@@ -830,8 +830,8 @@ void main() {
     expect(network.edges.where(
       (edge) => edge.kind == EggCrackKind.connection).length, 6);
     expect(degrees.every((degree) => degree <= 3), isTrue);
-    expect(degrees.skip(24).where((degree) => degree == 3).length,
-        inInclusiveRange(6, 8));
+    expect(degrees.skip(24).where((degree) => degree == 3).length, 3,
+        reason: 'Sparse left/right branches and one central Y junction');
 
     final majorOblique = network.edges.where((edge) {
       if (edge.kind != EggCrackKind.primary &&
@@ -843,64 +843,68 @@ void main() {
     expect(majorOblique, greaterThanOrEqualTo(6));
   });
 
-  test('V10.1 : répartition asymétrique et deux fermetures locales', () {
+  test('V10.2 : deux grandes régions F1 et jonction centrale partagée', () {
     final network = EggFractureNetwork.fixed();
     final edges = network.edges;
     final crown = edges.where((e) => e.kind == EggCrackKind.crown).toList();
     final mothers = edges.where((e) => e.kind == EggCrackKind.primary).toList();
     final links = edges.where((e) => e.kind == EggCrackKind.connection).toList();
 
-    expect(crown.length, 24);
-    expect(mothers.length, 15);
-    expect(links.length, 6);
     expect(network.seed, EggFractureNetwork.fixedSeed);
-    final motherRoots = mothers
-        .where((edge) => edge.startNode < 24)
+    expect(crown.length, 24);
+    expect(mothers.length, 12);
+    expect(links.length, 6);
+    final motherRoots = mothers.where((edge) => edge.startNode < 24)
         .map((edge) => edge.startNode).toList();
-    expect(motherRoots, [7, 11, 16],
-        reason: 'Three unevenly distributed rupture origins');
+    expect(motherRoots, [7, 11, 16]);
 
-    final rootTips = <double>[];
+    final tips = <double>[];
     for (final root in motherRoots) {
-      final first = mothers.singleWhere((e) => e.startNode == root);
-      var currentNode = first.endNode;
+      final first = mothers.singleWhere((edge) => edge.startNode == root);
+      var node = first.endNode;
       while (true) {
-        final continuation = mothers.where(
-          (e) => e.startNode == currentNode,
-        );
+        final continuation = mothers.where((e) => e.startNode == node);
         if (continuation.isEmpty) break;
         expect(continuation.length, 1);
-        currentNode = continuation.single.endNode;
+        node = continuation.single.endNode;
       }
-      rootTips.add(network.nodes[currentNode].y);
+      tips.add(network.nodes[node].y);
     }
-    expect(rootTips, [-18, -47, 48],
-        reason: 'One long flank rupture, two shorter asymmetric failures');
+    expect(tips, [3, 34, 6],
+        reason: 'Distinct upper faults converge below into a shallow U');
 
-    // Each closure splits and returns to the SAME mother, rather than
-    // spanning across unrelated mother fractures in the centre.
-    expect(links[0].startNode, mothers[0].endNode);
-    expect(links[2].endNode, mothers[3].endNode);
-    expect(links[3].startNode, mothers[10].endNode);
-    expect(links[5].endNode, mothers[13].endNode);
+    // Two separate upper regions can open against the unchanged F1 crown.
+    // Their late paths join the SAME central mother tip, not each other
+    // through an unrelated 2D decorative line.
+    final centre = mothers[7].endNode;
+    expect(links[0].startNode, mothers[3].endNode);
+    expect(links[2].endNode, centre);
+    expect(links[3].startNode, mothers[11].endNode);
+    expect(links[5].endNode, centre);
+    expect(centre, links[2].endNode);
+    expect(centre, links[5].endNode);
+    expect(
+      network.nodes[centre].onShell(network.model).x.abs(),
+      lessThan(20),
+      reason: 'The shared junction must remain near the middle of the egg',
+    );
 
+    // Graph identities are real material boundaries, not coincident lines.
     final degrees = List<int>.filled(network.nodes.length, 0);
+    final pairs = <String>{};
     for (final edge in edges) {
       degrees[edge.startNode]++;
       degrees[edge.endNode]++;
+      final a = math.min(edge.startNode, edge.endNode);
+      final b = math.max(edge.startNode, edge.endNode);
+      expect(pairs.add('$a:$b'), isTrue);
     }
-    expect(degrees.every((d) => d <= 3), isTrue);
-    expect(edges.length - network.nodes.length + 1, 3);
+    expect(degrees.every((degree) => degree <= 3), isTrue);
+    expect(degrees[centre], 3,
+        reason: 'Two late boundaries and central mother form one 3D Y');
+    expect(edges.length - network.nodes.length + 1, 3,
+        reason: 'F1 crown cycle plus two prospective large regions');
     expect(links.every((e) => e.samples.length == 7), isTrue);
-
-    // A potential fragment is bounded only once the late connection closes.
-    // Rooted chains remain a single material graph with shared nodes.
-    final allPairs = <String>{};
-    for (final edge in edges) {
-      final lo = math.min(edge.startNode, edge.endNode);
-      final hi = math.max(edge.startNode, edge.endNode);
-      expect(allPairs.add('$lo:$hi'), isTrue);
-    }
   });
 
   test('Réseau V6 : aucune intersection fortuite entre branches visibles', () {
@@ -946,7 +950,7 @@ void main() {
     }
   });
 
-  test('V10.1 : fissures hors F1 sur le haut et le haut-milieu', () {
+  test('V10.2 : fissures concentrées dans la moitié supérieure', () {
     final network = EggFractureNetwork.fixed();
     final model = network.model;
     final fixedEdges = network.edges.where((edge) {
@@ -974,12 +978,10 @@ void main() {
                    other.endNode == edge.endNode,
       ).length == 1;
     }).map((edge) => network.nodes[edge.endNode]).toList();
-    expect(tips.where((node) => node.y > -50 && node.y < 55).length,
-        greaterThanOrEqualTo(5));
-    expect(
-      tips.where((node) => node.y < -60 && node.y > -100).length,
-      greaterThanOrEqualTo(1),
-    );
+    expect(tips.where((node) => node.y > -50 && node.y < 55).length, 2,
+        reason: 'Exactly two sparse side-branch dead ends below F1');
+    expect(tips.where((node) => node.y > 80), isEmpty,
+        reason: 'Keep the lower shell intact for the future opening');
 
     // The already accepted cap/F1 cut is the unique material boundary.
     for (var i = 0; i < 24; i++) {
