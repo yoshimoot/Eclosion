@@ -1,5 +1,13 @@
 ﻿# Eclosion — état courant
 
+## Retour Chrome réseau statique V2 — réduction du motif en dents de scie (V3)
+
+**Observation utilisateur, capture du 8 octobre 2026 :** les déviations sont devenues trop fréquentes, de longueur presque identique et produisent des dents de scie très régulières sur plusieurs branches. Le réseau paraît mécanique malgré des arêtes 3D partagées. La couronne reste trop lisse, mais elle est commune à F1 et ne doit pas être retouchée pendant cette correction.
+
+**Itération V3 ciblée :** remplacer la déviation indépendante de chaque échantillon d'une branche par **1 à 3 coudes géométriques dominants** à espacement et amplitude déterministes non uniformes. Les points intermédiaires continuent d'être échantillonnés sur `EggShellModel` mais ne rajoutent pas de nouvelles oscillations visuelles. Tous les nœuds, arêtes communes, jonctions et extrémités sont inchangés. Une `seed` fixe, aucun caractère aléatoire entre sessions. La couronne `EggShellModel.crownFractureY` et l'ouverture F1 sont gelées.
+
+**Critères de validation :** photographie Chrome du mode `Réseau de fissures 3D (statique)`, repères de cadrage désactivés : segments de longueurs distinctes, cassures moins nombreuses, absence de peigne/dents de scie systématiques, raccords toujours exacts. Test structurel ajouté pour limiter le nombre de coudes saillants par arête ; **non exécuté tant que Flutter n'est pas disponible**. Aucune validation artistique de V3 à ce stade.
+
 ## Réseau statique V1 — retour de capture et morphologie V2
 
 La capture du 8 octobre montre un réseau fixé à la surface, mais les **ramifications présentent des segments presque droits** et leurs coudes restent insuffisamment irréguliers. La cassure circulaire supérieure est également trop lisse, mais **son tracé est actuellement partagé avec le F1 validé** : ne pas la modifier dans la même itération.

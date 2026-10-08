@@ -182,42 +182,63 @@ class _CrackGraphBuilder {
     final dx = endPoint.x - startPoint.x;
     final dy = endPoint.y - startPoint.y;
     final span = math.sqrt(dx * dx + dy * dy);
-    final steps = crown ? 16 : math.max(6, math.min(10, (span / 5).round()));
     final points = <EggShellPoint3>[];
     final lastAngle = crown && to == 0 ? math.pi : end.angle;
 
-    for (var i = 0; i <= steps; i++) {
-      if (i == 0 || i == steps) {
-        // Shared junctions stay exact. F1's original crown is frozen.
-        points.add(i == 0 ? startPoint : endPoint);
-        continue;
-      }
-
-      if (crown) {
-        final angle = start.angle + (lastAngle - start.angle) * i / steps;
+    if (crown) {
+      // F1's validated 360-degree seam remains exactly unchanged.
+      const segments = 16;
+      points.add(startPoint);
+      for (var i = 1; i < segments; i++) {
+        final angle =
+            start.angle + (lastAngle - start.angle) * i / segments;
         points.add(model.pointAt(model.crownFractureY(angle), angle));
-        continue;
       }
-
-      // Angular, uneven changes in direction instead of nearly straight
-      // interpolations. Offset intermediate corners sideways to the chord,
-      // tapering to zero at each existing graph junction.
-      final t = i / steps + _fixedSignedOffset(id, i, 2) * .19 / steps;
-      final amplitude = (span * .22).clamp(4.0, 7.0).toDouble();
-      final kink =
-          amplitude * _fixedSignedOffset(id, i, 1) * math.sin(math.pi * t);
+      points.add(endPoint);
+    } else {
+      // Crack directions change at one to three meaningful corners, with
+      // different lengths between them. Avoid independent jitter at every
+      // sample, which previously produced a mechanical sawtooth pattern.
+      final bendCount =
+          1 + (((_fixedSignedOffset(id, 0, 4) + 1) * 1.5)
+              .floor()
+              .clamp(0, 2)).toInt();
+      final corners = <EggShellPoint3>[startPoint];
+      final amplitude = (span * .13).clamp(2.5, 5.5).toDouble();
       final lateralX = span > 1e-6 ? -dy / span : 0.0;
       final lateralY = span > 1e-6 ? dx / span : 0.0;
-      final y = startPoint.y + dy * t + lateralY * kink;
-      final projectedX = startPoint.x + dx * t + lateralX * kink;
 
-      // Current branches lie on the camera-facing hemisphere. Every corner
-      // must be placed back on the shared 3D shell, never painted as 2D art.
-      final radius = model.radiusAt(y);
-      final xOnShell =
-          projectedX.clamp(-radius * .996, radius * .996).toDouble();
-      final angle = math.asin(xOnShell / radius);
-      points.add(model.pointAt(y, angle));
+      for (var bend = 1; bend <= bendCount; bend++) {
+        final t = (bend + _fixedSignedOffset(id, bend, 2) * .16) /
+            (bendCount + 1);
+        final value = _fixedSignedOffset(id, bend, 1);
+        final direction = value < 0 ? -1.0 : 1.0;
+        final kink = amplitude * (.6 + .4 * value.abs()) *
+            direction * math.sin(math.pi * t);
+        final y = startPoint.y + dy * t + lateralY * kink;
+        final x = startPoint.x + dx * t + lateralX * kink;
+        corners.add(model.surfaceAt(x, y));
+      }
+      corners.add(endPoint);
+
+      // Subdivisions preserve the shared 3D surface but are collinear in
+      // orthographic projection. Only the sparse corners introduce angles.
+      final subdivisions = bendCount == 1 ? 3 : 2;
+      points.add(startPoint);
+      for (var segment = 0; segment < corners.length - 1; segment++) {
+        final a = corners[segment];
+        final b = corners[segment + 1];
+        for (var step = 1; step <= subdivisions; step++) {
+          if (segment == corners.length - 2 && step == subdivisions) {
+            points.add(endPoint);
+            continue;
+          }
+          final t = step / subdivisions;
+          final y = a.y + (b.y - a.y) * t;
+          final x = a.x + (b.x - a.x) * t;
+          points.add(model.surfaceAt(x, y));
+        }
+      }
     }
 
     edges.add(EggCrackEdge(

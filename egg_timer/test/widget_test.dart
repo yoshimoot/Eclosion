@@ -770,6 +770,35 @@ void main() {
     expect(greatestDeviation, greaterThan(3.0));
   });
 
+  test('Fissures statiques : coudes rares, non répétitifs', () {
+    final network = EggFractureNetwork.fixed();
+    final bendCounts = <int>{};
+    for (final edge in network.edges) {
+      if (edge.kind == EggCrackKind.crown) continue;
+      var significantCorners = 0;
+      final samples = edge.samples;
+      for (var i = 1; i < samples.length - 1; i++) {
+        final previous = samples[i - 1];
+        final current = samples[i];
+        final next = samples[i + 1];
+        final ax = current.x - previous.x;
+        final ay = current.y - previous.y;
+        final bx = next.x - current.x;
+        final by = next.y - current.y;
+        final denominator = math.sqrt((ax * ax + ay * ay) *
+            (bx * bx + by * by));
+        if (denominator <= 1e-12) continue;
+        final sine = (ax * by - ay * bx).abs() / denominator;
+        if (sine > .08) significantCorners++;
+      }
+      expect(significantCorners, inInclusiveRange(1, 3),
+          reason: 'Sparse elbows, not a sawtooth at each sample');
+      bendCounts.add(significantCorners);
+    }
+    expect(bendCounts.length, greaterThanOrEqualTo(3),
+        reason: 'Different edges need distinct fracture rhythms');
+  });
+
   testWidgets('Atelier unifié : ouverture F1 et œuf intact', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
