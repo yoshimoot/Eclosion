@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## V10 — apparition progressive sur les arêtes 3D (code livré ; Chrome à valider)
+
+**Validation technique V9 obtenue localement le 8 octobre 2026 :** l'utilisateur a exécuté `flutter test --no-pub test/egg_crack_propagation_test.dart` sous Windows/PowerShell sur le commit `7097007`. Résultat communiqué : **`00:02 +5: All tests passed!`** (5 tests dédiés). Cette preuve porte uniquement sur les tests de V9, pas sur le rendu visuel V8 ni sur l'ensemble des tests Flutter.
+
+**Périmètre unique V10 :** connecter les fractions de propagation V9 aux traits du peintre 3D existant, sans changer un seul point ou nœud de `EggFractureNetwork`, la couronne F1, son ouverture, ses fissures propres, ses paramètres ni le minuteur. `visibleCrackPrefix` retourne le préfixe d'une polyligne **mesuré en longueur spatiale 3D**, avec interpolation du dernier point sur le segment échantillonné d'origine. Elle ne modifie pas les arêtes ; aucun alpha/crossfade ni tracé indépendant. `ShellCrackStroke` porte désormais sa fraction visible ; `EggShellF1PreviewPainter` dessine seulement ce préfixe au sein du même masque de profondeur et applique toujours la même transformation rigide aux fissures du chapeau.
+
+**Atelier :** un seul aperçu 3D, un curseur `Propagation fissures` (0–100 %) **indépendant** du curseur `Ouverture F1`. À progression zéro, les arêtes hors F1 sont cachées ; à 100 %, elles sont toutes visibles sur leur tracé d'origine. Les petites fissures du chapeau F1 restent à 100 % quelle que soit la progression. Le réglage est purement diagnostique, sans synchronisation actuelle au timer et sans retour aux modes ON/OFF.
+
+**Tests ajoutés / mis à jour mais non exécutés dans cet environnement :** découpe selon la longueur réelle d'une polyligne 3D (y compris angle non uniforme), reproductibilité, contrôle que l'extrémité visible appartient à un segment de l'arête d'origine, non-mutation, et test UI sur les deux curseurs, le maintien F1 et le mode diagnostic. Exécuter localement `flutter test --no-pub test/egg_crack_propagation_test.dart` puis `flutter test --no-pub test/widget_test.dart`, et valider dans Chrome aux progressions 0/25/50/75/100 % avec F1 fermé puis ouvert. Le rendu des futures régions physiques et le style géométrique V8 demeurent **non validés**.
+
 ## V9 — calendrier causal de propagation (implémenté ; tests locaux à exécuter)
 
 **Nouvelle décision (8 octobre 2026) :** la capture V8 n'est **pas artistiquement validée**. Les retouches successives des liaisons géométriques ne donnent pas une éclosion naturelle. La bonne direction est de **séparer la topologie potentielle, la propagation visible et la fragmentation réelle** ; les fissures peuvent n'apparaître que progressivement, les jonctions et fermetures restant latentes tant que la rupture ne les atteint pas.

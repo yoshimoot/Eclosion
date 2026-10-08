@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'egg_shell_model.dart';
 import 'egg_fracture_network.dart';
+import 'egg_crack_propagation.dart';
 
 /// Active 3D shell laboratory. The legacy 2D FragmentScene is intentionally
 /// not reachable from this UI; it remains in the repository for old tests.
@@ -20,29 +21,32 @@ class _FragmentLabState extends State<FragmentLab> {
   bool _guides = true;
   static final EggFractureNetwork _staticCracks =
       EggFractureNetwork.fixed();
+  static final EggCrackPropagationPlan _propagation =
+      EggCrackPropagationPlan(_staticCracks);
 
-  static List<ShellCrackStroke> _strokesFor({required bool onCap}) =>
-      List<ShellCrackStroke>.unmodifiable(
-        _staticCracks.edges
-            .where((edge) => edge.kind != EggCrackKind.crown)
-            .where((edge) {
-              final end = _staticCracks.nodes[edge.endNode];
-              final belongsToCap =
-                  end.y < _staticCracks.model.crownFractureY(end.angle);
-              return belongsToCap == onCap;
-            })
-            .map((edge) => (
-                  samples: edge.samples,
-                  primary: edge.kind != EggCrackKind.secondary,
-                )),
-      );
+  static List<ShellCrackStroke> _strokesFor({
+    required bool onCap,
+    required double progress,
+  }) => List<ShellCrackStroke>.unmodifiable(
+    _staticCracks.edges
+        .where((edge) => edge.kind != EggCrackKind.crown)
+        .where((edge) {
+          final end = _staticCracks.nodes[edge.endNode];
+          final belongsToCap =
+              end.y < _staticCracks.model.crownFractureY(end.angle);
+          return belongsToCap == onCap;
+        })
+        .map((edge) => (
+          samples: edge.samples,
+          primary: edge.kind != EggCrackKind.secondary,
+          visibleFraction:
+              _propagation.schedules[edge.id].visibleFraction(progress),
+        )),
+  );
 
-  static final List<ShellCrackStroke> _fixedCracks =
-      _strokesFor(onCap: false);
-  static final List<ShellCrackStroke> _movingCracks =
-      _strokesFor(onCap: true);
   bool _identifySurfaces = false;
   double _f1Open = .55;
+  double _crackProgress = 0;
 
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,9 +57,9 @@ class _FragmentLabState extends State<FragmentLab> {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Modèle 3D unique avec réseau de fissures permanent. '
-        'L’ouverture F1 reste un diagnostic provisoire. '
-        'Les autres fragments et le poussin ne sont pas encore intégrés.',
+        'Modèle 3D unique. Les fissures se propagent sur les mêmes '
+        'arêtes 3D ; l’ouverture F1 reste indépendante. '
+        'Fragments mobiles et poussin non encore intégrés.',
       ),
       const SizedBox(height: 20),
       Text(
@@ -69,6 +73,18 @@ class _FragmentLabState extends State<FragmentLab> {
         min: 0,
         max: 1,
         onChanged: (value) => setState(() => _f1Open = value),
+      ),
+      const SizedBox(height: 12),
+      Text('Propagation fissures · ${(_crackProgress * 100).round()} %'),
+      Slider(
+        value: _crackProgress,
+        min: 0,
+        max: 1,
+        onChanged: (value) => setState(() => _crackProgress = value),
+      ),
+      const Text(
+        'Progression de diagnostic indépendante du minuteur. '
+        'F1 conserve sa couronne et ses fissures validées.',
       ),
       const SizedBox(height: 12),
       CheckboxListTile(
@@ -104,6 +120,7 @@ class _FragmentLabState extends State<FragmentLab> {
                 'seed': _staticCracks.seed,
                 'showF1': true,
                 'f1Opening': _f1Open,
+                'crackProgress': _crackProgress,
                 'thickness': _fragmentThickness,
                 'guides': _guides,
                 'identifySurfaces': _identifySurfaces,
@@ -135,8 +152,14 @@ class _FragmentLabState extends State<FragmentLab> {
               thickness: _fragmentThickness,
               openAmount: _f1Open,
               identifySurfaces: _identifySurfaces,
-              fixedCracks: _fixedCracks,
-              movingCracks: _movingCracks,
+              fixedCracks: _strokesFor(
+                onCap: false,
+                progress: _crackProgress,
+              ),
+              movingCracks: _strokesFor(
+                onCap: true,
+                progress: _crackProgress,
+              ),
             ),
             child: const SizedBox.expand(),
           ),

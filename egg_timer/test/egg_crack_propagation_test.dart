@@ -1,8 +1,81 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:egg_timer/lab/egg_crack_propagation.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
+import 'package:egg_timer/lab/egg_shell_model.dart';
 
 void main() {
+  test('V10: 3D prefix follows cumulative length without moving nodes', () {
+    final points = <EggShellPoint3>[
+      const EggShellPoint3(0, 0, 0),
+      const EggShellPoint3(3, 0, 0),
+      const EggShellPoint3(3, 4, 0),
+    ];
+    expect(visibleCrackPrefix(points, 0), isEmpty);
+    expect(visibleCrackPrefix(points, -.5), isEmpty);
+    expect(identical(visibleCrackPrefix(points, 1), points), isTrue);
+    expect(visibleCrackPrefix(points, 2), same(points));
+
+    final half = visibleCrackPrefix(points, .5);
+    expect(half.length, 3);
+    expect(half.first.x, 0);
+    expect(half[1].x, 3);
+    expect(half.last.x, 3);
+    expect(half.last.y, closeTo(.5, 1e-12));
+    final second = visibleCrackPrefix(points, 3 / 7);
+    expect(second.last.x, 3);
+    expect(second.last.y, 0);
+    expect(visibleCrackPrefix(points, .5), half);
+    expect(points.last.y, 4);
+    expect(
+      () => visibleCrackPrefix(points, double.nan),
+      throwsArgumentError,
+    );
+  });
+
+  test('V10: partial traces remain on existing sampled 3D edges', () {
+    final network = EggFractureNetwork.fixed();
+    final plan = EggCrackPropagationPlan(network);
+    final fractions = plan.visibleFractionsAt(.65);
+    for (final edge in network.edges) {
+      final f = fractions[edge.id];
+      final prefix = visibleCrackPrefix(edge.samples, f);
+      if (f == 0) {
+        expect(prefix, isEmpty);
+        continue;
+      }
+      if (f == 1) {
+        expect(identical(prefix, edge.samples), isTrue);
+      } else {
+        expect(prefix.first.x, edge.samples.first.x);
+        expect(prefix.first.y, edge.samples.first.y);
+        expect(prefix.first.z, edge.samples.first.z);
+        expect(prefix.length, greaterThanOrEqualTo(2));
+        expect(prefix.length, lessThanOrEqualTo(edge.samples.length));
+        final end = prefix.last;
+        var foundSegment = false;
+        for (var i = 1; i < edge.samples.length; i++) {
+          final a = edge.samples[i - 1];
+          final b = edge.samples[i];
+          final v = b - a;
+          final p = end - a;
+          final lengthSquared = v.x * v.x + v.y * v.y + v.z * v.z;
+          if (lengthSquared <= 1e-20) continue;
+          final t = (p.x * v.x + p.y * v.y + p.z * v.z) /
+              lengthSquared;
+          final deviation = p - v * t;
+          if (t >= -1e-8 &&
+              t <= 1 + 1e-8 &&
+              deviation.length < 1e-7) {
+            foundSegment = true;
+            break;
+          }
+        }
+        expect(foundSegment, isTrue,
+            reason: 'V10 must not create a decorative 2D crack');
+      }
+    }
+  });
+
   test('V9: every material edge has one reproducible causal schedule', () {
     final network = EggFractureNetwork.fixed();
     final one = EggCrackPropagationPlan(network);

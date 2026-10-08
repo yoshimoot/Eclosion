@@ -379,8 +379,53 @@ class EggShellModelPainter extends CustomPainter {
 
 
 
-/// Immutable sampled fissure on EggShellModel.
-typedef ShellCrackStroke = ({List<EggShellPoint3> samples, bool primary});
+/// Prefix of an existing sampled 3D crack polyline, measured by spatial
+/// arc length rather than sample count or alpha opacity.
+///
+/// Does not mutate or rebuild the fracture graph. The final fractional point
+/// is interpolated ON an existing 3D segment; subsequent full endpoints are
+/// preserved exactly. F1's previously accepted boundary is not changed.
+List<EggShellPoint3> visibleCrackPrefix(
+  List<EggShellPoint3> samples,
+  double fraction,
+) {
+  if (!fraction.isFinite) {
+    throw ArgumentError.value(fraction, 'fraction', 'Must be finite');
+  }
+  if (samples.length < 2 || fraction <= 0) return const <EggShellPoint3>[];
+  if (fraction >= 1) return samples;
+
+  var totalLength = 0.0;
+  for (var i = 1; i < samples.length; i++) {
+    totalLength += (samples[i] - samples[i - 1]).length;
+  }
+  if (totalLength <= 1e-12) return const <EggShellPoint3>[];
+
+  var remaining = totalLength * fraction;
+  final prefix = <EggShellPoint3>[samples.first];
+  for (var i = 1; i < samples.length; i++) {
+    final before = samples[i - 1];
+    final after = samples[i];
+    final segment = after - before;
+    final length = segment.length;
+    if (length <= 1e-12) continue;
+    if (remaining >= length) {
+      prefix.add(after);
+      remaining -= length;
+    } else {
+      prefix.add(before + segment * (remaining / length));
+      break;
+    }
+  }
+  return prefix;
+}
+
+/// Immutable sampled fissure, with visible spatial fraction from the V9 plan.
+typedef ShellCrackStroke = ({
+  List<EggShellPoint3> samples,
+  bool primary,
+  double visibleFraction,
+});
 
 enum _DepthSurfaceRole { rearBowl, fixedOuter, capInner, cutRim, capOuter }
 
@@ -834,9 +879,14 @@ class EggShellF1PreviewPainter extends CustomPainter {
     required bool onMovingCap,
   }) {
     for (final stroke in strokes) {
+      final visible = visibleCrackPrefix(
+        stroke.samples,
+        stroke.visibleFraction,
+      );
+      if (visible.length < 2) continue;
       final path = Path();
       var drawing = false;
-      for (final point in stroke.samples) {
+      for (final point in visible) {
         if (point.z <= model.maxRadius * .002) {
           drawing = false;
           continue;
