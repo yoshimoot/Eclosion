@@ -1,5 +1,19 @@
 ﻿# Eclosion — état courant
 
+## V11.7 — Couture latérale réelle et contour arrière F1 (tests en attente, 9 octobre 2026)
+
+**Retour PowerShell confirmé sur `e5fdbc3` :** les deux suites `egg_stationary_bowl_shell_test.dart` et `egg_shell_front_assembly_test.dart` passent **9/9** (`00:01 +9: All tests passed!`). La V11.6 (face intérieure et tranche supérieure du bol fixe AVANT) est ainsi validée par les tests, pas encore visuellement.
+
+**Objectif unique V11.7 :** préparer le **raccord matériel continu avec la coquille ARRIÈRE** sans inventer un contour latéral théorique ou une bande de détourage. Le raffinement V11.4/V11.5 reprojette ses milieux d'arêtes sur `EggShellModel` : les côtés raffinés ne sont donc pas nécessairement exactement sur le plan `z=0`. Pour assurer une vraie continuité, les côtés arrière doivent partager les **SOMMETS 3D RÉELS** du maillage avant et non des points nouvellement calculés avec `pointAt(y,±π/2)`.
+
+**Nouveau `egg_rear_bowl_boundary.dart` :** parcourt exclusivement le contour ouvert de `EggStationaryBowlShell` entre couronne droite F1 (nœud 18), pôle inférieur commun, et couronne gauche F1 (nœud 6). Expose les IDs des sommets de droite/gauche, **par référence directe aux sommets extérieurs avant**, et garantit le même sommet au bas. Complète ce contour par les **12 arêtes arrière de la couronne F1 existante** (`18–23`, `0–5`, 16 sous-segments par arête), sans reformuler leur géométrie. La frontière arrière candidate devient un cycle 3D fermé : couronne arrière droite→gauche, flanc gauche→pôle, flanc droit inversé→droite. Le raccord des épaisseurs arrière sera réalisé depuis les mêmes normales du modèle.
+
+**Portée vérifiable :** uniquement les frontières, pas encore de maillage arrière triangulé, de paroi arrière, de rendu, de charnière ni de mouvement. Les deux arêtes verticales encore ouvertes à V11.6 ne sont volontairement pas masquées. Le prochain changement devra construire la surface incurvée arrière **sur cette frontière partagée exacte**, et contrôler les normales/occlusions avant tout affichage.
+
+**Acquis gelés :** F1, le réseau V10.4 (50 nœuds/52 arêtes), seed, profondeur du modèle, épaisseur `2.5`, oscillation `1.5`, propulsion/propagation, volumes V11.2, maillage du bol V11.4, assemblage V11.5, atelier et poussin. Aucun fichier existant de production n'est changé.
+
+**Cinq tests ajoutés (non exécutés ici) :** `flutter test --no-pub test/egg_rear_bowl_boundary_test.dart` ; ils vérifient l'identité des sommets communs, la continuité des arêtes de contour, les 12 arêtes de couronne arrière, la fermeture 3D et la stabilité pour un échantillonnage grossier. Rejouer V11.6 si nécessaire. **Ne pas poursuivre à la triangulation arrière avant leur réussite locale.**
+
 ## V11.6 — Correction du test d'incidence des deux extrémités (8 octobre 2026)
 
 **Retour réel PowerShell :** après récupération de `d9f5429`, exécution des suites V11.6 et V11.5 ensemble : **8 tests réussis, 1 échec**, dans `V11.6: interior and cut walls share manifold edges only`. Comptage réel des arêtes ouvertes = `4098` ; test attendait `4096`. Les autres vérifications (épaisseur 2.5, faces, tranches, stabilité, assemblage V11.5) passent.
