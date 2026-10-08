@@ -799,50 +799,51 @@ void main() {
         reason: 'Different edges need distinct fracture rhythms');
   });
 
-  test('Réseau V4 : deux Y internes et orientations obliques', () {
+  test('Réseau V6 : deux liaisons et trois cycles connectés', () {
     final network = EggFractureNetwork.fixed();
+    final adjacency = List<List<int>>.generate(
+      network.nodes.length, (_) => <int>[]);
     final degrees = List<int>.filled(network.nodes.length, 0);
+    final pairs = <String>{};
+
     for (final edge in network.edges) {
-      degrees[edge.startNode]++;
-      degrees[edge.endNode]++;
+      final a = edge.startNode, b = edge.endNode;
+      adjacency[a].add(b);
+      adjacency[b].add(a);
+      degrees[a]++;
+      degrees[b]++;
+      expect(pairs.add('${math.min(a,b)}:${math.max(a,b)}'), isTrue,
+          reason: 'One shared edge per material boundary');
+    }
+    final visited = <int>{0}, queue = <int>[0];
+    for (var i = 0; i < queue.length; i++) {
+      for (final neighbor in adjacency[queue[i]]) {
+        if (visited.add(neighbor)) queue.add(neighbor);
+      }
     }
 
-    final forks = network.nodes.where(
-      (node) => node.id >= 24 && degrees[node.id] == 3,
-    ).toList();
-    expect(forks.length, 2, reason: 'Two internal Y junctions, not three');
+    expect(visited.length, network.nodes.length);
+    expect(network.edges.length - network.nodes.length + 1, 3,
+        reason: 'The F1 loop plus two new enclosed regions');
+    expect(network.edges.where(
+      (edge) => edge.kind == EggCrackKind.crown).length, 24);
+    expect(network.edges.where(
+      (edge) => edge.kind == EggCrackKind.connection).length, 6);
+    expect(degrees.every((degree) => degree <= 3), isTrue);
+    expect(degrees.skip(24).where((degree) => degree == 3).length,
+        inInclusiveRange(6, 8));
 
-    for (final fork in forks) {
-      final outgoing = network.edges
-          .where((edge) => edge.startNode == fork.id)
-          .toList();
-      expect(outgoing.length, 2);
-      final origin = fork.onShell(network.model);
-      final a = network.nodes[outgoing[0].endNode].onShell(network.model);
-      final b = network.nodes[outgoing[1].endNode].onShell(network.model);
-      final ax = a.x - origin.x;
-      final ay = a.y - origin.y;
-      final bx = b.x - origin.x;
-      final by = b.y - origin.y;
-      final denom = math.sqrt(
-        (ax * ax + ay * ay) * (bx * bx + by * by),
-      );
-      expect(denom, greaterThan(1e-9));
-      expect((ax * bx + ay * by) / denom, lessThan(.8),
-          reason: 'A Y must have two visibly diverging branches');
-    }
-
-    final diagonals = network.edges.where((edge) {
-      if (edge.kind != EggCrackKind.primary) return false;
+    final majorOblique = network.edges.where((edge) {
+      if (edge.kind != EggCrackKind.primary &&
+          edge.kind != EggCrackKind.connection) return false;
       final a = network.nodes[edge.startNode].onShell(network.model);
       final b = network.nodes[edge.endNode].onShell(network.model);
-      return (a.x - b.x).abs() > (a.y - b.y).abs() * .7;
+      return (a.x-b.x).abs() > (a.y-b.y).abs() * .65;
     }).length;
-    expect(diagonals, greaterThanOrEqualTo(5),
-        reason: 'Main fractures must not all run vertically');
+    expect(majorOblique, greaterThanOrEqualTo(6));
   });
 
-  test('Réseau V4 : aucune intersection fortuite entre branches visibles', () {
+  test('Réseau V6 : aucune intersection fortuite entre branches visibles', () {
     final network = EggFractureNetwork.fixed();
     final branches = network.edges
         .where((edge) => edge.kind != EggCrackKind.crown)
@@ -898,7 +899,10 @@ void main() {
     // The new faults occupy the upper visible shell instead of descending
     // in long parallel lines toward the base. Short cap branches are exempt.
     expect(fixedEdges.length, greaterThanOrEqualTo(20));
-    expect(fixedSamples.every((sample) => sample.y < 0), isTrue);
+    expect(
+      fixedSamples.every((sample) => sample.y < model.halfHeight * .27),
+      isTrue,
+    );
     expect(fixedSamples.any((sample) => sample.x < -95), isTrue);
     expect(fixedSamples.any((sample) => sample.x > 105), isTrue);
     expect(fixedSamples.any((sample) => sample.x.abs() < 20), isTrue);
@@ -910,8 +914,8 @@ void main() {
                    other.endNode == edge.endNode,
       ).length == 1;
     }).map((edge) => network.nodes[edge.endNode]).toList();
-    expect(tips.where((node) => node.y > -40 && node.y < 0).length,
-        greaterThanOrEqualTo(3));
+    expect(tips.where((node) => node.y > -50 && node.y < 55).length,
+        greaterThanOrEqualTo(5));
     expect(
       tips.where((node) => node.y < -60 && node.y > -100).length,
       greaterThanOrEqualTo(1),

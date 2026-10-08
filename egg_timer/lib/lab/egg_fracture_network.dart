@@ -15,7 +15,7 @@ class EggCrackNode {
   EggShellPoint3 onShell(EggShellModel model) => model.pointAt(y, angle);
 }
 
-enum EggCrackKind { crown, primary, secondary }
+enum EggCrackKind { crown, primary, connection, secondary }
 
 /// One shared material boundary. Adjacent regions are only assigned for the
 /// crown: branch region ownership must wait for validated fragment topology.
@@ -70,53 +70,61 @@ class EggFractureNetwork {
       graph.edge(i, (i + 1) % sections, EggCrackKind.crown);
     }
 
-    // Spatial layout follows the reference's pre-hatching upper-shell zone:
-    // uneven oblique cracks, two shared Y junctions and shortened dead ends.
-    // Only the BELOW-CROWN network changes; the existing F1 boundary and its
-    // two short cap cracks are not reauthored.
+    // Three dominant material faults, plus two genuinely shared-node
+    // transverse connections. The F1 loop and cap scratches are unchanged.
     final left = graph.chain(8, const [
-      _CrackLocation(-99, -.77),
-      _CrackLocation(-83, -.56),
-      _CrackLocation(-65, -.40),
-      _CrackLocation(-51, -.49),
-      _CrackLocation(-31, -.57),
-      _CrackLocation(-18, -.67),
+      _CrackLocation(-93, -.88),
+      _CrackLocation(-59, -.74),
+      _CrackLocation(-20, -.84),
+      _CrackLocation(12, -.82),
+      _CrackLocation(47, -.68),
     ]);
-    // Y1 spreads across the left flank instead of descending in parallel.
-    graph.chain(left[1], const [
-      _CrackLocation(-72, -1.00),
-      _CrackLocation(-52, -1.10),
-      _CrackLocation(-36, -1.02),
-    ], kind: EggCrackKind.secondary);
-
-    // Upper-front transverse/diagonal fault. No extra Y junction.
-    graph.chain(11, const [
-      _CrackLocation(-88, .08),
-      _CrackLocation(-74, .36),
-      _CrackLocation(-58, .44),
-      _CrackLocation(-47, .13),
-      _CrackLocation(-25, -.08),
+    final middle = graph.chain(11, const [
+      _CrackLocation(-77, -.23),
+      _CrackLocation(-44, -.18),
+      _CrackLocation(-15, .02),
+      _CrackLocation(13, .24),
+      _CrackLocation(47, .19),
     ]);
-
     final right = graph.chain(14, const [
-      _CrackLocation(-92, .83),
-      _CrackLocation(-84, 1.03),
-      _CrackLocation(-66, 1.19),
-      _CrackLocation(-49, .94),
-      _CrackLocation(-31, .72),
+      _CrackLocation(-80, .64),
+      _CrackLocation(-48, .63),
+      _CrackLocation(-20, .84),
+      _CrackLocation(13, .96),
+      _CrackLocation(46, .79),
     ]);
-    // Y2 bends inward from the right flank, with unequal arm lengths.
-    graph.chain(right[1], const [
-      _CrackLocation(-76, .72),
-      _CrackLocation(-56, .68),
-      _CrackLocation(-38, .75),
-    ], kind: EggCrackKind.secondary);
 
-    // One peripheral interruption stays shorter than the main failures.
+    // Each connection terminates at a pre-existing graph node. This
+    // produces two bounded shell regions, not decorative crossing strokes.
+    final leftConnector = graph.chain(left[2], const [
+      _CrackLocation(-6, -.50),
+      _CrackLocation(-7, -.23),
+    ], kind: EggCrackKind.connection);
+    graph.edge(leftConnector.last, middle[2], EggCrackKind.connection);
+
+    final rightConnector = graph.chain(middle[3], const [
+      _CrackLocation(29, .48),
+      _CrackLocation(34, .76),
+    ], kind: EggCrackKind.connection);
+    graph.edge(rightConnector.last, right[3], EggCrackKind.connection);
+
+    // A few unequal dead ends; no isolated cracks or repetitive stars.
+    graph.chain(left[1], const [
+      _CrackLocation(-36, -1.07),
+      _CrackLocation(-12, -1.12),
+    ], kind: EggCrackKind.secondary);
+    graph.chain(middle[1], const [
+      _CrackLocation(-36, .06),
+      _CrackLocation(-24, .16),
+    ], kind: EggCrackKind.secondary);
+    graph.chain(right[2], const [
+      _CrackLocation(-13, 1.14),
+      _CrackLocation(11, 1.16),
+    ], kind: EggCrackKind.secondary);
     graph.chain(17, const [
       _CrackLocation(-92, 1.43),
       _CrackLocation(-71, 1.48),
-    ]);
+    ], kind: EggCrackKind.secondary);
     graph.chain(10, const [
       _CrackLocation(-142, -.57),
       _CrackLocation(-164, -.36),

@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## Réseau V6 — grandes fractures structurantes (en attente de validation Chrome)
+
+**Demande du 8 octobre 2026 :** prendre le croquis rouge comme orientation stylistique, et non comme un tracé exact. Les fissures indépendantes V5 sont remplacées par **trois axes de fracture longs** (gauche, centre, droite), **deux liaisons transversales** et quelques ramifications mortes. Les segments principaux sont irréguliers et asymétriques pour former un réseau cohérent, plutôt qu'une texture de traits.
+
+**Architecture :** deux chemins de connexion en `EggCrackKind.connection` comportent chacun trois arêtes et se raccordent aux nœuds déjà présents des trois chaînes. Le graphe reste entièrement connexe et gagne **exactement deux cycles** sous F1, susceptibles de délimiter plus tard des régions de fragments ; ces régions **ne sont pas encore découpées**, ni affectées à des fragments mobiles. Une seule arête géométrique partagée par jonction. Les polylignes continuent de s'appuyer sur `EggShellModel`.
+
+**Gel respecté :** aucune modification du modèle `EggShellModel`, de la couronne `crownFractureY` (24 arêtes), des deux fissures propres au chapeau F1, de son pivot/ouverture, de l'épaisseur `2.5`, de l'oscillation `1.5`, de l'atelier et de la seed `20261008`. Pas de variation entre sessions.
+
+**Contrôle :** contrôle numérique préparatoire de la projection des arêtes : absence de croisements fortuits entre branches non connectées, surfaces projetées dans les limites du modèle, deux nouveaux cycles. Les tests Dart du graphe, de la non-intersection et de la répartition ont été révisés mais **non exécutés ici**. Une capture Chrome à 0 % puis quelques ouvertures F1 est nécessaire pour valider le style et l'intégration des nouvelles frontières. La validité future de la découpe physique ne peut pas être déduite du seul tracé statique.
+
 ## Réseau statique V5 — repositionnement des fissures hors F1 (8 octobre 2026)
 
 **Décision utilisateur :** l'ouverture F1 est jugée OK. Ne pas la retoucher. Prochaine priorité : **positionner correctement les autres fissures** selon la planche de référence, notamment les stades 25 % et 5 % où les ruptures les plus importantes se concentrent sur le haut et le haut-milieu de la coquille, au lieu de longues fissures verticales isolées.
