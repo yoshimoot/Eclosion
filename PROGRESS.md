@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## V11.2 — Construction statique des deux volumes de coquille (tests locaux en attente, 8 octobre 2026)
+
+**V11.1 testée :** retour PowerShell utilisateur après `d829666` : `flutter test --no-pub test/egg_fragment_regions_test.dart` → **`00:01 +5: All tests passed!`**. Les contours fermés et leurs frontières communes sont donc techniquement vérifiés par ces cinq tests. L'utilisateur conserve la répartition V10.4 comme base visuelle.
+
+**Objectif unique V11.2 :** construire deux volumes 3D fermés depuis les régions V11.1, avec **surface extérieure, surface intérieure et tranche**. Nouveau `egg_shell_fragment_mesh.dart` : les échantillons exacts des fissures composent le bord initial ; une triangulation en x/y des deux contours fermés est raffinementée uniformément avec des milieux d'arêtes partagés, projetés sur `EggShellModel.surfaceAt`. La face intérieure provient de `model.inset(point, 2.5)`. Les mêmes arêtes du contour raffiné forment les quads des tranches, découpés en triangles. Aucun contour indépendant dessiné pour masquer une imperfection.
+
+**Invariants préservés :** F1/couronne/ses fissures, réseau V10.4 (`50 nœuds, 52 arêtes`), moteur V9/V10, seed `20261008`, oscillation `1.5`, épaisseur de `2.5`, vue atelier et poussin ; aucun fichier existant de géométrie ou de peintre changé. **Limite :** les nouvelles pièces sont des maillages statiques en données, **pas des fragments affichés ou détachés** ; le bol fixe conserve intégralement ses triangles dans l'atelier. La soustraction physique correspondante, les attaches/pivots, l'occlusion en déplacement et le passage du poussin restent à construire séparément.
+
+**Tests ajoutés mais pas encore exécutés dans ce chat :** `test/egg_shell_fragment_mesh_test.dart` (5 contrôles dédiés : faces et tranches, manifold, projection 3D, épaisseur, frontières originales et stabilité). Lancer `flutter test --no-pub test/egg_shell_fragment_mesh_test.dart` localement. Ne pas déclarer cette V11.2 validée sans retour des tests ; en cas d'échec, corriger uniquement la triangulation.
+
 ## V11.1 — Validation de la répartition et cartographie des deux régions candidates (8 octobre 2026)
 
 **Validation utilisateur :** après examen de la vidéo V10.4, l'utilisateur confirme **« ok »** à la demande explicite de retenir la **répartition des fissures V10.4 comme base de la fragmentation**. C'est une validation de la **répartition artistique comme base de travail**, pas une approbation de l'existence de maillages séparés, d'une cavité réaliste, de charnières, d'un passage libre du poussin ou d'une animation d'éclosion.
