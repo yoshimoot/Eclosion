@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## Itération réseau statique 3D — code livré, validation Chrome attendue
+
+**Objectif unique :** première topologie de fissures géométriques sur `EggShellModel`, sans rotation des fragments, sans changement de F1, et sans variabilité entre sessions.
+
+- Un `EggFractureNetwork` immuable à `seed=20261008` contient des **nœuds paramétrés sur la surface** et des **arêtes uniques échantillonnées en 3D**. Une boucle de 24 arêtes parcourt la couronne complète ; cette limite appelle **la même** méthode `EggShellModel.crownFractureY(angle)` que F1, afin de ne pas définir deux cassures différentes.
+- Ramifications asymétriques reliées à des nœuds réels (avec branches mortes) ; couleur et tracé projeté servent de **diagnostic de topologie**, pas de simulation d'ouverture ni de découpe de matière réalisée.
+- Mode distinct `Réseau de fissures 3D (statique)` accessible dans l'atelier, sans toucher aux réglages F1 existants. L'œuf fixe est peint via `EggShellModelPainter` ; les tracés arrière sont occultés dans l'aperçu orthographique.
+- Test structurel ajouté à `widget_test.dart` : déterminisme, arêtes non dupliquées, jonctions communes, compatibilité de la boucle avec la couronne F1 et tous les échantillons sur l'ellipsoïde local. **Ce test est écrit mais non exécuté** sans Flutter.
+- Critères de validation utilisateur à venir : réseau visiblement attaché à la surface, contour inchangé, connexions exactes sans fissures flottantes, fissures non géométriques/répétitives et style proche du stade 25 % / 5 % de `reference/Planche Eclosion.png`. **Ne pas activer la variabilité ni la mécanique multi-fragments avant retour visuel.**
+
 ## Audit structurel préliminaire — 8 octobre 2026 (lecture seule du moteur)
 
 **Portée exacte :** examen du code `egg_timer/lib/lab/egg_shell_model.dart` sur `5ea7d3d`, vérification numérique indépendante des formules `EggShellModel` et des transformations F1, et relecture de la vidéo Chrome de diagnostic du 8 octobre (ouvertures ~1, 37, 81 et 100 %). Aucun code Dart modifié, ni test Flutter exécuté ; aucun rendu non diagnostique supplémentaire vérifié pendant cet audit.

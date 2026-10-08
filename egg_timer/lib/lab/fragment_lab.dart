@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'egg_shell_model.dart';
+import 'egg_fracture_network.dart';
 
 /// Active 3D shell laboratory. The legacy 2D FragmentScene is intentionally
 /// not reachable from this UI; it remains in the repository for old tests.
@@ -17,7 +18,10 @@ class FragmentLab extends StatefulWidget {
 class _FragmentLabState extends State<FragmentLab> {
   static const double _fragmentThickness = 2.5;
   bool _guides = true;
+  static final EggFractureNetwork _staticCracks =
+      EggFractureNetwork.fixed();
   bool _showF1 = true;
+  bool _showCracks = false;
   bool _identifySurfaces = false;
   double _f1Open = .55;
 
@@ -30,11 +34,20 @@ class _FragmentLabState extends State<FragmentLab> {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Validation du modèle 3D unifié : œuf intact ou chapeau F1. '
-        'Les autres fragments et le poussin ne sont pas encore intégrés.',
+        'Modèle 3D unifié : œuf intact, chapeau F1 ou réseau de fissures '
+        'géométrique statique. Les autres fragments et le poussin restent '
+        'hors de cet atelier.',
       ),
       const SizedBox(height: 20),
       SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Réseau de fissures 3D (statique)'),
+        subtitle: const Text('Seed fixe 20261008 ; aucune rupture animée.'),
+        value: _showCracks,
+        onChanged: (value) => setState(() => _showCracks = value),
+      ),
+      if (!_showCracks)
+        SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Afficher F1 3D seul'),
         subtitle: const Text(
@@ -44,10 +57,14 @@ class _FragmentLabState extends State<FragmentLab> {
         onChanged: (value) => setState(() => _showF1 = value),
       ),
       Text(
-        _showF1 ? 'Modèle 3D unifié · F1 supérieur' : 'Modèle 3D unifié · œuf intact',
+        _showCracks
+            ? 'Réseau statique · géométrie commune'
+            : _showF1
+                ? 'Modèle 3D unifié · F1 supérieur'
+                : 'Modèle 3D unifié · œuf intact',
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      if (_showF1) ...[
+      if (!_showCracks && _showF1) ...[
         const SizedBox(height: 12),
         Text('Ouverture F1 · ${(_f1Open * 100).round()} %'),
         Slider(
@@ -64,7 +81,7 @@ class _FragmentLabState extends State<FragmentLab> {
         value: _guides,
         onChanged: (value) => setState(() => _guides = value ?? false),
       ),
-      if (_showF1)
+      if (!_showCracks && _showF1)
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Identifier les surfaces'),
@@ -72,7 +89,7 @@ class _FragmentLabState extends State<FragmentLab> {
           onChanged: (value) =>
               setState(() => _identifySurfaces = value ?? false),
         ),
-      if (_showF1 && _identifySurfaces)
+      if (!_showCracks && _showF1 && _identifySurfaces)
         const Text(
           'F1 : extérieur vert · intérieur magenta · tranche orange. '
           'Bol : extérieur cyan · intérieur arrière bleu. '
@@ -87,7 +104,11 @@ class _FragmentLabState extends State<FragmentLab> {
           await Clipboard.setData(
             ClipboardData(
               text: jsonEncode({
-                'atelier': 'EggShellModel F1 unifié',
+                'atelier': _showCracks
+                    ? 'EggShellModel réseau statique'
+                    : 'EggShellModel F1 unifié',
+                'staticCracks': _showCracks,
+                'seed': _showCracks ? _staticCracks.seed : null,
                 'showF1': _showF1,
                 'f1Opening': _f1Open,
                 'thickness': _fragmentThickness,
@@ -115,7 +136,12 @@ class _FragmentLabState extends State<FragmentLab> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: CustomPaint(
-            painter: _showF1
+            painter: _showCracks
+                ? EggCrackNetworkPainter(
+                    network: _staticCracks,
+                    guides: _guides,
+                  )
+                : _showF1
                 ? EggShellF1PreviewPainter(
                     guides: _guides,
                     shadow: true,

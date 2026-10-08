@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:egg_timer/main.dart';
 import 'package:egg_timer/lab/egg_shell_model.dart';
+import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/fragment_scene.dart';
 import 'package:egg_timer/lab/fragment_playback.dart';
 
@@ -666,6 +667,76 @@ void main() {
     clock.stop();
   });
 
+  test('Réseau 3D statique : topologie partagée et reproductible', () {
+    final first = EggFractureNetwork.fixed();
+    final second = EggFractureNetwork.fixed();
+    final model = first.model;
+
+    expect(first.seed, EggFractureNetwork.fixedSeed);
+    expect(first.nodes.length, greaterThan(24));
+    expect(first.edges.where((edge) => edge.kind == EggCrackKind.crown).length, 24);
+    expect(first.edges.length, second.edges.length);
+
+    final pairs = <String>{};
+    final degrees = List<int>.filled(first.nodes.length, 0);
+    for (var i = 0; i < first.edges.length; i++) {
+      final edge = first.edges[i];
+      final other = second.edges[i];
+      expect(edge.id, i);
+      expect(edge.startNode, inInclusiveRange(0, first.nodes.length - 1));
+      expect(edge.endNode, inInclusiveRange(0, first.nodes.length - 1));
+      expect(edge.startNode, isNot(edge.endNode));
+      final a = math.min(edge.startNode, edge.endNode);
+      final b = math.max(edge.startNode, edge.endNode);
+      expect(pairs.add('$a:$b'), isTrue, reason: 'No duplicate material edge');
+      degrees[edge.startNode]++;
+      degrees[edge.endNode]++;
+      expect(edge.samples.length, greaterThanOrEqualTo(7));
+      final start = first.nodes[edge.startNode].onShell(model);
+      final end = first.nodes[edge.endNode].onShell(model);
+      for (final check in [
+        (edge.samples.first, start),
+        (edge.samples.last, end),
+      ]) {
+        expect(check.$1.x, closeTo(check.$2.x, 1e-10));
+        expect(check.$1.y, closeTo(check.$2.y, 1e-10));
+        expect(check.$1.z, closeTo(check.$2.z, 1e-10));
+      }
+
+      if (edge.kind == EggCrackKind.crown) {
+        expect(edge.regionA, 'F1-crown');
+        expect(edge.regionB, 'fixed-bowl');
+      } else {
+        expect(edge.regionA, isNull);
+        expect(edge.regionB, isNull);
+      }
+      for (var j = 0; j < edge.samples.length; j++) {
+        final p = edge.samples[j];
+        final q = other.samples[j];
+        expect(p.x, closeTo(q.x, 1e-12));
+        expect(p.y, closeTo(q.y, 1e-12));
+        expect(p.z, closeTo(q.z, 1e-12));
+        final radius = model.radiusAt(p.y);
+        if (radius > 1e-5) {
+          final ellipse = math.pow(p.x / radius, 2) +
+              math.pow(p.z / (radius * model.depthRatio), 2);
+          expect(ellipse, closeTo(1, 1e-8),
+              reason: 'All crack samples must lie on EggShellModel');
+        }
+      }
+    }
+
+    for (var i = 0; i < 24; i++) {
+      final node = first.nodes[i];
+      expect(node.y, closeTo(model.crownFractureY(node.angle), 1e-10));
+    }
+    expect(degrees.where((degree) => degree >= 3), isNotEmpty,
+        reason: 'Forks must share exact junction nodes');
+    expect(degrees.where((degree) => degree == 1), isNotEmpty,
+        reason: 'Organic dead-end branches are intentional');
+    expect(first.edges.last.kind, EggCrackKind.secondary);
+  });
+
   testWidgets('Atelier unifié : ouverture F1 et œuf intact', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -708,6 +779,21 @@ void main() {
     await tester.tap(find.text('Afficher F1 3D seul'));
     await tester.pump();
     expect(f1Painter().identifySurfaces, isTrue);
+    expect(f1Painter().openAmount, 1);
+
+    await tester.tap(find.text('Réseau de fissures 3D (statique)'));
+    await tester.pump();
+    expect(
+      tester
+          .widgetList<CustomPaint>(find.byType(CustomPaint))
+          .map((widget) => widget.painter)
+          .whereType<EggCrackNetworkPainter>()
+          .length,
+      1,
+    );
+    expect(find.byType(Slider), findsNothing);
+    await tester.tap(find.text('Réseau de fissures 3D (statique)'));
+    await tester.pump();
     expect(f1Painter().openAmount, 1);
   });
 

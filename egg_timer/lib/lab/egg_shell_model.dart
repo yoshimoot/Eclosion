@@ -180,6 +180,20 @@ class EggShellModel {
     );
   }
 
+  /// Crown cut currently shared by the F1 preview and the static fracture
+  /// graph. Moving this boundary requires a dedicated geometric validation.
+  double crownFractureY(double angle) {
+    final u = ((angle + math.pi) / (2 * math.pi)) % 1.0;
+    final frontBack = 9 * math.cos(angle);
+    final irregular =
+        6 * math.sin(u * math.pi * 6 + .45) +
+        3.5 * math.sin(u * math.pi * 14 + 1.15);
+    final lateralBias = 4 * math.sin(angle - .35);
+    return (-114 + frontBack + irregular + lateralBias)
+        .clamp(-132.0, -94.0)
+        .toDouble();
+  }
+
   EggShellPoint3 normalAt(EggShellPoint3 point) {
     final radius = radiusAt(point.y);
     if (radius <= 1e-6) {
@@ -534,19 +548,8 @@ class EggShellF1PreviewPainter extends CustomPainter {
     )!;
   }
 
-  double _boundaryY(double angle) {
-    // Full 360° fracture loop on the crown. angle=0 faces the camera,
-    // ±pi/2 are the sides and pi is the rear of the egg.
-    final u = ((angle + math.pi) / (2 * math.pi)) % 1.0;
-    final frontBack = 9 * math.cos(angle);
-    final irregular =
-        6 * math.sin(u * math.pi * 6 + .45) +
-        3.5 * math.sin(u * math.pi * 14 + 1.15);
-    final lateralBias = 4 * math.sin(angle - .35);
-    return (-114 + frontBack + irregular + lateralBias)
-        .clamp(-132.0, -94.0)
-        .toDouble();
-  }
+  // Delegated to the shared shell model: no second copy of the crown cut.
+  double _boundaryY(double angle) => model.crownFractureY(angle);
 
   EggShellPoint3 _rotateX(EggShellPoint3 point, double angle) {
     final c = math.cos(angle);
