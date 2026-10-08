@@ -23,7 +23,7 @@
 >
 > Contraintes : préserver le profil de `EggShellModel`, la silhouette et l'ouverture déjà acquises, l'épaisseur `2.5` et l'oscillation `1.5` ; **une itération = un défaut principal**. Pas de crossfade ni de patch graphique, pas de GitHub Actions. Tester/formatter si l'outillage est disponible, distinguer clairement code vérifié et rendu validé par vidéo Chrome. Préserver les changements locaux non committés.
 >
-> **Réponds d'abord avec** la branche et le HEAD vérifiés, l'état validé / non validé, le défaut prioritaire et le plan minimal de la prochaine itération. **N'écris pas de code tant que je n'ai pas confirmé.**
+> **Dans le premier échange de reprise**, réponds avec la branche et le HEAD vérifiés, l'état validé / non validé, le défaut prioritaire et la prochaine étape. Si je fournis seulement ce message de reprise, **ne modifie aucun code**. Si je fournis ensuite une vidéo/capture avec une demande d'itération, applique directement la boucle **analyse → correction GitHub → commit → commande PowerShell → validation Chrome**, sans me redemander une autorisation pour chaque correction ciblée ; demande confirmation pour une modification destructive, ambiguë ou qui remet en cause un acquis validé.
 
 ### Si la nouvelle conversation n'a pas accès à GitHub
 
@@ -33,6 +33,12 @@ Ouvrir les trois fichiers dans le navigateur à partir des URLs :
 - [ECLOSION_CHAT_REFERENCE.md](https://github.com/yoshimoot/Eclosion/blob/prototype/fragment-lab-v1/ECLOSION_CHAT_REFERENCE.md)
 
 Les déposer dans le nouveau chat avec le message ci-dessus, puis joindre la **dernière vidéo ou capture locale pertinente** si une analyse visuelle est attendue. Les anciennes pièces jointes ne sont pas garanties accessibles dans un nouveau chat.
+
+### Procédure opérationnelle désormais utilisée
+
+L'utilisateur fournit **une vidéo ou une capture du test Chrome**. ChatGPT examine le rendu, identifie **un défaut principal**, vérifie le code et le HEAD, **modifie directement les fichiers nécessaires sur GitHub**, crée un commit ciblé (aucune GitHub Action), puis transmet le commit et **la commande PowerShell** pour actualiser le clone local et lancer `flutter run -d chrome`. L'utilisateur teste puis renvoie son observation. **Une réussite technique n'est pas une validation visuelle.**
+
+Codex n'est plus une étape obligatoire de ce cycle ; l'ancienne méthode Chat → prompt Codex → correction est archivée plus bas comme historique. Après une capture assortie d'une demande de nouvelle itération, ne pas exiger d'autorisation répétée pour les corrections ciblées ordinaires ; demander confirmation si suppression, changement architectural sensible ou risque sur les acquis gelés.
 
 ### Préservation entre deux itérations
 
@@ -305,64 +311,43 @@ Revenir au diagnostic de la cause ou à l’architecture.
 
 ---
 
-## 11. Méthode de travail Chat / Codex
+## 11. Méthode de travail active — Chat → GitHub → Chrome
 
-CHAT sert principalement à :
-- analyser les vidéos ;
-- comparer au visuel de référence ;
-- identifier le défaut prioritaire ;
-- déterminer ce qui doit rester gelé ;
-- définir les critères visuels d’acceptation ;
-- produire un prompt Codex précis.
+Depuis le 8 octobre 2026, l'assistant intervient **directement sur le dépôt GitHub** dans le cadre d'une itération demandée. Il n'est plus nécessaire de rédiger un prompt Codex à chaque cycle.
 
-CODEX sert principalement à :
-- lire le dépôt actuel ;
-- identifier la cause technique ;
-- modifier le code ;
-- effectuer le formatage ;
-- lancer l’analyse Flutter ;
-- exécuter les tests ;
-- rendre compte des modifications.
+**Cycle normal :**
 
-Le test visuel final reste effectué dans Chrome puis analysé dans Chat.
+1. L'utilisateur teste localement dans Chrome et transmet une **vidéo/capture** (éventuellement avec une observation).
+2. ChatGPT **analyse visuellement** la scène, compare la référence et les validations précédentes, puis choisit **un seul défaut principal**. Si la cause est inconnue, il examine le code plutôt que modifier au hasard.
+3. ChatGPT vérifie la branche `prototype/fragment-lab-v1`, son HEAD et les fichiers en vigueur ; il **corrige directement sur GitHub**, uniquement les fichiers nécessaires, puis **commite** la modification sans réécrire l'historique.
+4. Il réalise les vérifications Dart/Flutter **si son environnement dispose des outils**. Les vérifications non exécutées doivent être dites explicitement. **Ne pas lancer de GitHub Actions.**
+5. Il livre le **SHA et le lien du commit**, le défaut ciblé, les éléments conservés et la **commande PowerShell** permettant de récupérer GitHub puis lancer Chrome.
+6. L'utilisateur vérifie dans Chrome, envoie une nouvelle capture/vidéo et confirme ou signale la régression. **Le rendu n'est validé qu'après cet examen visuel.**
+7. Si une validation, un blocage ou la priorité changent, ChatGPT met à jour `PROGRESS.md`. Une décision durable nouvelle va dans cette référence ou dans `AGENTS.md` selon sa nature.
 
-Boucle normale :
+Ce cycle est autorisé pour les **corrections ciblées demandées par les captures** ; demander l'accord de l'utilisateur avant une suppression importante ou un changement de direction qui toucherait les éléments déjà validés. Ne pas se substituer à la validation Chrome.
 
-vidéo actuelle
-→ analyse Chat
-→ un défaut prioritaire
-→ prompt Codex court
-→ diagnostic et correction
-→ format / analyse / tests
-→ validation Chrome
-→ nouvelle vidéo
-→ analyse Chat.
+**Cycle court à retenir :** vidéo/capture utilisateur → analyse d'un défaut → correctif GitHub + commit → PowerShell `git pull --ff-only` → `flutter run -d chrome` → nouvelle vidéo/capture.
+
+### Ancien workflow, conservé pour l'historique
+
+L'approche antérieure séparait les responsabilités : **CHAT** analysait les vidéos et formulait un prompt Codex (objectif, symptôme, acquis gelés, critères d'acceptation) ; **CODEX** lisait le dépôt, corrigeait, formatait, analysait et testait ; l'utilisateur validait ensuite sous Chrome. Cette approche peut rester une solution alternative **si la correction directe sur GitHub n'est pas possible**, mais elle n'est **plus la méthode par défaut**.
 
 ---
 
-## 12. Prompts Codex
+## 12. Consignes pour les corrections directes (Codex facultatif)
 
-Ne pas répéter tout le cahier des charges à chaque itération.
+Ne pas recopier tout le cahier des charges dans chaque cycle. Le référentiel est réparti ainsi :
+- `AGENTS.md` : règles permanentes et vérifications obligatoires ;
+- `PROGRESS.md` : état courant, acquis confirmés, point bloquant, prochaine tâche ;
+- `ECLOSION_CHAT_REFERENCE.md` : historique des choix, références et guide de reprise ;
+- historique Git : code réellement livré.
 
-Les règles permanentes appartiennent à :
-AGENTS.md
+Le **correctif GitHub** doit comporter un objectif unique, le symptôme reproduit, les éléments non modifiables, des changements minimaux et les critères concrets de vérification. Ne pas présenter un simple patch ou un tri fixe des couches comme un véritable rendu volumique.
 
-L’état technique courant appartient à :
-PROGRESS.md
+Si la cause technique est incertaine : commencer par un diagnostic du code et des captures. Si la cause est suffisamment établie : corriger dans la même itération et livrer le commit avec un bilan exact.
 
-Le prompt Codex d’une nouvelle itération doit principalement contenir :
-
-- objectif unique ;
-- symptôme observé ;
-- éléments gelés si nécessaire ;
-- critères d’acceptation ;
-- éventuelle zone du code déjà identifiée.
-
-Si la cause technique est incertaine :
-demander d’abord à Codex de diagnostiquer.
-
-Si la cause est suffisamment connue :
-Codex peut diagnostiquer brièvement puis corriger dans la même tâche.
+**Contrôles :** `dart format` des seuls fichiers modifiés, `flutter analyze` et `flutter test --no-pub test/widget_test.dart`, **lorsque les outils sont disponibles** ; documenter honnêtement toute impossibilité. Jamais de GitHub Actions pour ces corrections.
 
 ---
 
@@ -504,20 +489,20 @@ Après deux retouches sans progrès visuel : arrêter les ajustements ponctuels,
 - Branche de travail : `prototype/fragment-lab-v1` ; `main` n’est pas la branche de ce prototype.
 - Fichiers importants : `AGENTS.md` (règles et vérifications), `PROGRESS.md` (état des validations), `ECLOSION_CHAT_REFERENCE.md` (référence entre conversations), `egg_timer/lib/lab/egg_shell_model.dart`, `egg_timer/lib/lab/fragment_lab.dart`, ancien `fragment_scene.dart`.
 - `reference/Planche Eclosion.png` est immuable.
-- Conserver le travail dans Chat/Codex et les tests visuels locaux dans Chrome ; **ne pas lancer GitHub Actions** pour ces itérations.
+- **Méthode active : ChatGPT analyse les médias de l'utilisateur et modifie directement GitHub**, fournit le commit et une commande PowerShell ; l'utilisateur valide dans Chrome et transmet le nouveau résultat. Codex reste une option de secours, pas une étape obligatoire. **Ne pas lancer GitHub Actions** pour ces itérations.
 - Une itération = un défaut principal, avec un commit ciblé, un résultat des vérifications sincère, puis une validation vidéo par l’utilisateur.
 - Selon `AGENTS.md` : après modification Dart, `dart format` des seuls fichiers changés, `flutter analyze`, puis `flutter test --no-pub test/widget_test.dart`. Le succès de compilation ne remplace pas la validation visuelle.
 
 ### Synchronisation locale à partir de GitHub
 
-L’utilisateur a observé dans son clone local : ` M egg_timer/lib/lab/fragment_scene.dart`. Le dépôt distant était plus avancé. Cette modification locale **ne doit pas être écrasée silencieusement**, mais elle ne doit pas non plus être réintroduite dans le modèle validé.
+Le 8 octobre 2026, le clone local `C:\Users\User\Dev\Eclosion` présentait une modification de `fragment_scene.dart`. Elle a été sauvegardée en stash, examinée via `Eclosion_stash.diff`, jugée obsolète pour le nouvel atelier F1, puis le stash a été supprimé par l'utilisateur. `git status --short` et `git stash list` étaient ensuite vides ; `git pull --ff-only` a synchronisé local et distant sur `6a7efbc`. **Cet état est historique, à revérifier pour toute session ultérieure**. Le fichier `fragment_scene.dart` reste présent et requis par l'ancien moteur et ses tests ; ne pas le supprimer sans traiter ses dépendances.
 
 Commandes PowerShell (à lancer sur le bon poste et dans le bon clone) :
 
 ```powershell
 cd "$env:USERPROFILE\Dev\Eclosion"
 git status --short
-git stash push -m "Sauvegarde avant synchronisation" -- egg_timer/lib/lab/fragment_scene.dart
+# Si des modifications locales existent, les examiner/sauvegarder d'abord.
 git switch prototype/fragment-lab-v1
 git pull --ff-only origin prototype/fragment-lab-v1
 git status --short
@@ -526,7 +511,7 @@ cd egg_timer
 flutter run -d chrome
 ```
 
-Ne **pas** exécuter `git stash pop` automatiquement : cela restaurerait une modification potentiellement dépassée. `git pull --ff-only` protège contre un merge automatique inattendu. La synchronisation est **une procédure proposée**, pas une preuve qu’elle a été effectivement terminée sur le PC.
+Ne **pas** exécuter `git stash pop` automatiquement : cela pourrait restaurer une modification obsolète. `git pull --ff-only` protège contre un merge automatique inattendu. **La synchronisation du 8 octobre a été confirmée par la sortie PowerShell transmise par l'utilisateur, au commit `6a7efbc`** ; les cycles suivants doivent vérifier leur propre état.
 
 Le chemin dépend de `$env:USERPROFILE` : il ne faut pas supposer que les différents comptes Windows (`User`, `alrad`, etc.) pointent vers le même clone. Vérifier `git remote -v` et `git branch --show-current` en cas d’ambiguïté.
 
