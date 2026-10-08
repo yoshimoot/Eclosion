@@ -41,6 +41,7 @@ class _FragmentLabState extends State<FragmentLab>
   bool _eggModelOnly = true;
   bool _f1ModelPreview = true;
   double _f1Open = .55;
+  int _hatchSeed = DateTime.now().millisecondsSinceEpoch & 0x7fffffff;
   FragmentPaintDiagnostics? _lastPaint;
   final _previewKey = GlobalKey();
   Offset? _probePoint;
@@ -185,6 +186,21 @@ class _FragmentLabState extends State<FragmentLab>
             0,
             1,
             (value) => setState(() => _f1Open = value),
+          ),
+        if (_eggModelOnly && _f1ModelPreview)
+          Row(
+            children: [
+              Expanded(child: Text('Seed session · $_hatchSeed')),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: () => setState(() {
+                  _hatchSeed =
+                      (_hatchSeed * 1664525 + 1013904223) & 0x7fffffff;
+                  _f1Open = 0;
+                }),
+                child: const Text('Nouvelle session'),
+              ),
+            ],
           ),
         const SizedBox(height: 4),
         Text(
@@ -358,6 +374,7 @@ class _FragmentLabState extends State<FragmentLab>
                                     shadow: _shadow,
                                     thickness: _fragmentThickness,
                                     openAmount: _f1Open,
+                                    seed: _hatchSeed,
                                   )
                                 : EggShellModelPainter(
                                     guides: _guides,
