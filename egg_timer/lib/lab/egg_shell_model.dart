@@ -492,10 +492,14 @@ class EggShellF1PreviewPainter extends CustomPainter {
     final colors = <Color>[];
     final indices = <int>[];
 
+    // The first mesh row follows the exact shared fracture boundary.
+    // Dropping complete triangles at a sampled row would produce square steps.
     for (var row = 0; row <= rows; row++) {
-      final y = -model.halfHeight + 2 * model.halfHeight * row / rows;
+      final t = row / rows;
       for (var column = 0; column <= columns; column++) {
         final angle = -math.pi / 2 + math.pi * column / columns;
+        final topY = _boundaryY(angle);
+        final y = topY + (model.halfHeight - topY) * t;
         final point = model.pointAt(y, angle);
         positions.add(point.xy);
         colors.add(_shade(model.normalAt(point)));
@@ -504,15 +508,7 @@ class EggShellF1PreviewPainter extends CustomPainter {
 
     final stride = columns + 1;
     for (var row = 0; row < rows; row++) {
-      final y0 = -model.halfHeight + 2 * model.halfHeight * row / rows;
-      final y1 = -model.halfHeight + 2 * model.halfHeight * (row + 1) / rows;
-      final centerY = (y0 + y1) / 2;
       for (var column = 0; column < columns; column++) {
-        final angle0 = -math.pi / 2 + math.pi * column / columns;
-        final angle1 = -math.pi / 2 + math.pi * (column + 1) / columns;
-        final centerAngle = (angle0 + angle1) / 2;
-        if (centerY < _boundaryY(centerAngle)) continue;
-
         final a = row * stride + column;
         final b = a + 1;
         final c = a + stride;
