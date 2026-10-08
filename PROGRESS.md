@@ -47,11 +47,11 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-Le modèle `EggShellModel` reste la source de vérité géométrique et F1 reste le seul fragment actif. Le réseau de fissures reste déterministe par seed, mais la validation visuelle a montré qu'il fallait aussi reconstruire la partie fixe de la coquille avec la même logique 3D.
+Le modèle `EggShellModel` reste la source de vérité géométrique et F1 reste le seul fragment actif. Le réseau de fissures reste déterministe par seed. La validation visuelle a montré qu'un simple corps inférieur frontal, même construit sur la surface 3D, restait incomplet : une vraie coquille basse ouverte doit aussi révéler une partie de sa paroi intérieure arrière à travers l'ouverture.
 
-La bande de cavité projetée a donc été supprimée. Le corps inférieur est maintenant construit directement depuis la même surface 3D que F1, avec sa première rangée exactement posée sur le réseau de rupture. Une vraie lèvre fixe 3D relie la surface extérieure à la surface intérieure suivant les normales locales. Entre la tranche de F1 et cette lèvre fixe, l'espace est volontairement vide : aucune bande 2D ne remplit plus l'ouverture.
+La partie fixe inférieure est donc maintenant construite comme un bol 3D complet : demi-coque extérieure avant, lèvre de rupture avant, demi-paroi intérieure arrière et lèvre arrière. Le rendu est peint de l'arrière vers l'avant afin que la coque extérieure avant masque naturellement la paroi intérieure là où elle doit être cachée. L'espace entre F1 et la lèvre avant reste vide ; ce qui peut apparaître derrière est la vraie face intérieure arrière de la même coquille, pas une bande 2D projetée.
 
-Valider sous Chrome uniquement ce point : à l'ouverture de F1, on doit lire deux morceaux de coquille 3D séparés par du vide. Tant que cette lecture n'est pas propre, ne pas réintroduire F2–F5 ni poursuivre le polish du réseau.
+Valider sous Chrome uniquement cette lecture volumique : à l'ouverture de F1, on doit distinguer une tranche avant fine, du vide, puis une partie de l'intérieur arrière du bol avec une occlusion crédible. Tant que cette structure n'est pas propre, ne pas réintroduire F2–F5 ni poursuivre le polish du réseau.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
