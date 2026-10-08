@@ -47,11 +47,11 @@ La validation visuelle suivante a montré un nouveau défaut isolé : F3, placé
 
 ## Prochaine étape
 
-La dernière validation visuelle a montré que la silhouette s'éloignait d'un vrai œuf et que les fragments restaient perçus comme des îlots plaqués sur la face avant. La priorité a donc été recentrée sur la base géométrique : retour à une silhouette d'œuf plus étroite et crédible, puis déplacement des grands fragments jusqu'aux vraies zones de courbure de la coquille. F1 atteint maintenant le flanc droit, F3 enveloppe la couronne et le flanc haut gauche, F4/F5 atteignent les côtés du bord du bol. Leurs sommets 3D sont toujours générés par la même surface ellipsoïdale `_surface()` ; les points de couronne ont aussi été recalés pour rester réellement sur cette ellipsoïde plutôt que de tomber artificiellement à z=0 hors projection.
+Le modèle `EggShellModel` reste la source de vérité géométrique et F1 reste le seul fragment actif. Le réseau de fissures reste déterministe par seed. La validation visuelle a montré qu'un simple corps inférieur frontal, même construit sur la surface 3D, restait incomplet : une vraie coquille basse ouverte doit aussi révéler une partie de sa paroi intérieure arrière à travers l'ouverture.
 
-Valider sous Chrome uniquement deux choses : (1) la silhouette doit redevenir immédiatement lisible comme un œuf ; (2) les fragments doivent commencer à se lire comme des morceaux d'une coquille courbe qui se prolongent vers les côtés/couronne, et non comme cinq formes dessinées au milieu de la façade. Tant que ces deux lectures ne sont pas correctes, ne pas reprendre le polish des trajectoires.
+La partie fixe inférieure est donc maintenant construite comme un bol 3D complet : demi-coque extérieure avant, lèvre de rupture avant, demi-paroi intérieure arrière et lèvre arrière. Le rendu est peint de l'arrière vers l'avant afin que la coque extérieure avant masque naturellement la paroi intérieure là où elle doit être cachée. L'espace entre F1 et la lèvre avant reste vide ; ce qui peut apparaître derrière est la vraie face intérieure arrière de la même coquille, pas une bande 2D projetée.
 
-La future variation par session ne devra modifier que légèrement la distribution de la poussée (position/rayon/intensité via une seed déterministe). Les lois de fissuration, pivot, rupture, gravité et conservation des fragments resteront identiques.
+Valider sous Chrome uniquement cette lecture volumique : à l'ouverture de F1, on doit distinguer une tranche avant fine, du vide, puis une partie de l'intérieur arrière du bol avec une occlusion crédible. Tant que cette structure n'est pas propre, ne pas réintroduire F2–F5 ni poursuivre le polish du réseau.
 
 La future variabilité restera pilotée par une seed unique par éclosion ; aucune géométrie ni aucun timing ne doit être randomisé frame par frame.
 
