@@ -105,12 +105,12 @@ void main() {
     // Lock the exact experimental Chrome configuration as a visible
     // contract: diagnostics should not accidentally test a different run.
     expect(EggExitMotionConfig.circumferentialAcceleration, 115);
-    expect(EggExitMotionConfig.gravityAcceleration, 70);
+    expect(EggExitMotionConfig.gravityAcceleration, 135);
     expect(EggExitMotionConfig.clearanceThicknesses, 3);
     for (var i = 0; i < 2; i++) {
       final motion = motions[i];
       expect(motion.circumferentialAcceleration, 115);
-      expect(motion.gravityAcceleration, 70);
+      expect(motion.gravityAcceleration, 135);
       expect(motion.minimumOutwardClearance,
           closeTo(3 * assembly.panels[i].thickness, 1e-12));
       expect(motion.fallDistanceAt(motion.clearanceStartSeconds), 0);
@@ -157,6 +157,30 @@ void main() {
           }
         }
       }
+    }
+    // V11.29: landing proximity is measured in actual world-space shell
+    // vertices, not on a 2D painted contour. +Y points toward the floor.
+    // No floor collision response exists yet; this check only constrains
+    // the end pose to a realistic vicinity of the egg's base plane.
+    for (var i = 0; i < 2; i++) {
+      var lowestY = double.negativeInfinity;
+      for (final group in [
+        assembly.panels[i].outer,
+        assembly.panels[i].inner,
+      ]) {
+        for (final vertex in group) {
+          final y = motions[i].transform(
+            vertex, EggExitTimeline.freeDuration,
+          ).y;
+          if (y > lowestY) lowestY = y;
+        }
+      }
+      expect(lowestY.isFinite, isTrue);
+      expect(lowestY,
+          inInclusiveRange(network.model.halfHeight - 55,
+              network.model.halfHeight + 25),
+          reason: 'The released rigid shell must approach the ground '
+              'without disappearing far underneath it (panel $i)');
     }
     expect(() => EggExitFraming.verticalExtent(
       stationaryHalfHeight: -1, panels: assembly.panels, motions: motions,
