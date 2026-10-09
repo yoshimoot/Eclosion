@@ -4,6 +4,7 @@ import 'package:egg_timer/lab/egg_geometry_preview.dart';
 import 'package:egg_timer/lab/egg_panel_hinge_pose.dart';
 import 'package:egg_timer/lab/egg_panel_release_motion.dart';
 import 'package:egg_timer/lab/egg_shell_front_assembly.dart';
+import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
