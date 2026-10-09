@@ -219,7 +219,7 @@ void main() {
 
     // t = 0 starts at the LAST attached pose, i.e. 55% on the UI.
     // These are physical seconds since separation, not player seconds.
-    for (final seconds in [0.0, .12, .3, .4, .55, .8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]) {
+    for (final seconds in [0.0, .12, .3, .4, .5, .55, .65, .8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]) {
       final a = againstBowl[0].inspect(seconds, maxPairs: 15000);
       final b = againstBowl[1].inspect(seconds, maxPairs: 15000);
       final pair = betweenPanels.inspect(
@@ -260,6 +260,18 @@ void main() {
         debugPrintSynchronously(
           '  droite: ${witness(panelIndex: 1, seconds: seconds, frame: b)}',
         );
+      }
+      // From 0.30 s onward, the previous V11.26 sampled flight was
+      // completely clear. Fail this targeted regression if gravity creates
+      // a new intersection at ANY sampled instant. This deliberately does
+      // not claim continuous-time collision certification.
+      if (seconds >= .3) {
+        expect(a.sampledFrameClear, isTrue,
+            reason: 'Left panel not clear at t=$seconds s');
+        expect(b.sampledFrameClear, isTrue,
+            reason: 'Right panel not clear at t=$seconds s');
+        expect(pair.sampledFrameClear, isTrue,
+            reason: 'Panels not clear at t=$seconds s');
       }
     }
     debugPrintSynchronously('V11.27 : aucun échantillon libre ne certifie '
