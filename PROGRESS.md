@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.10 — Inclinaison diagnostique des fragments V11.8 (9 octobre 2026 ; validation Chrome en attente)
+
+**Retour local V11.9 confirmé :** `flutter test --no-pub test/egg_full_bowl_mesh_test.dart test/egg_rear_bowl_mesh_test.dart` → **`00:01 +10: All tests passed!`**. Le volume global avant+arrière passe les cinq contrôles de V11.9, dont l'incidence orientée et Euler=2 ; cinq tests V11.8 de régression également réussis. Ce résultat technique ne signifie pas que le relief des panneaux ou le rendu final est validé visuellement.
+
+**Défaut ciblé V11.10 :** dans les captures Chrome V11.8 « Assemblé/Écarté », les panneaux paraissent plats malgré deux faces et une tranche d'épaisseur 2.5. Cela s'explique principalement par la projection frontale orthographique et le décalage XY seul, qui ne révèle quasiment pas la profondeur (z) des tranches. Ne pas augmenter artificiellement l'épaisseur ni peindre des bandes décoratives.
+
+**Correction d'inspection ciblée :** `egg_panel_inspection_pose.dart` introduit une transformation 3D **rigide**, réversible, autour de l'axe Y et du centre XZ de chaque panneau ; une translation de diagnostic est appliquée ensuite. L'angle peut être réglé de 0° à 70° via un curseur dans **la vue V11.8 « Écarté » uniquement**, avec 42° comme valeur d'inspection initiale, en opposé pour panneau gauche/droit. Les faces extérieure et intérieure et toutes les tranches sont transformées avec la même matrice, et les normales diagnostiques sont tournées de la même manière avant éclairage simplifié. La profondeur z réellement transformée est réutilisée par le moteur d'occultation au pixel. En mode **« Assemblé »**, aucune transformation n'est appliquée : même dessin et mêmes objets qu'en V11.8, sans discontinuité de couture.
+
+**Interprétation :** il s'agit d'une **rotation d'observation**, pas d'une animation, d'un pivot validé, ni d'une modification du mouvement d'éclosion. Ne pas juger le pivot physique sur cet exemple. La coque fixe avant+arrière et les deux maillages de panneaux V11.2 restent inchangés. Aucune dérive vers F2–F5, poussin, timer, changement de seed, refonte de fissures ou remplacement d'images.
+
+**Validation :** nouveau `test/egg_panel_inspection_pose_test.dart` (4 tests), contrôlant l'identité géométrique à 0°, la préservation des distances/épaisseur 2.5 par rotation 3D, la conservation des indices de parois et les paramètres invalides. Aucun Flutter/Chrome disponible dans cet environnement : exécuter localement `flutter test --no-pub test/egg_panel_inspection_pose_test.dart`, puis `flutter run -d chrome`, comparer le mode Écarté à **0°, 42° et 70°** pour apprécier faces et tranches. Renvoyer captures/vidéo. Ne pas déclarer la lisibilité volumétrique validée avant inspection Chrome.
+
 ## V11.9 — Contrôle du volume de coquille avant + arrière (9 octobre 2026 ; tests en attente)
 
 **Retours Chrome V11.8 reçus :** les captures de la page dédiée montrent (1) les deux panneaux **assemblés**, contour des fissures visible et bol inférieur continu ; (2) les panneaux **écartés**, mêmes contours, trou apparent entre eux sans disparition. La bande brune près de la couronne est **compatible avec la face intérieure arrière visible sans F1** et ne suffit pas à démontrer un défaut. Les panneaux ont encore une apparence mince/plate du fait de la projection orthographique statique : leur épaisseur 2.5 existe mais sa lisibilité artistique n'est **pas validée**. Le rendu ne valide ni l'orientation ni le manifold de la jonction arrière.

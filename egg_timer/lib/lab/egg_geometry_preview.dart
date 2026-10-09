@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'egg_fragment_regions.dart';
+import 'egg_panel_inspection_pose.dart';
 import 'egg_fracture_network.dart';
 import 'egg_rear_bowl_boundary.dart';
 import 'egg_rear_bowl_mesh.dart';
@@ -32,6 +33,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
   bool _right = true;
   bool _inside = true;
   bool _outlines = true;
+  double _inspectionYaw = 42;
 
   @override
   void initState() {
@@ -65,6 +67,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
               rightPanel: _right,
               showInside: _inside,
               outlines: _outlines,
+              inspectionYaw: _inspectionYaw,
             ),
             child: const SizedBox.expand(),
           ),
@@ -95,6 +98,21 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
       const SizedBox(height: 8),
       const Text('Écarté = décalage de présentation, '
           'pas une animation physique validée.',
+          style: TextStyle(fontSize: 12)),
+      const SizedBox(height: 14),
+      Text('Inclinaison 3D des panneaux · ${_inspectionYaw.round()}°'),
+      Slider(
+        value: _inspectionYaw,
+        min: 0,
+        max: 70,
+        divisions: 14,
+        onChanged: _separated
+            ? (value) => setState(() => _inspectionYaw = value)
+            : null,
+      ),
+      const Text('Inspection uniquement en mode Écarté : rotation rigide '
+          'des faces et des tranches autour d’un axe vertical. '
+          'Ce n’est pas le pivot final des fragments.',
           style: TextStyle(fontSize: 12)),
       const SizedBox(height: 14),
       SwitchListTile(
@@ -167,7 +185,8 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
 /// A 3D mesh in a temporary diagnostic position (no model mutation).
 class _Surface {
   _Surface(this.points, this.faces, this.color,
-      {this.offset = Offset.zero, this.inside = false, this.rim});
+      {this.offset = Offset.zero, this.inside = false, this.rim,
+      this.originalPoints, this.pose});
 
   final List<EggShellPoint3> points;
   final List<EggShellTriangle> faces;
@@ -175,6 +194,8 @@ class _Surface {
   final Offset offset;
   final bool inside;
   final List<int>? rim;
+  final List<EggShellPoint3>? originalPoints;
+  final EggPanelInspectionPose? pose;
   late final List<Offset> xy = [
     for (final p in points) Offset(p.x + offset.dx, p.y + offset.dy),
   ];
@@ -197,6 +218,7 @@ class _ShellMeshPainter extends CustomPainter {
     required this.rightPanel,
     required this.showInside,
     required this.outlines,
+    required this.inspectionYaw,
   });
 
   final EggShellModel model;
@@ -208,6 +230,7 @@ class _ShellMeshPainter extends CustomPainter {
   final bool rightPanel;
   final bool showInside;
   final bool outlines;
+  final double inspectionYaw;
 
   List<_Surface> _meshes() {
     final result = <_Surface>[];
@@ -238,32 +261,48 @@ class _ShellMeshPainter extends CustomPainter {
     for (var i = 0; i < panels.length; i++) {
       if ((i == 0 && !leftPanel) || (i == 1 && !rightPanel)) continue;
       final panel = panels[i];
-      final shift = separated
-          ? Offset(i == 0 ? -18 : 18, i == 0 ? -9 : -13)
-          : Offset.zero;
+      // Pure diagnostic rigid rotation: apply the SAME 3D pose to
+      // exterior, inner face and thickness walls, never to the source mesh.
+      // At rest retain the exact original objects and drawing behavior.
+      final pose = separated
+          ? EggPanelInspectionPose.forPanel(
+              panel.outer,
+              yawDegrees: i == 0 ? -inspectionYaw : inspectionYaw,
+              shiftX: i == 0 ? -18 : 18,
+              shiftY: i == 0 ? -9 : -13,
+            )
+          : null;
+      final exterior = pose?.transformAll(panel.outer) ?? panel.outer;
+      final interior = pose?.transformAll(panel.inner) ?? panel.inner;
       result.add(_Surface(
-        panel.outer, panel.outerTriangles,
+        exterior, panel.outerTriangles,
         i == 0 ? const Color(0xffffe0b4) : const Color(0xfffbd09a),
-        offset: shift, rim: panel.rim,
+        rim: panel.rim, originalPoints: panel.outer, pose: pose,
       ));
       result.add(_Surface(
-        [...panel.outer, ...panel.inner],
+        [...exterior, ...interior],
         panel.sideTriangles, const Color(0xffa67857),
-        offset: shift, inside: true,
+        inside: true,
+        originalPoints: [...panel.outer, ...panel.inner],
+        pose: pose,
       ));
       if (separated) {
         final offset = panel.outer.length;
-        result.add(_Surface(panel.inner, [
+        result.add(_Surface(interior, [
           for (final t in panel.innerTriangles)
             EggShellTriangle(t.a - offset, t.b - offset, t.c - offset),
-        ], const Color(0xffd9b18e), offset: shift, inside: true));
+        ], const Color(0xffd9b18e),
+          inside: true, originalPoints: panel.inner, pose: pose,
+        ));
       }
     }
     return result;
   }
 
-  Color _shade(EggShellPoint3 point, Color base, bool inside) {
-    final n = model.normalAt(point);
+  Color _shade(EggShellPoint3 point, Color base, bool inside,
+      {EggShellPoint3? original, EggPanelInspectionPose? pose}) {
+    final localNormal = model.normalAt(original ?? point);
+    final n = pose?.rotateNormal(localNormal) ?? localNormal;
     final directional = (n.x * -.43 + n.y * -.39 + n.z * .78) *
         (inside ? -1 : 1);
     final weight = (.71 + .22 * directional).clamp(.30, 1.0).toDouble();
@@ -367,7 +406,9 @@ class _ShellMeshPainter extends CustomPainter {
         ui.Vertices(
           ui.VertexMode.triangles, mesh.xy,
           colors: [
-            for (final p in mesh.points) _shade(p, mesh.color, mesh.inside),
+            for (var j = 0; j < mesh.points.length; j++)
+              _shade(mesh.points[j], mesh.color, mesh.inside,
+                original: mesh.originalPoints?[j], pose: mesh.pose),
           ],
           indices: mesh.indices,
         ),
@@ -400,5 +441,5 @@ class _ShellMeshPainter extends CustomPainter {
       old.model != model || old.front != front || old.rear != rear ||
       old.separated != separated || old.leftPanel != leftPanel ||
       old.rightPanel != rightPanel || old.showInside != showInside ||
-      old.outlines != outlines;
+      old.outlines != outlines || old.inspectionYaw != inspectionYaw;
 }
