@@ -215,6 +215,64 @@ void main() {
     }
   });
 
+  test('V11.27: gravity lowers rigid panels after radial clearance', () {
+    for (var i = 0; i < 2; i++) {
+      final without = motion(i);
+      final panel = panels[i];
+      final baseline = EggPanelReleaseMotion.fromHinge(
+        panel: panel,
+        hinge: without.hinge,
+        model: graph.model,
+        circumferentialAcceleration: 115,
+        minimumOutwardClearance: 3 * panel.thickness,
+      );
+      final falling = EggPanelReleaseMotion.fromHinge(
+        panel: panel,
+        hinge: without.hinge,
+        model: graph.model,
+        circumferentialAcceleration: 115,
+        minimumOutwardClearance: 3 * panel.thickness,
+        gravityAcceleration: 70,
+      );
+      expect(falling.gravityAcceleration, 70);
+      expect(baseline.gravityAcceleration, 0);
+      final start = falling.clearanceStartSeconds;
+      expect(start, closeTo(baseline.clearanceStartSeconds, 1e-12));
+      for (final seconds in [0.0, .12, start]) {
+        expect(falling.fallDistanceAt(seconds), 0);
+        expect((falling.centerAt(seconds) -
+                baseline.centerAt(seconds)).length,
+            lessThan(1e-9));
+      }
+      for (final seconds in [start + .05, .8, 1.2, 2.0]) {
+        final expected = 35 * (seconds - start) * (seconds - start);
+        expect(falling.fallDistanceAt(seconds),
+            closeTo(expected, 1e-9));
+        final delta = falling.centerAt(seconds) -
+            baseline.centerAt(seconds);
+        expect(delta.x, closeTo(0, 1e-9));
+        expect(delta.y, closeTo(expected, 1e-9));
+        expect(delta.z, closeTo(0, 1e-9));
+        final p = falling.transform(panel.outer[0], seconds);
+        final q = falling.transform(panel.inner[0], seconds);
+        expect((p - q).length, closeTo(panel.thickness, 1e-7));
+        final nonFalling = baseline.transform(panel.outer[0], seconds);
+        expect((p - nonFalling).x, closeTo(0, 1e-9));
+        expect((p - nonFalling).y, closeTo(expected, 1e-9));
+      }
+      final infinitesimal = falling.fallDistanceAt(start + 1e-6);
+      expect(infinitesimal, lessThan(1e-9));
+      expect(() => EggPanelReleaseMotion.fromHinge(
+        panel: panel, hinge: without.hinge, model: graph.model,
+        gravityAcceleration: -1,
+      ), throwsArgumentError);
+      expect(() => EggPanelReleaseMotion.fromHinge(
+        panel: panel, hinge: without.hinge, model: graph.model,
+        gravityAcceleration: double.infinity,
+      ), throwsArgumentError);
+    }
+  });
+
   test('V11.13: pure deterministic query, no frame-to-frame accumulation', () {
     for (var i = 0; i < 2; i++) {
       final release = motion(i);
