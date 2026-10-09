@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:egg_timer/lab/egg_exit_motion_config.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_panel_hinge_pose.dart';
@@ -45,6 +46,65 @@ void main() {
         final world = motions.first.transform(points[i], t);
         final restored = inspector.toFirstMaterialSpace(world, t);
         expect((restored - points[i]).length, lessThan(1e-8));
+      }
+    }
+  });
+
+  test('V11.31: post-impact inverse matches exact rendered rigid mesh', () {
+    final grounded = [
+      for (var i = 0; i < 2; i++)
+        EggExitMotionConfig.build(
+          panel: assembly.panels[i],
+          model: network.model,
+          hinge: motions[i].hinge,
+        ),
+    ];
+    for (var firstIndex = 0; firstIndex < 2; firstIndex++) {
+      final otherIndex = 1 - firstIndex;
+      final check = EggPanelPairCollisionInspector(
+        first: assembly.panels[firstIndex],
+        second: assembly.panels[otherIndex],
+        firstMotion: grounded[firstIndex],
+        secondMotion: grounded[otherIndex],
+      );
+      final motion = grounded[firstIndex];
+      final impact = motion.floorImpactSeconds;
+      expect(impact, isNotNull);
+      final tHit = impact!;
+      for (final t in [
+        0.0, .12, tHit,
+        tHit + .01,
+        tHit + .12,
+        (tHit + 2.0) / 2,
+        2.0,
+      ]) {
+        if (t > 2.0) continue;
+        for (final vertices in [
+          assembly.panels[firstIndex].outer,
+          assembly.panels[firstIndex].inner,
+        ]) {
+          for (var i = 0; i < vertices.length; i += 41) {
+            final vertex = vertices[i];
+            final world = motion.transform(vertex, t);
+            final recovered = check.toFirstMaterialSpace(world, t);
+            expect((recovered - vertex).length, lessThan(1e-7),
+                reason: 'Wrong inverse for material vertex $i of '
+                    'panel $firstIndex at t=$t');
+          }
+        }
+        // The independent panel's WORLD vertices must also roundtrip
+        // through the inverse of the FIRST panel's pose, even when one
+        // panel has landed and the other is still in flight.
+        final secondTime = t > .10 ? t - .10 : t;
+        final otherVertex = assembly.panels[otherIndex].outer[21];
+        final otherWorld = grounded[otherIndex].transform(
+          otherVertex, secondTime,
+        );
+        final relative = check.toFirstMaterialSpace(otherWorld, t);
+        expect((motion.transform(relative, t) - otherWorld).length,
+            lessThan(1e-7),
+            reason: 'The pair collision frame must agree with Chrome '
+                'after ground roll');
       }
     }
   });
