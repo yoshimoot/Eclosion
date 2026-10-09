@@ -13,7 +13,7 @@ import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// V11.25: inspect the EXACT staged radial-then-lateral Chrome exit.
+/// V11.26: inspect the complete 2s staged radial-then-lateral exit.
 /// No movement, geometry, drawing or collision response is modified.
 /// A sampled clear frame NEVER certifies clearance between samples.
 void main() {
@@ -218,7 +218,7 @@ void main() {
 
     // t = 0 starts at the LAST attached pose, i.e. 55% on the UI.
     // These are physical seconds since separation, not player seconds.
-    for (final seconds in [0.0, .12, .3, .4, .55, .8, 1.0, 1.2]) {
+    for (final seconds in [0.0, .12, .3, .4, .55, .8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]) {
       final a = againstBowl[0].inspect(seconds, maxPairs: 15000);
       final b = againstBowl[1].inspect(seconds, maxPairs: 15000);
       final pair = betweenPanels.inspect(
@@ -232,7 +232,7 @@ void main() {
       expect(pair.secondSeconds, seconds);
       // Reports describe ONLY sampled instants, not the entire interval.
       // Actual pair counts and completion prevent false clearance claims.
-      debugPrintSynchronously('V11.25 t=${seconds.toStringAsFixed(2)} s '
+      debugPrintSynchronously('V11.26 t=${seconds.toStringAsFixed(2)} s '
           'gauche/bol: ${verdict(
             hasIntersection: a.hasIntersection,
             hasContact: a.hasContact,
@@ -261,7 +261,7 @@ void main() {
         );
       }
     }
-    debugPrintSynchronously('V11.25 : aucun échantillon libre ne certifie '
+    debugPrintSynchronously('V11.26 : aucun échantillon libre ne certifie '
         "l'absence de collision entre les instants vérifiés.");
   });
 }
