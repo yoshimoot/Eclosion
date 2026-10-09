@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.13 — Trajectoire de libération continue après charnière (9 octobre 2026 ; tests en attente)
+
+**Accord de workflow utilisateur :** avancer en autonomie entre les jalons visuels ; ne plus exiger une capture Chrome à chaque petite itération. Dernier HEAD connu de V11.12 : `627d9f2`. Les tests locaux V11.12 n'ont pas encore été transmis ; ne pas considérer ce pivot comme visuellement validé.
+
+**Objet unique V11.13 :** séparer proprement la **fin du mouvement attaché** du début du **mouvement libre**, sans modifier les panneaux validés ni l'atelier. Nouveau `egg_panel_release_motion.dart` : reçoit un `EggPanelHingePose` calculé au moment de la dernière rupture, calcule le centre de surface du panneau par pondération de l'aire de ses triangles physiques et la normale extérieure moyenne à partir de `EggShellModel.normalAt`. La direction de poussée est la normale moyenne **transformée par le pivot**, plutôt qu'un faux déplacement latéral ou une coordonnée d'écran. Au temps libre `t=0`, chaque point coincide précisément avec la position obtenue par la charnière (continuité de **position**). Ensuite, le centre est déplacé sur cette direction par `d=v0*t + 0,5*a*t²` avec paramètres bornés, et la coquille tourne rigidement autour de son **centre matériel libéré**, dans la continuité du sens angulaire du pivot. Transformation identique pour faces extérieure/intérieure/tranches et normales ; aucune échelle ni fonte de fragment.
+
+**Limites intentionnelles :** les coefficients de vitesse/accélération/rotation par défaut sont des **paramètres expérimentaux non validés artistiquement**, et la vitesse à l'instant de libération n'est pas encore raccordée à une horloge d'animation attachée. Les résultats garantissent une continuité de position, **pas de vitesse**. Aucune rupture automatique, gravité, collision ni chute n'est simulée ; il n'y a pas de garantie d'absence d'intersections avec le bol. `EggPanelReleaseMotion` est une primitive pure non intégrée au moteur de rendu ; Chrome reste identique à V11.12 jusqu'à une future intégration contrôlée.
+
+**Tests ajoutés mais non exécutés dans l'environnement ChatGPT :** `test/egg_panel_release_motion_test.dart` (6 tests). Ils couvrent les deux panneaux, zéro saut à l'instant de rupture, monotonie de la poussée le long de la normale, rigidité des maillages/épaisseur `2.5`, rotation du centre libéré, indépendance de l'ordre d'évaluation temporelle et rejets d'entrées invalides. Les tests `test/egg_panel_hinge_pose_test.dart` de V11.12 restent à confirmer. Avant tout jalon Chrome, exécuter localement ces deux suites ensemble et corriger leurs éventuelles erreurs. **Ne pas demander de nouvelles captures pour cette itération géométrique seule.**
+
+**Gel strict :** fichiers de fissures V10.4 et seed `20261008`, F1, contours et épaisseur des panneaux V11.2, jonctions V11.5, bol fermé V11.9, poses de pivot V11.12, atelier Chrome, poussin et timer ne changent pas. Aucun GitHub Action, changement d'image ou fichier visuel.
+
 ## V11.12 — Correction de l'orientation des charnières basses (9 octobre 2026 ; tests et Chrome en attente)
 
 **Nouveau retour Chrome :** captures à Pivot **0°, 20° et 45°** sur V11.11. L'état à 0° reste correct ; l'ouverture croissante est visible, mais la bascule est asymétrique et se lit surtout comme un mouvement **latéral de volets**, pas comme une mise en relief de coquille expulsée vers l'avant. Les faces/tranches sont préservées, mais le pivot actuel n'est **pas validé visuellement**.
