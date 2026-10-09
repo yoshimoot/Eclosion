@@ -16,7 +16,8 @@ void main() {
     expect(EggExitTimeline.hingeAngle(.55), 30);
     expect(EggExitTimeline.hingeAngle(1), 30);
     expect(EggExitTimeline.freeSeconds(.55), 0);
-    expect(EggExitTimeline.freeSeconds(1), 1.2);
+    expect(EggExitTimeline.freeSeconds(1), 2.0);
+    expect(EggExitTimeline.freeSeconds(.775), closeTo(1.0, 1e-12));
     expect(EggExitTimeline.released(.55), isFalse);
     expect(EggExitTimeline.released(.56), isTrue);
   });
@@ -99,6 +100,7 @@ void main() {
             openingDegrees: EggExitTimeline.finalHingeDegrees,
           ),
           circumferentialAcceleration: 115,
+          minimumOutwardClearance: 3 * assembly.panels[i].thickness,
         ),
     ];
     final extent = EggExitFraming.horizontalExtent(
@@ -123,6 +125,30 @@ void main() {
         }
       }
     }
+    final verticalExtent = EggExitFraming.verticalExtent(
+      stationaryHalfHeight: network.model.halfHeight,
+      panels: assembly.panels,
+      motions: motions,
+    );
+    expect(verticalExtent, greaterThan(network.model.halfHeight));
+    for (var i = 0; i < 2; i++) {
+      for (final group in [
+        assembly.panels[i].outer,
+        assembly.panels[i].inner,
+      ]) {
+        for (final p in group) {
+          for (var sample = 0; sample < 24; sample++) {
+            final time =
+                EggExitTimeline.freeDuration * (sample + .5) / 24;
+            expect(motions[i].transform(p, time).y.abs(),
+                lessThan(verticalExtent));
+          }
+        }
+      }
+    }
+    expect(() => EggExitFraming.verticalExtent(
+      stationaryHalfHeight: -1, panels: assembly.panels, motions: motions,
+    ), throwsArgumentError);
     expect(() => EggExitFraming.horizontalExtent(
       stationaryRadius: -1, panels: assembly.panels, motions: motions,
     ), throwsArgumentError);
