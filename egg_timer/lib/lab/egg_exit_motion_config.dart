@@ -13,7 +13,11 @@ final class EggExitMotionConfig {
   const EggExitMotionConfig._();
 
   static const double circumferentialAcceleration = 115;
-  static const double gravityAcceleration = 70;
+  // V11.29: a single physical gravity for BOTH panels. At 70 the lowest
+  // material points still floated well above the egg's base at 100%.
+  // The shell meshes, release impulse and rigid spin remain unchanged.
+  // The floor is a diagnostic reference plane, not yet a contact solver.
+  static const double gravityAcceleration = 135;
   static const double clearanceThicknesses = 3;
 
   static EggPanelReleaseMotion build({
