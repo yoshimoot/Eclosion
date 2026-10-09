@@ -16,7 +16,7 @@ import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// V11.27: inspect the complete 2s radial, lateral and falling exit.
+/// V11.29: inspect the complete 2s radial, lateral and stronger fall.
 /// No movement, geometry, drawing or collision response is modified.
 /// A sampled clear frame NEVER certifies clearance between samples.
 void main() {
@@ -212,14 +212,14 @@ void main() {
     }
 
     debugPrintSynchronously(
-      'V11.27 seuil dégagement gauche='
+      'V11.29 seuil dégagement gauche='
       '${motions[0].clearanceStartSeconds.toStringAsFixed(3)} s '
       'droite=${motions[1].clearanceStartSeconds.toStringAsFixed(3)} s',
     );
 
     // t = 0 starts at the LAST attached pose, i.e. 55% on the UI.
     // These are physical seconds since separation, not player seconds.
-    for (final seconds in [0.0, .12, .3, .4, .5, .55, .65, .8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]) {
+    for (final seconds in [0.0, .12, .3, .4, .5, .55, .65, .8, .9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]) {
       // The narrow initial departure remains inconclusive with 15k pairs.
       // Increase the budget only at that physical instant.
       final bowlBudget = seconds == .12 ? 150000 : 15000;
@@ -236,7 +236,7 @@ void main() {
       expect(pair.secondSeconds, seconds);
       // Reports describe ONLY sampled instants, not the entire interval.
       // Actual pair counts and completion prevent false clearance claims.
-      debugPrintSynchronously('V11.27 t=${seconds.toStringAsFixed(2)} s '
+      debugPrintSynchronously('V11.29 t=${seconds.toStringAsFixed(2)} s '
           'gauche/bol: ${verdict(
             hasIntersection: a.hasIntersection,
             hasContact: a.hasContact,
@@ -277,7 +277,7 @@ void main() {
             reason: 'Panels not clear at t=$seconds s');
       }
     }
-    debugPrintSynchronously('V11.27 : aucun échantillon libre ne certifie '
+    debugPrintSynchronously('V11.29 : aucun échantillon libre ne certifie '
         "l'absence de collision entre les instants vérifiés.");
     // Second pass: conservative continuous-time checks over the same
     // physical motion. A certifiedClear verdict proves its interval,
