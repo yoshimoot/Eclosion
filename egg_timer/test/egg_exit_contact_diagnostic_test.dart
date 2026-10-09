@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// No movement, geometry, drawing or collision response is modified.
 /// A sampled clear frame NEVER certifies clearance between samples.
 void main() {
-  test('V11.27: staged gravity exit and sampled material clearance', () {
+  test('V11.28: conservative clearance of V11.27 falling release', () {
     final network = EggFractureNetwork.fixed();
     final regions = EggFragmentRegionPlan.fromNetwork(network);
     final assembly = EggShellFrontAssemblyBuilder.build(regions);
@@ -296,12 +296,13 @@ void main() {
         ).inspect(
           start: start,
           duration: duration,
-          maxDepth: 6,
-          maxFrames: 8,
+          maxDepth: 8,
+          maxFrames: 16,
           maxPairsPerFrame: 15000,
+          minInterval: .00625,
         );
         debugPrintSynchronously(
-          'V11.27 intervalle ${start.toStringAsFixed(2)}–'
+          'V11.28 intervalle ${start.toStringAsFixed(2)}–'
           '${(start + duration).toStringAsFixed(2)} s '
           '${i == 0 ? "gauche" : "droite"}/bol: '
           '${sweep.verdict.name}, segmentsCertifies='
@@ -329,7 +330,7 @@ void main() {
         maxPairsPerFrame: 15000,
       );
       debugPrintSynchronously(
-        'V11.27 intervalle ${start.toStringAsFixed(2)}–'
+        'V11.28 intervalle ${start.toStringAsFixed(2)}–'
         '${(start + duration).toStringAsFixed(2)} s '
         'panneaux: ${pairSweep.verdict.name}, '
         'segmentsCertifies=${pairSweep.provenIntervals}, '
