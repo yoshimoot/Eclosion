@@ -50,10 +50,14 @@ class EggPanelHingePose {
         axis * (_dot(axis, vector) * (1 - c));
   }
 
-  /// Select the lowest available PRIMARY graph edge belonging to the
-  /// candidate region but NOT to the neighboring candidate panel.
-  /// The midpoint subsegment of that original graph edge is the hinge.
-  /// No crack graph samples or candidate region definitions are changed.
+  /// Select a lower CONNECTION edge joining a panel to the stationary bowl,
+  /// never an edge shared between the two panels. These connections cross
+  /// the lower lip more horizontally than the long, near-vertical primary
+  /// cracks, so an attached panel tips outwards instead of swinging sideways.
+  ///
+  /// Among the ORIGINAL edges, choose the most horizontal projected chord.
+  /// The actual rotation axis remains one short, real 3D graph subsegment.
+  /// No crack vertices, face topology, or attachments are redrawn.
   factory EggPanelHingePose.fromGraph({
     required EggShellPanelMesh panel,
     required EggCandidateShellRegion region,
@@ -72,17 +76,25 @@ class EggPanelHingePose {
     final candidates = <EggCrackEdge>[
       for (final segment in region.boundary)
         if (!shared.contains(segment.edgeId) &&
-            network.edges[segment.edgeId].kind == EggCrackKind.primary)
+            network.edges[segment.edgeId].kind == EggCrackKind.connection)
           network.edges[segment.edgeId],
     ];
     if (candidates.isEmpty) {
-      throw StateError('No fixed-bowl fracture available for a hinge');
+      throw StateError('No lower fixed-bowl connection available for a hinge');
+    }
+    double verticalRatio(EggCrackEdge edge) {
+      final first = edge.samples.first, last = edge.samples.last;
+      final dx = last.x - first.x, dy = last.y - first.y;
+      final projectedLength = math.sqrt(dx * dx + dy * dy);
+      if (projectedLength < 1e-8) {
+        throw StateError('Degenerate lower connection');
+      }
+      return dy.abs() / projectedLength;
     }
     candidates.sort((a, b) {
-      final ya = (a.samples.first.y + a.samples.last.y) / 2;
-      final yb = (b.samples.first.y + b.samples.last.y) / 2;
-      final byDepth = yb.compareTo(ya);
-      return byDepth != 0 ? byDepth : a.id.compareTo(b.id);
+      final byAlignment =
+          verticalRatio(a).compareTo(verticalRatio(b));
+      return byAlignment != 0 ? byAlignment : a.id.compareTo(b.id);
     });
     final edge = candidates.first;
     if (edge.samples.length < 4) {

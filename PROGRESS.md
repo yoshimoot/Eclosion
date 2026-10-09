@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.12 — Correction de l'orientation des charnières basses (9 octobre 2026 ; tests et Chrome en attente)
+
+**Nouveau retour Chrome :** captures à Pivot **0°, 20° et 45°** sur V11.11. L'état à 0° reste correct ; l'ouverture croissante est visible, mais la bascule est asymétrique et se lit surtout comme un mouvement **latéral de volets**, pas comme une mise en relief de coquille expulsée vers l'avant. Les faces/tranches sont préservées, mais le pivot actuel n'est **pas validé visuellement**.
+
+**Cause identifiée dans le code :** `EggPanelHingePose.fromGraph` choisissait des arêtes **PRIMARY** du bord du bol fixe, en privilégiant leur profondeur Y maximale. Ces arêtes longeaient les côtés des panneaux, de direction principalement verticale ; leur axe tend donc à produire une rotation proche d'un volet de porte. Une force interne ne devrait pas être représentée exclusivement par ce lacet. Ne pas compenser par un faux décalage en XY.
+
+**Correction unique V11.12 :** sélectionner, pour chaque panneau, une arête **CONNECTION** existante et non partagée avec son voisin sur sa bordure inférieure. Choisir la plus **horizontale en projection XY**, sur la base du rapport `abs(dy)/hypot(dx,dy)` des deux extrémités de graphe ; départage stable par ID. L'axe reste le vrai **sous-segment central 3D** de cette arête, dont les deux points d'ancrage sont strictement immobiles. Le sens de rotation reste calculé vers la normale extérieure et ne crée aucun déplacement libre. Faces, tranches, épaisseur `2.5` et normales pivotent rigidement ensemble.
+
+**Portée :** seulement `egg_panel_hinge_pose.dart`, ses tests, la description du mode Pivot et ce suivi. Les modes Assemblé/Écarté sont inchangés. Aucun changement du réseau V10.4, F1, des contours V11.2–V11.9, du moteur visuel principal, de l'oscillation, du poussin ou du temps. **Ce pivot reste diagnostique** : une arête courbe complète n'est pas une charnière rigide et les autres attaches n'ont pas encore de mécanique de rupture. Pas d'expulsion/chute. Vérifier les interférences dans le bol après validation du pivot.
+
+**Tests locaux requis :** `flutter test --no-pub test/egg_panel_hinge_pose_test.dart test/egg_panel_inspection_pose_test.dart`. Le test d'origine du pivot vérifie désormais le type CONNECTION, qu'il n'est pas partagé, la provenance de ses points et le choix de la connexion la plus horizontale. Les tests existants de rigidité, points fixes et direction sortante restent actifs. **Ne pas annoncer de succès de tests sans exécution locale.** Chrome mode Pivot à 0°, 20°, 45° ; comparer la lisibilité de la bascule au comportement V11.11 avant de l'accepter.
+
 ## V11.11 — Rotation attachée sur sous-segment de fissure (9 octobre 2026 ; tests en attente)
 
 **Décision utilisateur après V11.10 :** coupler à terme rotation et expulsion, mais **commencer par un pivot physique attaché** pour ne pas rendre indépendants des fragments encore reliés. Les captures V11.10 à ~40° et 70° montrent que l'inclinaison révèle les tranches ; ces images ne prouvent pas un mouvement de rupture. La V11.9 dispose de **10/10 tests locaux réussis**. Les 4 tests V11.10 ne sont pas encore confirmés par la conversation.

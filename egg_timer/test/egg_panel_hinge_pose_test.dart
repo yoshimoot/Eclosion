@@ -29,11 +29,11 @@ void main() {
   double dot(EggShellPoint3 a, EggShellPoint3 b) =>
       a.x * b.x + a.y * b.y + a.z * b.z;
 
-  test('V11.11: axes derive from unshared fixed-bowl crack edges', () {
+  test('V11.12: hinges follow lower bowl connections, not side cracks', () {
     for (var i = 0; i < 2; i++) {
       final pose = hinge(i, 30);
       final region = plan.regions[i];
-      expect(network.edges[pose.edgeId].kind, EggCrackKind.primary);
+      expect(network.edges[pose.edgeId].kind, EggCrackKind.connection);
       expect(region.boundary.any((s) => s.edgeId == pose.edgeId), isTrue);
       expect(region.sharedEdgeIds(plan.regions[1 - i])
           .contains(pose.edgeId), isFalse);
@@ -44,6 +44,24 @@ void main() {
       expect(panels[i].outer.any((p) => identical(p, pose.anchorA)), isTrue);
       expect(panels[i].outer.any((p) => identical(p, pose.anchorB)), isTrue);
       expect(pose.axis.length, closeTo(1, 1e-10));
+      final candidates = <EggCrackEdge>[
+        for (final step in region.boundary)
+          if (network.edges[step.edgeId].kind ==
+                  EggCrackKind.connection &&
+              !region.sharedEdgeIds(plan.regions[1 - i])
+                  .contains(step.edgeId))
+            network.edges[step.edgeId],
+      ];
+      expect(candidates, isNotEmpty);
+      double verticalRatio(EggCrackEdge edge) {
+        final a = edge.samples.first, b = edge.samples.last;
+        return (b.y - a.y).abs() /
+            math.sqrt(math.pow(b.x - a.x, 2) +
+                math.pow(b.y - a.y, 2));
+      }
+      final best = candidates.map(verticalRatio).reduce(math.min);
+      expect(verticalRatio(network.edges[pose.edgeId]),
+          closeTo(best, 1e-12));
     }
   });
 
@@ -81,7 +99,7 @@ void main() {
     }
   });
 
-  test('V11.11: rotation opens outwards, with no free displacement', () {
+  test('V11.12: lower-lip rotation opens outwards without translation', () {
     for (var i = 0; i < 2; i++) {
       final pose = hinge(i, 30);
       final probe = panels[i].outer[pose.probeIndex];

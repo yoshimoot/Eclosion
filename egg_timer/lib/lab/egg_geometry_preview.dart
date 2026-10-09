@@ -132,9 +132,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
             ? (value) => setState(() => _hingeDegrees = value)
             : null,
       ),
-      const Text('V11.11 : charnière courte issue des fissures V10.4. '
-          'La géométrie tourne d’un seul bloc. Expulsion et chute '
-          'non intégrées.',
+      const Text('V11.12 : charnière sur une connexion inférieure '
+          'issue des fissures V10.4. La géométrie tourne d’un seul '
+          'bloc ; expulsion et chute non intégrées.',
           style: TextStyle(fontSize: 12)),
       const SizedBox(height: 14),
       SwitchListTile(
