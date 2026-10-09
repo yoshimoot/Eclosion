@@ -272,6 +272,51 @@ class EggBowlCollisionInspector {
         _buildTree(indices.sublist(mid)));
   }
 
+  /// Broad-phase only: does any material triangle of the moved shell
+  /// come within [padding] of a triangle of the stationary bowl?
+  ///
+  /// The padding is a proven upper bound on the movement of ANY vertex
+  /// from the queried instant to any instant in a time interval.
+  /// false => the entire displacement envelope misses the bowl.
+  /// true => possible contact, NEVER a collision verdict.
+  bool hasBroadPhaseCandidate({
+    required double seconds,
+    required double padding,
+  }) {
+    if (!padding.isFinite || padding < 0) {
+      throw ArgumentError.value(padding, 'padding');
+    }
+    final outer = _motion.transformAll(_panel.outer, seconds);
+    final inner = _motion.transformAll(_panel.inner, seconds);
+    final vertices = <EggShellPoint3>[...outer, ...inner];
+    final margin = padding + tolerance;
+
+    bool anyOverlap(_Node node, _Box3 triangleBounds) {
+      if (!node.bounds.overlaps(triangleBounds, margin)) return false;
+      final ids = node.triangles;
+      if (ids != null) {
+        for (final id in ids) {
+          if (_staticBoxes[id].overlaps(triangleBounds, margin)) {
+            return true;
+          }
+        }
+        return false;
+      }
+      return (node.left != null &&
+              anyOverlap(node.left!, triangleBounds)) ||
+          (node.right != null &&
+              anyOverlap(node.right!, triangleBounds));
+    }
+
+    for (final triangle in _movingFaces) {
+      final bounds = _Box3.fromTriangle(
+        vertices[triangle.a], vertices[triangle.b], vertices[triangle.c],
+      );
+      if (anyOverlap(_tree, bounds)) return true;
+    }
+    return false;
+  }
+
   /// Index and triangle soup are immutable. The only variable is seconds.
   ///
   /// If [maxPairs] is reached, [EggBowlCollisionFrame.complete] is false;

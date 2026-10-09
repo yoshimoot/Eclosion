@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.17 — Balayage temporel du fragment contre le bol fixe (9 octobre 2026 ; tests Flutter en attente)
+
+**Objet unique :** couvrir le dernier risque de traversée temporelle non diagnostiqué : le panneau 3D V11.13 peut contacter le bol fixe V11.9 **entre deux images** même lorsque des contrôles instantanés V11.14 sont négatifs. La V11.16 traite déjà les contacts inter-fragments dans le temps ; ce module la complète pour le bol **immobile**, sans modifier les trajectoires.
+
+**Architecture :** ajout dans `EggBowlCollisionInspector` d'une requête pure `hasBroadPhaseCandidate(seconds, padding)` qui conserve et réutilise la BVH déjà construite sur les triangles physiques du bol V11.9. Nouveau `egg_bowl_temporal_sweep.dart` : sur chaque intervalle, majorant analytique du déplacement d'un sommet du panneau `(v0 + a * t_fin + |omega| * r_max) * durée/2`, où `r_max` est mesuré sur les deux faces du vrai panneau et `omega` sa rotation libre constante V11.13. Requête BVH au milieu avec boîtes des triangles mobiles élargies par cette marge. Si elles sont toutes disjointes des boîtes fixes, l'**intervalle entier** est certifié libre de contact sous ces cinématiques rigides. Sinon un contrôle V11.14 est effectué au milieu, puis l'intervalle est subdivisé jusqu'à preuve, observation ou limite de calcul.
+
+**Trois résultats honnêtes :** `certifiedClear` (majorant conservateur prouvant l'absence de contact sur tout l'intervalle pour cette géométrie/cinématique), `observedContact` (contact observé à un instant, sans prétendre avoir calculé le premier instant d'impact), `inconclusive` (contact possible sans preuve/observation, budget épuisé). Une trame instantanée négative ne suffit **jamais** à prouver un intervalle positif. Les prédicats ont une tolérance numérique, pas une validation de moteur physique général.
+
+**Six tests ajoutés non encore exécutés en Flutter** : bornes de déplacement, comparaison directe de sommets mobiles des deux panneaux, reproductibilité de rapport, refus de faux succès avec budget nul, intervalle nul, temps et budgets illégaux. Rejouer `egg_shell_collision_diagnostic_test.dart`, `egg_bowl_temporal_sweep_test.dart`, `egg_panel_release_motion_test.dart` et les suites V11.12–V11.16 lors du prochain jalon local. Aucune capture Chrome demandée. Ne pas multiplier les modules sans compléter ce jalon.
+
+**Gel :** F1, fissures et seed V10.4, maillages V11.2–V11.9, épaisseur 2.5, rotation V11.12, expulsion V11.13, rendu Chrome, poussin et minuteur inchangés. Ajouts limités au diagnostic bol V11.14, au module temporel V11.17 et aux tests. Ni déformation du fragment, ni correction forcée, ni gravité, ni changement d'angle validé. Statut : GitHub publié à confirmer, tests Dart/Flutter non disponibles dans cet environnement.
+
 ## V11.16 — Balayage temporel conservateur des collisions (9 octobre 2026 ; tests locaux en attente)
 
 **Problème traité :** les diagnostics instantanés V11.14/V11.15 peuvent manquer une traversée entre deux instants échantillonnés. La V11.16 ajoute une recherche adaptative qui distingue trois résultats : **certifiedClear** (une enveloppe géométrique conservatrice prouve l'absence de contact sur TOUS les instants de l'intervalle), **observedContact** (contact réellement observé sur une trame, instant non assimilable à l'heure exacte d'impact) et **inconclusive** (budget ou résolution insuffisante). Aucune absence de collision n'est inférée d'échantillons simplement négatifs.
