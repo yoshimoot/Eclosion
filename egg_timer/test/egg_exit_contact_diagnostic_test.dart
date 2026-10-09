@@ -16,11 +16,11 @@ import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// V11.30: inspect the rigid flight, real first floor contact and slide.
+/// V11.31: inspect rigid flight, floor contact, settled roll and slide.
 /// No movement, geometry, drawing or collision response is modified.
 /// A sampled clear frame NEVER certifies clearance between samples.
 void main() {
-  test('V11.28: conservative clearance of V11.27 falling release', () {
+  test('V11.31: contact-aware rigid panels and conservative clearances', () {
     final network = EggFractureNetwork.fixed();
     final regions = EggFragmentRegionPlan.fromNetwork(network);
     final assembly = EggShellFrontAssemblyBuilder.build(regions);
@@ -222,9 +222,13 @@ void main() {
       expect(impact, isNotNull,
           reason: 'No material-ground contact before exit 100% '
               '(panel $i)');
-      debugPrintSynchronously('V11.30 panneau $i '
+      debugPrintSynchronously('V11.31 panneau $i '
           'premierContactSol=${impact!.toStringAsFixed(5)} s '
-          'planY=${motions[i].floorY}');
+          'planY=${motions[i].floorY} '
+          'basculementFinal=${motions[i].groundRollRadiansAt(2.0).toStringAsFixed(5)} rad '
+          'axe=${motions[i].groundRollAxis.x.toStringAsFixed(3)},'
+          '${motions[i].groundRollAxis.y.toStringAsFixed(3)},'
+          '${motions[i].groundRollAxis.z.toStringAsFixed(3)}');
     }
     // t = 0 starts at the LAST attached pose, i.e. 55% on the UI.
     // These are physical seconds since separation, not player seconds.
@@ -245,7 +249,7 @@ void main() {
       expect(pair.secondSeconds, seconds);
       // Reports describe ONLY sampled instants, not the entire interval.
       // Actual pair counts and completion prevent false clearance claims.
-      debugPrintSynchronously('V11.30 t=${seconds.toStringAsFixed(2)} s '
+      debugPrintSynchronously('V11.31 t=${seconds.toStringAsFixed(2)} s '
           'gauche/bol: ${verdict(
             hasIntersection: a.hasIntersection,
             hasContact: a.hasContact,
