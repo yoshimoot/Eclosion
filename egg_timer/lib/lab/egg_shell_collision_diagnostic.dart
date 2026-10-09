@@ -187,6 +187,8 @@ class EggBowlCollisionFrame {
     required this.complete,
     required this.firstTouchingBowlTriangle,
     required this.firstIntersectingBowlTriangle,
+    required this.firstTouchingMovingTriangle,
+    required this.firstIntersectingMovingTriangle,
   });
 
   final double seconds;
@@ -194,6 +196,10 @@ class EggBowlCollisionFrame {
   final bool complete;
   final int? firstTouchingBowlTriangle;
   final int? firstIntersectingBowlTriangle;
+  /// Index in [panel.outerTriangles, panel.innerTriangles,
+  /// panel.sideTriangles], in that exact order. First *observed* pair.
+  final int? firstTouchingMovingTriangle;
+  final int? firstIntersectingMovingTriangle;
 
   bool get hasContact => touchingPairs > 0 || intersectingPairs > 0;
   bool get hasIntersection => intersectingPairs > 0;
@@ -333,9 +339,15 @@ class EggBowlCollisionInspector {
     final vertices = <EggShellPoint3>[...outside, ...inside];
     var checked = 0, touches = 0, crossings = 0;
     int? firstTouch, firstCross;
+    int? firstMovingTouch, firstMovingCross;
     var stopped = false;
 
-    void inspectNode(_Node node, _Box3 moving, EggShellTriangle triangle) {
+    void inspectNode(
+      _Node node,
+      _Box3 moving,
+      EggShellTriangle triangle,
+      int movingIndex,
+    ) {
       if (stopped || !node.bounds.overlaps(moving, tolerance)) return;
       final childIds = node.triangles;
       if (childIds != null) {
@@ -357,23 +369,31 @@ class EggBowlCollisionInspector {
           if (contact == EggTriangleContact.touching) {
             touches++;
             firstTouch ??= i;
+            firstMovingTouch ??= movingIndex;
           } else if (contact == EggTriangleContact.intersecting) {
             crossings++;
             firstCross ??= i;
+            firstMovingCross ??= movingIndex;
           }
         }
       } else {
-        if (node.left != null) inspectNode(node.left!, moving, triangle);
-        if (node.right != null) inspectNode(node.right!, moving, triangle);
+        if (node.left != null) {
+          inspectNode(node.left!, moving, triangle, movingIndex);
+        }
+        if (node.right != null) {
+          inspectNode(node.right!, moving, triangle, movingIndex);
+        }
       }
     }
 
-    for (final face in _movingFaces) {
+    for (var movingIndex = 0;
+        movingIndex < _movingFaces.length; movingIndex++) {
       if (stopped) break;
+      final face = _movingFaces[movingIndex];
       final bounds = _Box3.fromTriangle(
         vertices[face.a], vertices[face.b], vertices[face.c],
       );
-      inspectNode(_tree, bounds, face);
+      inspectNode(_tree, bounds, face, movingIndex);
     }
     return EggBowlCollisionFrame(
       seconds: seconds,
@@ -383,6 +403,8 @@ class EggBowlCollisionInspector {
       complete: !stopped,
       firstTouchingBowlTriangle: firstTouch,
       firstIntersectingBowlTriangle: firstCross,
+      firstTouchingMovingTriangle: firstMovingTouch,
+      firstIntersectingMovingTriangle: firstMovingCross,
     );
   }
 }

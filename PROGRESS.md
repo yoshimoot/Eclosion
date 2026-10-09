@@ -1,3 +1,15 @@
+## V11.22 — Localiser les intersections par paires de triangles (9 octobre 2026 ; tests locaux en attente)
+
+**Retour PowerShell V11.21 reçu :** `git pull` sur `cb25f20` réussi. `flutter analyze --no-pub` : deux diagnostics informatifs `avoid_print` (lignes 83 et 100 du test). `flutter test --no-pub -r expanded test/egg_exit_contact_diagnostic_test.dart` : **1 test diagnostique réussi**, sans validation du mouvement. À `t=0`, contact panneau gauche/bol et traversée panneau droit/bol ; à `t=.12/.30`, budget de 15 000 paires épuisé sans contact classé ; à `t=.55/.8/1/1.2`, traversées classées sur les deux panneaux. Pas de contact panneau/panneau détecté aux sept instants, mais ceci ne certifie pas la continuité entre trames. **Point important :** plusieurs inspections bol finissent sur leur budget, ce qui n'annule PAS les traversées déjà observées, ni n'autorise à qualifier les autres instants de libres.
+
+**Problème principal V11.22 :** les rapports V11.21 n'indiquent que le premier triangle du bol. Avant toute modification physique, vérifier le *couple* de triangles à l'origine de la traversée, et sa provenance (extérieur/intérieur/tranche de chaque panneau ; bol avant/arrière, extérieur/intérieur/tranche). Le rapport `EggBowlCollisionFrame` ajoute des indices de triangle MOBILE correspondants aux premiers contacts et intersections. Le test se sert de ces indices pour recalculer indépendamment la classification 3D sur la paire observée, et journalise les centroïdes indicatifs (qui **ne sont pas les coordonnées exactes d'intersection**), les catégories et le caractère complet/incomplet de l'inspection. Cela limite l'incertitude sur le défaut de mouvement / collision ; aucun changement à la trajectoire ni aux surfaces.
+
+**Qualité :** remplacement des deux `print` du test par `debugPrintSynchronously` pour éliminer les diagnostics `avoid_print`, sans masquer la sortie diagnostique. Tests et analyse Flutter **non exécutés dans cet environnement** : résultat local à confirmer.
+
+**Gel :** F1, les fissures et seed V10.4, mouvements V11.13/18/19, cadrage V11.20, géométrie du bol/panneaux, écran Chrome et profondeur. Les 16 échecs 2D historiques restent hors périmètre de cette itération. Ensuite : utiliser les paires de triangles pour choisir une correction architecturale unique (mécanique ou topologie), sans simple augmentation des vitesses.
+
+---
+
 ## V11.21 — Diagnostic ciblé des contacts sur la vraie trajectoire Chrome (9 octobre 2026 ; exécution locale en attente)
 
 **Validation utilisateur (vidéo V11.20)** : les deux panneaux restent entiers jusqu'à 100 %, la caméra ne saute pas, et la découpe des extrémités V11.19 n'est plus visible. Le cadrage de V11.20 est **visuellement accepté pour ce défaut précis**. L'absence de collisions physiques, la forme des grands fragments et leur naturel de mouvement ne sont **pas validés**. Les grands panneaux ressemblent encore à deux ailes ; la surface intérieure arrière domine le centre.
