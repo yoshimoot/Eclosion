@@ -168,6 +168,12 @@ void main() {
       final impact = motion.floorImpactSeconds!;
       expect(impact, inExclusiveRange(motion.clearanceStartSeconds, 2.0));
       expect(motion.floorY, network.model.halfHeight + 8);
+      expect(EggExitMotionConfig.groundSettlingRadians, 1.0);
+      expect(EggExitMotionConfig.groundSettlingDuration, .45);
+      expect(motion.settlingRadians,
+          EggExitMotionConfig.groundSettlingRadians);
+      expect(motion.settlingDuration,
+          EggExitMotionConfig.groundSettlingDuration);
       final preContact = EggPanelReleaseMotion.fromHinge(
         panel: assembly.panels[i],
         model: network.model,
@@ -214,7 +220,33 @@ void main() {
       expect((atImpact - justAfter).length, lessThan(.01));
       expect(motion.spinRadiansAt(2),
           closeTo(motion.spinRadiansAt(impact), 1e-12));
-      expect(last.y, closeTo(atImpact.y, 1e-8));
+      // After impact the centre changes height only to keep every
+      // real shell vertex on/above the 3D ground during rigid toppling.
+      expect(last.y.isFinite, isTrue);
+      expect(motion.groundRollRadiansAt(impact), 0);
+      expect(motion.groundRollRadiansAt(2), greaterThan(.15));
+      expect(motion.groundRollRadiansAt(2),
+          lessThanOrEqualTo(motion.settlingRadians));
+      expect((last - atImpact).length, greaterThan(.1));
+      final topTime = (impact + motion.settlingDuration)
+          .clamp(0.0, EggExitTimeline.freeDuration);
+      expect(motion.groundRollRadiansAt(topTime),
+          closeTo(motion.settlingRadians *
+              (topTime >= impact + motion.settlingDuration
+                  ? 1.0
+                  : () {
+                      final u = (topTime - impact) /
+                          motion.settlingDuration;
+                      return u * u * (3 - 2 * u);
+                    }()), 1e-9));
+      final contactAxis = motion.groundRollAxis;
+      expect(contactAxis.y, 0);
+      expect(contactAxis.length, closeTo(1, 1e-9));
+      final normal0 = motion.rotateNormal(
+          network.model.normalAt(assembly.panels[i].outer[0]), impact);
+      final normal2 = motion.rotateNormal(
+          network.model.normalAt(assembly.panels[i].outer[0]), 2.0);
+      expect((normal2 - normal0).length, greaterThan(.01));
     }
     expect(() => EggExitFraming.verticalExtent(
       stationaryHalfHeight: -1, panels: assembly.panels, motions: motions,
