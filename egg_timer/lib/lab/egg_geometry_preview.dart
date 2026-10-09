@@ -239,7 +239,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.20',
+      Text('Géométrie V11.24',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
       const Text('Maillages 3D du bol avant, de la coquille arrière et '
