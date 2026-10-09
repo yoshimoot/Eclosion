@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.8 — Premier aperçu Chrome des maillages validés (9 octobre 2026 ; validation visuelle en attente)
+
+**Retour utilisateur :** après `a477453`, `flutter test --no-pub test/egg_rear_bowl_mesh_test.dart test/egg_rear_bowl_boundary_test.dart` → **`00:01 +10: All tests passed!`**. Les deux faces du bol arrière et son contour ont ainsi passé les dix tests techniques ; aucun affichage artistique validé à ce stade. Demande explicite : « je voudrais voir ce que ça donne sur Chrome ».
+
+**Ajout isolé :** bouton **« Voir les maillages V11.8 »** dans les contrôles de `FragmentLab`, ouvrant une page indépendante `EggGeometryPreview` dans `egg_geometry_preview.dart`. Le peintre actif `EggShellF1PreviewPainter` ne change PAS. Cette page assemble en lecture seule les données réelles de `EggShellFrontAssemblyBuilder`, `EggStationaryBowlShellBuilder` et `EggRearBowlMeshBuilder`, et affiche le bol fixe, deux panneaux et l'intérieur arrière. Diagnostic 9:16, ombrage géométrique simplifié et test d'occultation **par profondeur 3D au pixel**, plutôt qu'un ordre arbitraire des groupes Canvas.
+
+**Interactions de diagnostic uniquement :** assemblé/écarté (les positions décalées sont une **mise en présentation**, pas un mouvement d'éclosion), masquer chaque panneau, afficher la face intérieure arrière ou extérieure, et afficher les contours de matière. Les frontières et triangles proviennent des **maillages existants** ; aucune réduction/disparition, crossfade, clip de fissure décoratif ou modification de géométrie n'est ajoutée. Le grand chapeau F1 n'est **pas représenté** dans cet assemblage V11.8 : son animation validée reste visible dans l'atelier précédent. Ne pas interpréter l'aperçu comme une scène 3D produit complète.
+
+**Gel :** `egg_shell_model.dart`, fissures V10.4, F1, ses animations, maillages V11.2–V11.8, timing, poussin, référence visuelle et paramètres restent inchangés. Seules une nouvelle vue, la navigation UI de l'atelier et cette section de suivi sont ajoutées. Ne pas basculer le moteur temporel produit. La fermeture globale avant/arrière doit encore être validée séparément (V11.9), ainsi que la profondeur/occlusion **par inspection réelle dans Chrome**.
+
+**Contrôles :** vérification statique et publication GitHub seulement dans ce chat : ni Flutter SDK ni Chrome utilisables dans l'environnement de l'assistant. Tester `flutter run -d chrome`, puis bouton « Voir les maillages V11.8 » ; transmettre capture ou courte vidéo de la vue assemblée et écartée. En cas d'erreur de compilation Flutter, la corriger avant d'annoncer une validation visuelle.
+
 ## V11.8 — Correctif de paramétrisation arrière (9 octobre 2026 ; tests locaux en attente)
 
 **Échec utilisateur confirmé sur `a0d17ac` :** le test V11.8 compile après l'ajout de l'import `EggShellPoint3`, mais `setUpAll` échoue avec `Bad state: Rear boundary has an unexpected angular winding` dans `EggRearBowlMeshBuilder._angle`. **Aucun des cinq tests géométriques V11.8 n'a pu s'exécuter.** Le contour V11.7 est déjà validé par ses propres cinq tests et ne doit pas être modifié.

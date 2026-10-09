@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'egg_shell_model.dart';
+import 'egg_geometry_preview.dart';
 import 'egg_fracture_network.dart';
 import 'egg_crack_propagation.dart';
 
@@ -60,6 +61,16 @@ class _FragmentLabState extends State<FragmentLab> {
         'Modèle 3D unique. Les fissures se propagent sur les mêmes '
         'arêtes 3D ; l’ouverture F1 reste indépendante. '
         'Fragments mobiles et poussin non encore intégrés.',
+      ),
+      const SizedBox(height: 16),
+      FilledButton.tonalIcon(
+        icon: const Icon(Icons.view_in_ar),
+        label: const Text('Voir les maillages V11.8'),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const EggGeometryPreview(),
+          ),
+        ),
       ),
       const SizedBox(height: 20),
       Text(
