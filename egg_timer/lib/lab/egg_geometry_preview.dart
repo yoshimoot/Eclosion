@@ -179,6 +179,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
           // V11.19: asymmetric material release impulse around the egg.
           // A genuine 3D tangent, not a post-projection x displacement.
           circumferentialAcceleration: 115,
+          // V11.25: move radially three material thicknesses clear of
+          // the stationary bowl before sideways impulse and free spin.
+          minimumOutwardClearance: 3 * _assembly.panels[i].thickness,
         ),
     ]);
     _exitHorizontalExtent = EggExitFraming.horizontalExtent(
@@ -239,7 +242,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.24',
+      Text('Géométrie V11.25',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
       const Text('Maillages 3D du bol avant, de la coquille arrière et '
