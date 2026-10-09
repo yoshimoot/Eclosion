@@ -164,11 +164,11 @@ void main() {
         firstMotion: first,
         secondMotion: second,
       );
-      final contact = first.floorImpactSeconds;
-      expect(contact, isNotNull);
+      expect(first.floorImpactSeconds, isNotNull);
+      final contact = first.floorImpactSeconds!;
       for (final start in [
         .25,
-        math.max(0.0, contact! - .08),
+        math.max(0.0, contact - .08),
         math.min(1.80, contact + .10),
       ]) {
         const duration = .16;
