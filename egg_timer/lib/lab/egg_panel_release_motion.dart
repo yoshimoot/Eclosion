@@ -217,7 +217,8 @@ class EggPanelReleaseMotion {
       spinDegreesPerSecond: spinDegreesPerSecond,
       spinSign: hinge.signedRadians > 0 ? 1 : -1,
     );
-    if (floorY == null) return free;
+    final ground = floorY;
+    if (ground == null) return free;
 
     // First physical vertex contact, not the centre or a projected contour.
     // Sweep the SAME rigid mesh and solve the first crossing by bisection.
@@ -242,7 +243,7 @@ class EggPanelReleaseMotion {
             axis.y * projection * (1 - c);
         maxY = math.max(maxY, y);
       }
-      return floorY - maxY;
+      return ground - maxY;
     }
     if (lowestMaterialClearance(0) <= 0) {
       throw StateError('A released panel cannot start inside the ground');
@@ -274,7 +275,7 @@ class EggPanelReleaseMotion {
       circumferential: free.circumferential,
       circumferentialAcceleration: free.circumferentialAcceleration,
       gravityAcceleration: free.gravityAcceleration,
-      floorY: floorY,
+      floorY: ground,
       floorImpactSeconds: impact,
       minimumOutwardClearance: free.minimumOutwardClearance,
       clearanceStartSeconds: free.clearanceStartSeconds,
