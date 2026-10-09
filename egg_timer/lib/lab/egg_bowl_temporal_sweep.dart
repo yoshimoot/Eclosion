@@ -49,7 +49,7 @@ class EggBowlSweepReport {
 /// A broad-phase miss proves no triangle contact on that interval under
 /// the exact V11.13 kinematics. A candidate is subdivided or marked
 /// inconclusive; instantaneous sample hits are only observations.
-/// This does not resolve physical collisions, gravity, or fracture.
+/// This does not resolve physical collisions, falling impacts, or fracture.
 class EggBowlTemporalSweep {
   EggBowlTemporalSweep({
     required EggFullBowlMesh bowl,
@@ -102,7 +102,8 @@ class EggBowlTemporalSweep {
     // the sum of the magnitudes of the two linear velocity components.
     final maxLinearSpeed = _motion.initialSpeed +
         (_motion.outwardAcceleration +
-            _motion.circumferentialAcceleration) * (start + duration);
+            _motion.circumferentialAcceleration +
+            _motion.gravityAcceleration) * (start + duration);
     final angularSpeed = _motion.spinDegreesPerSecond * math.pi / 180;
     final result =
         (maxLinearSpeed + angularSpeed * _radius) * duration / 2;
