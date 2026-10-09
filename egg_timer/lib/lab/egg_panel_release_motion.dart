@@ -205,6 +205,34 @@ class EggPanelReleaseMotion {
     );
   }
 
+  // Shared with conservative continuous-time collision inspectors.
+  // The initial radial movement is immediate, whereas tangential travel,
+  // gravity and angular spin start only at the actual release clearance.
+  // Using the original full-time acceleration for all three components
+  // overestimates early swept envelopes and creates false broad-phase hits.
+  static const double spinRampSeconds = .15;
+
+  /// A conservative upper bound for the WORLD-space linear speed of the
+  /// material centre at a specified physical time. Acceleration components
+  /// add by the triangle inequality; no unsafe cancellation is assumed.
+  double linearSpeedUpperBoundAt(double seconds) {
+    _checkTime(seconds);
+    final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
+    return initialSpeed + outwardAcceleration * seconds +
+        (circumferentialAcceleration + gravityAcceleration) * elapsed;
+  }
+
+  /// A conservative upper bound on the rigid body's angular speed.
+  /// The exact quadratic spin ramp in [spinRadiansAt] has instantaneous
+  /// angular speed omega * elapsed/spinRampSeconds until full rate.
+  double angularSpeedUpperBoundAt(double seconds) {
+    _checkTime(seconds);
+    final rated = spinDegreesPerSecond * math.pi / 180;
+    if (clearanceStartSeconds == 0) return rated;
+    final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
+    return rated * math.min(1.0, elapsed / spinRampSeconds);
+  }
+
   static void _checkTime(double seconds) {
     // A bounded local diagnostic after release, not a timer duration.
     if (!seconds.isFinite || seconds < 0 || seconds > 2) {
@@ -227,10 +255,9 @@ class EggPanelReleaseMotion {
     final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
     // No jump in angular velocity when the cleared panel starts to turn:
     // omega grows linearly to the existing rated speed over 0.15 s.
-    const rampSeconds = .15;
-    final spinClock = elapsed < rampSeconds
-        ? elapsed * elapsed / (2 * rampSeconds)
-        : elapsed - rampSeconds / 2;
+    final spinClock = elapsed < spinRampSeconds
+        ? elapsed * elapsed / (2 * spinRampSeconds)
+        : elapsed - spinRampSeconds / 2;
     return spinSign * spinDegreesPerSecond * math.pi / 180 * spinClock;
   }
 
