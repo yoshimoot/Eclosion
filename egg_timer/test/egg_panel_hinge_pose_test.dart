@@ -60,8 +60,25 @@ void main() {
                 math.pow(b.y - a.y, 2));
       }
       final best = candidates.map(verticalRatio).reduce(math.min);
+      // Horizontality is a tie-breaker, not proof of physical clearance.
       expect(verticalRatio(network.edges[pose.edgeId]),
-          closeTo(best, 1e-12));
+          greaterThanOrEqualTo(best - 1e-12));
+      expect(candidates.any((edge) => edge.id == pose.edgeId), isTrue);
+    }
+  });
+
+  test('V11.24: selected crack hinge is stable at every angle', () {
+    for (var i = 0; i < 2; i++) {
+      final reference = hinge(i, 30);
+      for (final angle in <double>[0, 1, 5, 10, 20, 30, 55]) {
+        final candidate = hinge(i, angle);
+        expect(candidate.edgeId, reference.edgeId);
+        expect(identical(candidate.anchorA, reference.anchorA), isTrue);
+        expect(identical(candidate.anchorB, reference.anchorB), isTrue);
+        expect((candidate.axis - reference.axis).length, lessThan(1e-12));
+        expect(candidate.signedRadians.abs(),
+            closeTo(angle * math.pi / 180, 1e-12));
+      }
     }
   });
 
