@@ -98,10 +98,14 @@ class EggPairTemporalSweep {
   }) {
     _validWindow(firstStart, secondStart, duration);
     final h = duration / 2;
+    // Include both orthogonal acceleration components: their sum is
+    // an upper bound, including the V11.19 diagnostic departure impulse.
     final maxV1 = _first.initialSpeed +
-        _first.outwardAcceleration * (firstStart + duration);
+        (_first.outwardAcceleration +
+            _first.circumferentialAcceleration) * (firstStart + duration);
     final maxV2 = _second.initialSpeed +
-        _second.outwardAcceleration * (secondStart + duration);
+        (_second.outwardAcceleration +
+            _second.circumferentialAcceleration) * (secondStart + duration);
     final w1 = _first.spinDegreesPerSecond * math.pi / 180;
     final w2 = _second.spinDegreesPerSecond * math.pi / 180;
     final centerDistance = (

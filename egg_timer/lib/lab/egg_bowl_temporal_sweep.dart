@@ -98,8 +98,11 @@ class EggBowlTemporalSweep {
     required double duration,
   }) {
     _validateWindow(start, duration);
+    // A 3D circumferential acceleration is bounded conservatively by
+    // the sum of the magnitudes of the two linear velocity components.
     final maxLinearSpeed = _motion.initialSpeed +
-        _motion.outwardAcceleration * (start + duration);
+        (_motion.outwardAcceleration +
+            _motion.circumferentialAcceleration) * (start + duration);
     final angularSpeed = _motion.spinDegreesPerSecond * math.pi / 180;
     final result =
         (maxLinearSpeed + angularSpeed * _radius) * duration / 2;

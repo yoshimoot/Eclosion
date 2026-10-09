@@ -1,3 +1,17 @@
+# V11.19 — Dégagement latéral matériel 3D (9 octobre 2026 ; tests et Chrome à valider)
+
+**Cause observée dans la vidéo V11.18 :** après expulsion, les deux panneaux restent largement projetés sur le bol. La poussée le long de la normale matérielle V11.13 produit de la profondeur peu visible en vue orthographique. Cela ne prouve pas en soi une intersection 3D.
+
+**Modification ciblée :** ajout à `EggPanelReleaseMotion.fromHinge` d'une accélération tangentielle **optionnelle**, nulle par défaut (compatibilité V11.13). La tangente correspond à la direction circonférentielle réelle autour de l'axe vertical de la coquille, dérivée du centroïde matériel et tournée par la charnière ; sa projection selon la normale moyenne est supprimée. Le mode Chrome **Sortie** applique une accélération expérimentale `115 unités/s²` à chaque panneau en directions opposées. Sa contribution démarre à déplacement et vitesse nuls au moment de la libération. Aucune translation en pixels, alpha, masque, changement de mesh, réduction d'échelle ni variation frame par frame.
+
+**Diagnostics conservés :** bornes V11.16 et V11.17 élargies pour couvrir la vitesse tangentielle supplémentaire ; elles restent des diagnostics, **ne corrigent aucune collision**. Nouveaux tests V11.19 couvrant tangente 3D, continuité de position, épaisseur et enveloppes de déplacements du panneau contre bol et entre panneaux.
+
+**Gel :** F1, graphe/seed V10.4, charnières V11.12, paramètres V11.13 par défaut, épaisseur `2.5`, rendu de profondeur, modèle d'œuf, poussin, minuteur et décor inchangés.
+
+**Statut : code publié, Dart/Flutter non exécutés ici ; rendu V11.19 non validé.** Un contrôle local groupé (`flutter analyze --no-pub` + tests actifs hors `widget_test.dart`) puis une seule vidéo Chrome du mode Sortie à 0/55/75/100 % est requis. Les 16 échecs 2D historiques sont inchangés. Vérifier la sortie projetée ainsi que les collisions physiques : éloignement visuel ≠ certification de trajectoire dégagée.
+
+---
+
 ﻿# Eclosion — état courant
 
 ## V11.18 — Sortie 3D : pivot attaché → libération → expulsion (9 octobre 2026 ; validations locales et visuelles à effectuer)

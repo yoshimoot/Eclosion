@@ -11,6 +11,8 @@ import 'egg_shell_model.dart';
 /// with rotation around the panel's OWN surface-area centroid. No new shell
 /// faces, geometry masks, shrinkage, fake translations, gravity or animation
 /// clock are introduced. Attachment failure is an INPUT, not simulated here.
+/// An optional circumferential impulse (V11.19 diagnostic only) adds a real
+/// 3D tangential acceleration, with zero extra velocity at release.
 ///
 /// This is a kinematic model; it does NOT yet guarantee collision clearance
 /// against the fixed bowl or other moving pieces.
@@ -20,6 +22,8 @@ class EggPanelReleaseMotion {
     required this.materialCenter,
     required this.releaseCenter,
     required this.outward,
+    required this.circumferential,
+    required this.circumferentialAcceleration,
     required this.initialSpeed,
     required this.outwardAcceleration,
     required this.spinDegreesPerSecond,
@@ -38,6 +42,13 @@ class EggPanelReleaseMotion {
 
   /// Outward direction from the actual shell surface, after hinge rotation.
   final EggShellPoint3 outward;
+
+  /// Signed circumferential unit tangent to the egg's material surface,
+  /// perpendicular to the average outward normal. Zero when unused.
+  final EggShellPoint3 circumferential;
+
+  /// Additional sideways acceleration in model units/s². Default: zero.
+  final double circumferentialAcceleration;
 
   /// Model units per second, applied along outward. Diagnostic constants.
   final double initialSpeed;
@@ -71,10 +82,13 @@ class EggPanelReleaseMotion {
     double initialSpeed = 12,
     double outwardAcceleration = 35,
     double spinDegreesPerSecond = 28,
+    double circumferentialAcceleration = 0,
   }) {
     if (!initialSpeed.isFinite || initialSpeed < 0 ||
         !outwardAcceleration.isFinite || outwardAcceleration < 0 ||
         !spinDegreesPerSecond.isFinite || spinDegreesPerSecond < 0 ||
+        !circumferentialAcceleration.isFinite ||
+        circumferentialAcceleration < 0 ||
         (initialSpeed == 0 && outwardAcceleration == 0)) {
       throw ArgumentError('Release rates must be finite and outward');
     }
@@ -118,11 +132,31 @@ class EggPanelReleaseMotion {
     final direction = hinge.rotateNormal(
       weightedNormal.normalized,
     ).normalized;
+    // Material circumference around the egg's vertical axis. The direction
+    // is fixed by the actual centroid's side, never by a screen-space shift
+    // or by the panel's index. Rotate with the hinged shell and remove its
+    // normal component, so the added motion remains tangential in 3D.
+    var tangent = const EggShellPoint3(0, 0, 0);
+    if (circumferentialAcceleration > 0) {
+      if (center.x.abs() < 1e-6) {
+        throw StateError('Cannot choose a side for a centred panel');
+      }
+      final sign = center.x < 0 ? -1.0 : 1.0;
+      final alongRing = EggShellPoint3(center.z, 0, -center.x) * sign;
+      final turned = hinge.rotateNormal(alongRing);
+      final inPlane = turned - direction * _dot(turned, direction);
+      if (inPlane.length < 1e-8) {
+        throw StateError('Degenerate circumferential material tangent');
+      }
+      tangent = inPlane.normalized;
+    }
     return EggPanelReleaseMotion._(
       hinge: hinge,
       materialCenter: center,
       releaseCenter: hinge.transform(center),
       outward: direction,
+      circumferential: tangent,
+      circumferentialAcceleration: circumferentialAcceleration,
       initialSpeed: initialSpeed,
       outwardAcceleration: outwardAcceleration,
       spinDegreesPerSecond: spinDegreesPerSecond,
@@ -148,11 +182,18 @@ class EggPanelReleaseMotion {
     return spinSign * spinDegreesPerSecond * math.pi / 180 * seconds;
   }
 
+  double circumferentialDistanceAt(double seconds) {
+    _checkTime(seconds);
+    return circumferentialAcceleration * seconds * seconds / 2;
+  }
+
   EggShellPoint3 centerAt(double seconds) =>
-      releaseCenter + outward * outwardDistanceAt(seconds);
+      releaseCenter +
+      outward * outwardDistanceAt(seconds) +
+      circumferential * circumferentialDistanceAt(seconds);
 
   /// The exact hinged state at t=0; later, a rigid body around its
-  /// release-time centre plus a translation along the outward normal.
+  /// release-time centre plus outward and optional 3D tangential motion.
   EggShellPoint3 transform(EggShellPoint3 point, double seconds) {
     final angle = spinRadiansAt(seconds);
     final atRelease = hinge.transform(point);

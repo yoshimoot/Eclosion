@@ -16,6 +16,7 @@ void main() {
   late EggShellFrontAssembly assembly;
   late List<EggPanelReleaseMotion> motions;
   late List<EggBowlTemporalSweep> sweeps;
+  late EggFullBowlMesh bowl;
 
   setUpAll(() {
     assembly = EggShellFrontAssemblyBuilder.build(regions);
@@ -23,7 +24,7 @@ void main() {
     final rear = EggRearBowlMeshBuilder.build(
       EggRearBowlBoundaryBuilder.build(front),
     );
-    final bowl = EggFullBowlMeshBuilder.build(front, rear);
+    bowl = EggFullBowlMeshBuilder.build(front, rear);
     motions = <EggPanelReleaseMotion>[
       for (var i = 0; i < 2; i++)
         EggPanelReleaseMotion.fromHinge(
@@ -70,6 +71,31 @@ void main() {
             expect((moved - middle).length,
                 lessThanOrEqualTo(bound + 1e-7));
           }
+        }
+      }
+    }
+  });
+
+  test('V11.19: temporal envelope contains lateral 3D departure', () {
+    for (var i = 0; i < 2; i++) {
+      final panel = assembly.panels[i];
+      final motion = EggPanelReleaseMotion.fromHinge(
+        panel: panel, model: network.model, hinge: motions[i].hinge,
+        circumferentialAcceleration: 115,
+      );
+      final sweep = EggBowlTemporalSweep(
+        bowl: bowl, panel: panel, motion: motion,
+      );
+      const start = .5, duration = .12, half = duration / 2;
+      final bound = sweep.displacementBound(
+        start: start, duration: duration,
+      );
+      for (final point in panel.outer.skip(4).take(20)) {
+        final atMiddle = motion.transform(point, start + half);
+        for (final fraction in [0.0, .2, .5, .8, 1.0]) {
+          expect((motion.transform(point, start + fraction * duration) -
+                  atMiddle).length,
+              lessThanOrEqualTo(bound + 1e-7));
         }
       }
     }

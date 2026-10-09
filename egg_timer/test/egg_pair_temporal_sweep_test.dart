@@ -63,6 +63,37 @@ void main() {
     }
   });
 
+  test('V11.19: pairwise envelope covers lateral 3D departures', () {
+    final laterals = [
+      for (var i = 0; i < 2; i++)
+        EggPanelReleaseMotion.fromHinge(
+          panel: assembly.panels[i],
+          hinge: motions[i].hinge,
+          model: graph.model,
+          circumferentialAcceleration: 115,
+        ),
+    ];
+    final check = EggPairTemporalSweep(
+      first: assembly.panels[0], second: assembly.panels[1],
+      firstMotion: laterals[0], secondMotion: laterals[1],
+    );
+    const a = .3, b = .5, span = .12, h = span / 2;
+    final bound = check.displacementBound(
+      firstStart: a, secondStart: b, duration: span,
+    );
+    for (final dt in [0.0, .03, h, .09, span]) {
+      for (final p in assembly.panels[1].outer.skip(3).take(12)) {
+        final mid = _inverse(
+          laterals[1].transform(p, b + h), laterals[0], a + h,
+        );
+        final other = _inverse(
+          laterals[1].transform(p, b + dt), laterals[0], a + dt,
+        );
+        expect((other - mid).length, lessThan(bound + 1e-7));
+      }
+    }
+  });
+
   test('V11.16: deterministic conservative sweep with bounded work', () {
     EggPairSweepReport call() => sweep.inspect(
       firstStart: .3, secondStart: .5, duration: .08,

@@ -101,6 +101,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
             network: network,
             openingDegrees: EggExitTimeline.finalHingeDegrees,
           ),
+          // V11.19: asymmetric material release impulse around the egg.
+          // A genuine 3D tangent, not a post-projection x displacement.
+          circumferentialAcceleration: 115,
         ),
     ]);
   }
@@ -155,7 +158,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.18',
+      Text('Géométrie V11.19',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
       const Text('Maillages 3D du bol avant, de la coquille arrière et '
@@ -257,8 +260,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
                   label: const Text('Rejouer'),
                 ),
               ]),
-              const Text('Pivot 0–55 %, puis expulsion libre de 1,2 s. '
-                  'Diagnostic sans gravité ni réponse aux collisions.',
+              const Text('Pivot 0–55 %, puis poussée 3D extérieure et '
+                  'latérale de 1,2 s. Collisions encore diagnostiquées '
+                  'sans correction, gravité absente.',
                   style: TextStyle(fontSize: 12)),
             ],
           ),

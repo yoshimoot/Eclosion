@@ -112,6 +112,46 @@ void main() {
     }
   });
 
+  test('V11.19: optional 3D circumferential release preserves material', () {
+    for (var i = 0; i < 2; i++) {
+      final original = motion(i);
+      final panel = panels[i];
+      final biased = EggPanelReleaseMotion.fromHinge(
+        panel: panel,
+        hinge: original.hinge,
+        model: graph.model,
+        circumferentialAcceleration: 115,
+      );
+      expect(biased.circumferential.length, closeTo(1, 1e-9));
+      expect(dot(biased.circumferential, biased.outward),
+          closeTo(0, 1e-9));
+      expect(biased.circumferential.x * biased.materialCenter.x,
+          greaterThan(0));
+      for (final t in [0.0, .15, .45, 1.2]) {
+        final added = biased.centerAt(t) - original.centerAt(t);
+        expect(added.length,
+            closeTo(115 * t * t / 2, 1e-8));
+        expect(dot(added, biased.outward), closeTo(0, 1e-8));
+        final point = panel.outer[0];
+        final inner = panel.inner[0];
+        expect((biased.transform(point, t) -
+                biased.transform(inner, t)).length,
+            closeTo(panel.thickness, 1e-7));
+      }
+      expect(
+        (biased.transform(panel.outer[0], 0) -
+            original.transform(panel.outer[0], 0)).length,
+        lessThan(1e-9),
+      );
+      expect(original.circumferentialAcceleration, 0);
+      expect(original.circumferentialDistanceAt(1.2), 0);
+      expect(() => EggPanelReleaseMotion.fromHinge(
+        panel: panel, hinge: original.hinge, model: graph.model,
+        circumferentialAcceleration: -1,
+      ), throwsArgumentError);
+    }
+  });
+
   test('V11.13: pure deterministic query, no frame-to-frame accumulation', () {
     for (var i = 0; i < 2; i++) {
       final release = motion(i);
