@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.14 — Diagnostic de contact triangle/triangle entre fragment et bol (9 octobre 2026 ; tests en attente)
+
+**Accord utilisateur :** poursuivre les corrections techniques avec peu d'interventions ; demander Chrome seulement aux jalons visuels importants. À la V11.13, la rotation libre + poussée selon la normale existe en **données**, mais n'est pas encore animée sur Chrome ; les tests V11.12/V11.13 restent à confirmer. Ne pas parler d'expulsion validée.
+
+**Objectif unique V11.14 :** construire un **détecteur de collision 3D non intrusif** pour diagnostiquer la trajectoire V11.13 par rapport au bol fixe V11.9, sans encore corriger les intersections. Nouveau `egg_shell_collision_diagnostic.dart` : classification de deux triangles dans les trois dimensions avec axes séparateurs (normales, produits des arêtes, axes dans le plan pour les cas coplanaires), en distinguant `separated`, `touching`, et `intersecting` avec une tolérance explicite. Les contacts tangents ne sont pas automatiquement des collisions pénétrantes.
+
+**Performances :** le bol fermé `EggFullBowlMesh` est indexé une fois dans un arbre de boîtes 3D (BVH) ; le fragment mobile V11.13 est transformé rigidement au temps demandé. Seules les boîtes qui se croisent déclenchent la classification géométrique. Le rapport de trame fournit nombre de paires effectivement comparées, paires en contact, intersections détectées, et indicateur `complete` ; un quota de calcul interrompu **n'autorise jamais** à déclarer l'absence d'intersection. Les changements entre échantillons de temps ne sont pas couverts par ce contrôle discret, même lorsque la trame est exhaustive. Pas d'auto-correction par écrêtage de déplacement ni de faux masque d'écran.
+
+**Tests ajoutés, non exécutés dans ChatGPT :** `egg_shell_collision_diagnostic_test.dart` (7 tests) sur paires synthétiques séparées, intersection transverse, arête partagée, zones coplanaires superposées ou séparées, mauvais paramètres/dégénérescences et diagnostic borné sur les maillages physiques. Les tests V11.12/V11.13 restent à rejouer séparément. Après validation, compléter avec une vérification **inter-fragments** et une détection temporelle continue ou à pas adaptatif ; ces deux points sont encore explicitement absents.
+
+**Gel :** aucun changement de la géométrie, du seed V10.4, de F1, des fissures, de l'épaisseur 2.5, des maillages avant/arrière, du modèle de rotation, des courbes d'expulsion et du rendu Chrome. Ajout uniquement d'une fonction diagnostique et de ses tests ; aucune nouvelle capture demandée. Les vrais résultats de collision sur toute la trajectoire ne sont **pas connus** tant que les contrôles n'ont pas été exécutés.
+
 ## V11.13 — Trajectoire de libération continue après charnière (9 octobre 2026 ; tests en attente)
 
 **Accord de workflow utilisateur :** avancer en autonomie entre les jalons visuels ; ne plus exiger une capture Chrome à chaque petite itération. Dernier HEAD connu de V11.12 : `627d9f2`. Les tests locaux V11.12 n'ont pas encore été transmis ; ne pas considérer ce pivot comme visuellement validé.
