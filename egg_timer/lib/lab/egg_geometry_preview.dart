@@ -214,6 +214,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
           // V11.25: move radially three material thicknesses clear of
           // the stationary bowl before sideways impulse and free spin.
           minimumOutwardClearance: 3 * _assembly.panels[i].thickness,
+          // V11.27: gravity acts along +Y only after shell clearance.
+          // No screen-space translation or deformation of the 3D mesh.
+          gravityAcceleration: 70,
         ),
     ]);
     _exitHorizontalExtent = EggExitFraming.horizontalExtent(
@@ -280,7 +283,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.26',
+      Text('Géométrie V11.27',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
       const Text('Maillages 3D du bol avant, de la coquille arrière et '
@@ -383,7 +386,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
                 ),
               ]),
               const Text('Pivot 0–55 %, puis poussée 3D extérieure et '
-                  'latérale de 2 s. Collisions encore diagnostiquées '
+                  'latérale puis chute libre de 2 s. Collisions encore diagnostiquées '
                   'sans correction, gravité absente.',
                   style: TextStyle(fontSize: 12)),
             ],
