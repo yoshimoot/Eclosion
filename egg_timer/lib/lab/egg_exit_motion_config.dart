@@ -13,11 +13,10 @@ final class EggExitMotionConfig {
   const EggExitMotionConfig._();
 
   static const double circumferentialAcceleration = 115;
-  // V11.29: a single physical gravity for BOTH panels. At 70 the lowest
-  // material points still floated well above the egg's base at 100%.
-  // The shell meshes, release impulse and rigid spin remain unchanged.
-  // The floor is a diagnostic reference plane, not yet a contact solver.
-  static const double gravityAcceleration = 135;
+  // V11.30: both panels use the same gravity up to actual first ground
+  // contact. The rigid-body collision response prevents penetration.
+  // The additional acceleration is active only in this preview.
+  static const double gravityAcceleration = 220;
   static const double clearanceThicknesses = 3;
 
   static EggPanelReleaseMotion build({
@@ -32,5 +31,8 @@ final class EggExitMotionConfig {
         circumferentialAcceleration: circumferentialAcceleration,
         minimumOutwardClearance: clearanceThicknesses * panel.thickness,
         gravityAcceleration: gravityAcceleration,
+        // The physical ground lies below the validated egg silhouette.
+        // Match the plane already used for the original shadow projection.
+        floorY: model.halfHeight + 8,
       );
 }
