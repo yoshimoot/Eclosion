@@ -206,17 +206,28 @@ class EggPanelPairCollisionInspector {
         axis * (_dot(axis, p) * (1 - c));
   }
 
-  /// Exact inverse of V11.13's combined attached+free rotation:
-  /// world = centerAt(t) + R(hingeAngle + freeSpin) * (source - materialCenter).
-  /// R is a rotation about the SAME normalized hinge axis in both phases.
+  /// Exact inverse of the ACTUAL rigid transform used by Chrome:
+  ///
+  /// world = center(t) + R_ground(t) *
+  ///         R_hinge(hingeAngle + spin(t)) * (source - materialCenter).
+  ///
+  /// The inverse MUST undo ground roll first, THEN the attached/free
+  /// hinge rotation. The historical single-axis inverse was valid only
+  /// before V11.31 added the second post-impact rotation; keeping it
+  /// would let collision tests silently inspect the wrong shell pose.
   EggShellPoint3 toFirstMaterialSpace(
     EggShellPoint3 world, double firstSeconds,
   ) {
+    final roll = _firstMotion.groundRollRadiansAt(firstSeconds);
+    final localAfterRoll = world - _firstMotion.centerAt(firstSeconds);
+    final localAfterUndoRoll = roll == 0
+        ? localAfterRoll
+        : _rotate(localAfterRoll, _firstMotion.groundRollAxis, -roll);
     final angle = _firstMotion.hinge.signedRadians +
         _firstMotion.spinRadiansAt(firstSeconds);
     return _firstMotion.materialCenter +
         _rotate(
-          world - _firstMotion.centerAt(firstSeconds),
+          localAfterUndoRoll,
           _firstMotion.hinge.axis,
           -angle,
         );
