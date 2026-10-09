@@ -1,3 +1,15 @@
+## V11.21 — Diagnostic ciblé des contacts sur la vraie trajectoire Chrome (9 octobre 2026 ; exécution locale en attente)
+
+**Validation utilisateur (vidéo V11.20)** : les deux panneaux restent entiers jusqu'à 100 %, la caméra ne saute pas, et la découpe des extrémités V11.19 n'est plus visible. Le cadrage de V11.20 est **visuellement accepté pour ce défaut précis**. L'absence de collisions physiques, la forme des grands fragments et leur naturel de mouvement ne sont **pas validés**. Les grands panneaux ressemblent encore à deux ailes ; la surface intérieure arrière domine le centre.
+
+**Priorité suivante :** diagnostiquer avant de modifier le mouvement. Le nouveau test `egg_exit_contact_diagnostic_test.dart` instancie les vrais maillages 3D avant/arrière/panneaux et les **mêmes paramètres que le mode Sortie** (charnières 30°, poussée tangentielle 115), puis vérifie les instants de sortie libre `0/.12/.3/.55/.8/1/1.2 s`. Il rapporte séparément panneau gauche–bol, panneau droit–bol, panneaux entre eux, contacts observés, intersections et budgets inachevés. **Un résultat "échantillon libre" n'est pas une certification d'absence de traversée entre images.** Les diagnostics temporels V11.16/V11.17 restent disponibles en complément, sans fausse garantie.
+
+**Gel intégral V11.21 :** aucun changement aux trajectoires, au code de rendu, au modèle de profondeur, au cadrage, aux fissures, aux maillages, à l'épaisseur 2.5 ni à F1. Le test est purement diagnostique ; aucun écartement artificiel ni gravité ajouté.
+
+**Statut :** test écrit, ni analyse Flutter ni exécution locale réalisées dans cet environnement. Avant toute retouche visuelle V11.22, récupérer son rapport et vérifier séparément `flutter analyze --no-pub` et les tests V11.18–V11.20. Les 16 échecs anciens de `widget_test.dart` restent hors périmètre actif. Pas de nouvelle capture demandée à ce stade.
+
+---
+
 ## V11.20 — Cadrage 3D fixe et profondeur sans découpe (9 octobre 2026 ; contrôles locaux et visuels en attente)
 
 **Vidéo V11.19 reçue :** la poussée tangentielle libère désormais les panneaux vers les côtés. Défaut dominant : leurs extrémités sont coupées à la sortie, jusqu'à 100 %. La zone de propriété/profondeur du peintre est fixée à `[-170,170]` en X ; les vraies positions des maillages mobiles la dépassent. Ce constat ne prouve aucune collision matérielle 3D.
