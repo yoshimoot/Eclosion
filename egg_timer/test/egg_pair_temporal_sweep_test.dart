@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:egg_timer/lab/egg_exit_motion_config.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_panel_hinge_pose.dart';
@@ -90,6 +91,49 @@ void main() {
           laterals[1].transform(p, b + dt), laterals[0], a + dt,
         );
         expect((other - mid).length, lessThan(bound + 1e-7));
+      }
+    }
+  });
+
+  test('V11.28: material-frame sweep bounds staged falling panels', () {
+    final staged = [
+      for (var i = 0; i < 2; i++)
+        EggExitMotionConfig.build(
+          panel: assembly.panels[i],
+          hinge: motions[i].hinge,
+          model: graph.model,
+        ),
+    ];
+    final check = EggPairTemporalSweep(
+      first: assembly.panels[0], second: assembly.panels[1],
+      firstMotion: staged[0], secondMotion: staged[1],
+    );
+    for (final (startA, startB, duration) in [
+      (0.20, 0.30, 0.18),
+      (0.35, 0.43, 0.22),
+      (0.65, 0.80, 0.30),
+      (1.30, 1.36, 0.50),
+    ]) {
+      final midA = startA + duration / 2;
+      final midB = startB + duration / 2;
+      final bound = check.displacementBound(
+        firstStart: startA, secondStart: startB, duration: duration,
+      );
+      expect(bound, greaterThan(0));
+      for (final p in [
+        ...assembly.panels[1].outer.skip(3).take(20),
+        ...assembly.panels[1].inner.skip(3).take(20),
+      ]) {
+        final atMid = _inverse(staged[1].transform(p, midB),
+            staged[0], midA);
+        for (final fraction in [0.0, .25, .5, .75, 1.0]) {
+          final offset = duration * fraction;
+          final atTime = _inverse(
+              staged[1].transform(p, startB + offset),
+              staged[0], startA + offset);
+          expect((atTime - atMid).length,
+              lessThanOrEqualTo(bound + 1e-7));
+        }
       }
     }
   });
