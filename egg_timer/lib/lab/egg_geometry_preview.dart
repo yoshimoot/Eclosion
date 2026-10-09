@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'egg_fragment_regions.dart';
+import 'egg_exit_motion_config.dart';
 import 'egg_panel_inspection_pose.dart';
 import 'egg_panel_hinge_pose.dart';
 import 'egg_panel_release_motion.dart';
@@ -198,7 +199,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
     // Build physical full-release trajectories once, never per paint frame.
     _exitMotion = List<EggPanelReleaseMotion>.unmodifiable([
       for (var i = 0; i < _assembly.panels.length; i++)
-        EggPanelReleaseMotion.fromHinge(
+        EggExitMotionConfig.build(
           panel: _assembly.panels[i],
           model: _model,
           hinge: EggPanelHingePose.fromGraph(
@@ -208,15 +209,6 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
             network: network,
             openingDegrees: EggExitTimeline.finalHingeDegrees,
           ),
-          // V11.19: asymmetric material release impulse around the egg.
-          // A genuine 3D tangent, not a post-projection x displacement.
-          circumferentialAcceleration: 115,
-          // V11.25: move radially three material thicknesses clear of
-          // the stationary bowl before sideways impulse and free spin.
-          minimumOutwardClearance: 3 * _assembly.panels[i].thickness,
-          // V11.27: gravity acts along +Y only after shell clearance.
-          // No screen-space translation or deformation of the 3D mesh.
-          gravityAcceleration: 70,
         ),
     ]);
     _exitHorizontalExtent = EggExitFraming.horizontalExtent(
