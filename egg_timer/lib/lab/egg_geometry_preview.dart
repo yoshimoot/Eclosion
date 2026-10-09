@@ -66,7 +66,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   late final EggShellModel _model;
   late final AnimationController _exitPlayback;
   late final List<EggPanelReleaseMotion> _exitMotion;
-  int _mode = 0; // 0: assembled, 1: free inspection, 2: attached hinge
+  int _mode = 0; // 0: assembled, 1: inspection, 2: hinge, 3: exit
   double _hingeDegrees = 20;
   bool _left = true;
   bool _right = true;
@@ -155,12 +155,12 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.8',
+      Text('Géométrie V11.18',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
-      const Text('Aperçu statique des vrais maillages du bol avant, '
-          'de la coquille arrière et des deux panneaux. '
-          'Le chapeau F1 n’est pas encore inclus dans cet assemblage.'),
+      const Text('Maillages 3D du bol avant, de la coquille arrière et '
+          'des deux panneaux. Mode Sortie animé uniquement en diagnostic. '
+          'Le chapeau F1 est visualisé séparément dans l’atelier principal.'),
       const SizedBox(height: 20),
       SegmentedButton<int>(
         segments: const [
@@ -210,10 +210,11 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
             ? (value) => setState(() => _hingeDegrees = value)
             : null,
       ),
-      const Text('V11.12 : charnière sur une connexion inférieure '
-          'issue des fissures V10.4. La géométrie tourne d’un seul '
-          'bloc ; expulsion et chute non intégrées.',
-          style: TextStyle(fontSize: 12)),
+      if (_mode == 2)
+        const Text('V11.12 : charnière sur une connexion inférieure '
+            'issue des fissures V10.4. La géométrie tourne d’un seul '
+            'bloc ; expulsion et chute non intégrées.',
+            style: TextStyle(fontSize: 12)),
       if (_mode == 3)
         AnimatedBuilder(
           animation: _exitPlayback,

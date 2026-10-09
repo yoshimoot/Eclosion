@@ -45,6 +45,36 @@ void main() {
     expect(find.text('Assemblé'), findsOneWidget);
     expect(find.text('Écarté'), findsOneWidget);
     expect(find.text('Pivot'), findsOneWidget);
+    expect(find.text('Sortie'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('Atelier 3D : sortie manuelle et remise à zéro', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    final nav = find.text('Voir les maillages V11.8');
+    await tester.ensureVisible(nav);
+    await tester.pumpAndSettle();
+    await tester.tap(nav);
+    await tester.pumpAndSettle();
+
+    final exitTab = find.text('Sortie');
+    await tester.ensureVisible(exitTab);
+    await tester.tap(exitTab);
+    await tester.pump();
+    final seek = find.byKey(const Key('exit-sequence-progress'));
+    expect(seek, findsOneWidget);
+    await tester.ensureVisible(seek);
+    tester.widget<Slider>(seek).onChanged!(.55);
+    await tester.pump();
+    expect(find.textContaining('Attaché ·'), findsOneWidget);
+    tester.widget<Slider>(seek).onChanged!(.75);
+    await tester.pump();
+    expect(find.textContaining('Libéré ·'), findsOneWidget);
+    await tester.ensureVisible(find.text('Rejouer'));
+    await tester.tap(find.text('Rejouer'));
+    await tester.pump();
+    expect(tester.widget<Slider>(seek).value, 0);
     expect(tester.takeException(), isNull);
   });
 }

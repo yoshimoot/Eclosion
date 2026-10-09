@@ -1,5 +1,17 @@
 ﻿# Eclosion — état courant
 
+## V11.18 — Sortie 3D : pivot attaché → libération → expulsion (9 octobre 2026 ; validations locales et visuelles à effectuer)
+
+**Résultat développé (commits `5d7bccf` et le commit de suivi) :** quatrième mode **Sortie** ajouté dans `egg_geometry_preview.dart`, aux côtés de `Assemblé`, `Écarté` et `Pivot`. Contrôles `Lire/Pause`, `Rejouer` et curseur manuel `0–100 %`. Animation diagnostique de quatre secondes, volontairement distincte du minuteur MorphoTime, des fissures, des attaches réellement rompues et de la gravité.
+
+**Géométrie inchangée :** pour `0–55 %`, les deux panneaux pivotent progressivement autour d'arêtes de fissure réelles jusqu'à un angle final de `30°`. Après `55 %`, les deux mêmes maillages passent à `EggPanelReleaseMotion` V11.13 pendant `1,2 s`, sur la normale moyenne matérielle et avec rotation rigide propre. `t_libre=0` correspond exactement à la dernière pose attachée ; continuité de position. Les trois surfaces (externe/interne/tranches) et leurs normales de lumière ont la même transformation, aucune réduction, aucun alpha-mask. Fin de pivot à vitesse nulle ; la vitesse de sortie commence avec le modèle V11.13 (pas de conservation de vitesse garantie). Les deux panneaux restent synchrones dans cette itération.
+
+**Architecture :** les deux trajectoires de sortie physiques sont construites une seule fois dans `initState`. Le peintre 3D utilise son ancien buffer de profondeur et écoute l'`AnimationController` avec `super(repaint: ...)`. Les modes `Pivot` et `Écarté` restent indépendants. Le fond, l'ombre, F1, le maillage du bol, l'épaisseur 2.5, le seed V10.4 et les fonctions V11.12–V11.17 demeurent intacts. Les calculs V11.14–V11.17 peuvent signaler une collision mais **ne garantissent ni n'empêchent une intersection durant le rendu Sortie** ; ne pas présenter la mécanique comme validée physiquement.
+
+**Tests ajoutés, non exécutés ici :** `egg_exit_timeline_test.dart` (4 cas purs : extrémités, croissance, continuité/épaisseur des deux panneaux, mauvaises entrées) et un nouveau `testWidgets` dans `egg_active_lab_smoke_test.dart` (navigation, sélection Sortie, curseur phase attachée/libérée, remise à zéro). Statut de référence AVANT V11.18 : `flutter analyze --no-pub` sans erreur et **95 tests ciblés réussis** sous `7884560`. Ne pas transférer ce statut aux nouveaux commits sans test local. La suite historique complète `widget_test.dart` conserve ses 16 échecs connus, et n'a pas été modifiée.
+
+**Prochain jalon :** une exécution groupée `flutter analyze --no-pub` + tests `*_test.dart` à l'exception de `widget_test.dart`. Puis une seule validation Chrome par vidéo du nouveau mode Sortie à `0, 55, 75, 100 %`, avec attention au départ libre, aux deux panneaux et aux occultations. Aucune amélioration artistique ne sera considérée comme validée avant ce contrôle.
+
 ## Validation V11.12–V11.17 — Contrôle local ciblé RÉUSSI (9 octobre 2026)
 
 **Preuve utilisateur sur le commit `7884560` :** `git pull --ff-only origin prototype/fragment-lab-v1` : succès. `flutter analyze --no-pub` : **No issues found!** (3,6 s). `flutter test --no-pub` avec l'ensemble des fichiers `test/*_test.dart` **SAUF** `test/widget_test.dart` : **95 tests réussis, zéro échec** (environ 4 s). La commande a terminé en affichant `TESTS CIBLÉS TERMINÉS`. Ce résultat englobe les tests des pivots, de l'expulsion, du diagnostic géométrique/temporal et les deux nouveaux tests de démarrage/navigation de l'atelier 3D actif.
