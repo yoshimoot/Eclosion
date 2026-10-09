@@ -101,6 +101,7 @@ void main() {
           ),
           circumferentialAcceleration: 115,
           minimumOutwardClearance: 3 * assembly.panels[i].thickness,
+          gravityAcceleration: 70,
         ),
     ];
     final extent = EggExitFraming.horizontalExtent(
