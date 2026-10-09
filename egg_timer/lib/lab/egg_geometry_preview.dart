@@ -48,6 +48,80 @@ class EggExitTimeline {
   }
 }
 
+/// Keep a fixed camera for the whole exit sequence. The diagnostic must
+/// preserve 3D positions, not move the camera to chase each fragment.
+/// All samples are computed once from the real V11.19 motion.
+class EggExitFraming {
+  const EggExitFraming._();
+
+  static double horizontalExtent({
+    required double stationaryRadius,
+    required List<EggShellPanelMesh> panels,
+    required List<EggPanelReleaseMotion> motions,
+  }) {
+    if (!stationaryRadius.isFinite ||
+        stationaryRadius <= 0 ||
+        panels.isEmpty ||
+        panels.length != motions.length) {
+      throw ArgumentError('Invalid shell exit framing');
+    }
+    var extent = stationaryRadius;
+    for (var i = 0; i < panels.length; i++) {
+      for (final group in [panels[i].outer, panels[i].inner]) {
+        for (final point in group) {
+          extent = math.max(extent, point.x.abs());
+          for (var sample = 0; sample <= 24; sample++) {
+            final time = EggExitTimeline.freeDuration * sample / 24;
+            extent = math.max(
+              extent, motions[i].transform(point, time).x.abs(),
+            );
+          }
+        }
+      }
+    }
+    // Additional physical-space slack also covers between-sample extrema.
+    return extent + 8;
+  }
+}
+
+/// Integer raster extents follow actual material vertices each frame.
+/// Clipping a moving fragment against a fixed 340-unit z-buffer is invalid.
+class EggDepthRasterBounds {
+  const EggDepthRasterBounds._(
+    this.left, this.top, this.width, this.height,
+  );
+
+  final int left, top, width, height;
+
+  factory EggDepthRasterBounds.fromPoints(
+    Iterable<EggShellPoint3> points,
+  ) {
+    var minX = double.infinity, maxX = double.negativeInfinity;
+    var minY = double.infinity, maxY = double.negativeInfinity;
+    for (final p in points) {
+      if (!p.x.isFinite || !p.y.isFinite) {
+        throw ArgumentError('Non-finite projected shell vertex');
+      }
+      minX = math.min(minX, p.x);
+      maxX = math.max(maxX, p.x);
+      minY = math.min(minY, p.y);
+      maxY = math.max(maxY, p.y);
+    }
+    if (!minX.isFinite) {
+      throw ArgumentError('Cannot build a depth raster without vertices');
+    }
+    final x0 = (minX - 2).floor();
+    final y0 = (minY - 2).floor();
+    return EggDepthRasterBounds._(
+      x0, y0, (maxX + 2).ceil() - x0, (maxY + 2).ceil() - y0,
+    );
+  }
+
+  bool contains(EggShellPoint3 point) =>
+      point.x >= left && point.x < left + width &&
+      point.y >= top && point.y < top + height;
+}
+
 /// Separate, read-only Chrome diagnostic of the actual V11.8 shell meshes.
 /// The validated F1 painter and all motion mechanics remain untouched.
 class EggGeometryPreview extends StatefulWidget {
@@ -66,6 +140,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   late final EggShellModel _model;
   late final AnimationController _exitPlayback;
   late final List<EggPanelReleaseMotion> _exitMotion;
+  late final double _exitHorizontalExtent;
   int _mode = 0; // 0: assembled, 1: inspection, 2: hinge, 3: exit
   double _hingeDegrees = 20;
   bool _left = true;
@@ -106,6 +181,11 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
           circumferentialAcceleration: 115,
         ),
     ]);
+    _exitHorizontalExtent = EggExitFraming.horizontalExtent(
+      stationaryRadius: _model.maxRadius,
+      panels: _assembly.panels,
+      motions: _exitMotion,
+    );
   }
 
   @override
@@ -147,6 +227,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
               inspectionYaw: _inspectionYaw,
               exitPlayback: _exitPlayback,
               exitMotion: _exitMotion,
+              exitHorizontalExtent: _exitHorizontalExtent,
             ),
             child: const SizedBox.expand(),
           ),
@@ -158,7 +239,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.19',
+      Text('Géométrie V11.20',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
       const Text('Maillages 3D du bol avant, de la coquille arrière et '
@@ -379,6 +460,7 @@ class _ShellMeshPainter extends CustomPainter {
     required this.inspectionYaw,
     required this.exitPlayback,
     required this.exitMotion,
+    required this.exitHorizontalExtent,
   }) : super(repaint: exitPlayback);
 
   final EggShellModel model;
@@ -395,6 +477,7 @@ class _ShellMeshPainter extends CustomPainter {
   final double inspectionYaw;
   final Animation<double> exitPlayback;
   final List<EggPanelReleaseMotion> exitMotion;
+  final double exitHorizontalExtent;
 
   List<_Surface> _meshes() {
     final result = <_Surface>[];
@@ -509,10 +592,15 @@ class _ShellMeshPainter extends CustomPainter {
         colors: [Color(0xff665647), Color(0xffbea286)],
       ).createShader(Offset.zero & size),
     );
-    final scale = math.min(
+    final baselineScale = math.min(
       size.width * .82 / (2 * model.maxRadius),
       size.height * .78 / (2 * model.halfHeight),
     );
+    // V11.20: fixed framing over every exit frame. Do not alter physical
+    // trajectories, do not dynamically zoom during the four-second playback.
+    final scale = mode == 3
+        ? math.min(baselineScale, size.width * .46 / exitHorizontalExtent)
+        : baselineScale;
     canvas.save();
     canvas.translate(size.width / 2, size.height * .52);
     canvas.scale(scale);
@@ -525,7 +613,11 @@ class _ShellMeshPainter extends CustomPainter {
     );
 
     final meshes = _meshes();
-    const left = -170, top = -157, width = 340, height = 386;
+    final bounds = EggDepthRasterBounds.fromPoints(
+      meshes.expand((mesh) => mesh.points),
+    );
+    final left = bounds.left, top = bounds.top;
+    final width = bounds.width, height = bounds.height;
     final depth = Float32List(width * height)
       ..fillRange(0, width * height, double.negativeInfinity);
     final owner = Uint8List(width * height);
@@ -639,5 +731,6 @@ class _ShellMeshPainter extends CustomPainter {
       old.hingeDegrees != hingeDegrees || old.leftPanel != leftPanel ||
       old.rightPanel != rightPanel || old.showInside != showInside ||
       old.outlines != outlines || old.inspectionYaw != inspectionYaw ||
-       old.exitPlayback != exitPlayback || old.exitMotion != exitMotion;
+       old.exitPlayback != exitPlayback || old.exitMotion != exitMotion ||
+       old.exitHorizontalExtent != exitHorizontalExtent;
 }

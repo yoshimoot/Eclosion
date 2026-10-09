@@ -1,3 +1,17 @@
+## V11.20 — Cadrage 3D fixe et profondeur sans découpe (9 octobre 2026 ; contrôles locaux et visuels en attente)
+
+**Vidéo V11.19 reçue :** la poussée tangentielle libère désormais les panneaux vers les côtés. Défaut dominant : leurs extrémités sont coupées à la sortie, jusqu'à 100 %. La zone de propriété/profondeur du peintre est fixée à `[-170,170]` en X ; les vraies positions des maillages mobiles la dépassent. Ce constat ne prouve aucune collision matérielle 3D.
+
+**Changement isolé :** le buffer de profondeur est calculé à partir des coordonnées 3D projetées de tous les sommets actuellement dessinés (avec marge fixe en unités modèle), sans déplacer ni rogner de maillage. Le mode diagnostic **Sortie** adopte un cadrage **constant pendant toute la séquence**, fixé au chargement d'après les trajectoires physiques calculées en V11.19, pour garder les deux panneaux visibles. Pas de zoom dépendant de l'avancement, pas de coordonnées écran ajoutées à la trajectoire. Les autres modes conservent leur cadrage initial ; aucune modification de l'algorithme de test de profondeur ni des shaders.
+
+**Tests ajoutés, non exécutés ici :** bornes de raster sur tous les côtés et en cas d'entrées invalides ; enveloppe du cadrage sur les vrais sommets intérieurs/extérieurs des deux panneaux, y compris à mi-distance des échantillons. Flutter analyze/tests ciblés à confirmer sur le poste utilisateur. La fluidité du raster adaptatif reste à mesurer dans Chrome.
+
+**Gel :** mouvements V11.18/V11.19, orientation et accélération des panneaux, F1, fissures V10.4, épaisseur 2.5, normals, bol, poussin et minuterie. Les contrôles temporels de collisions ne garantissent toujours aucune résolution physique. Les 16 échecs historiques du moteur 2D demeurent distincts.
+
+**Prochaine validation :** `flutter analyze --no-pub`, tests actifs hors `widget_test.dart`, puis vidéo du mode Sortie à 0/55/75/100 % : fragments entiers dans le cadre, profondeur correcte, pas de saut de caméra ni de baisse excessive de fluidité. Statut : code publié, tests et validation visuelle V11.20 non effectués.
+
+---
+
 # V11.19 — Dégagement latéral matériel 3D (9 octobre 2026 ; tests et Chrome à valider)
 
 **Cause observée dans la vidéo V11.18 :** après expulsion, les deux panneaux restent largement projetés sur le bol. La poussée le long de la normale matérielle V11.13 produit de la profondeur peu visible en vue orthographique. Cela ne prouve pas en soi une intersection 3D.

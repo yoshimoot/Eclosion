@@ -59,6 +59,74 @@ void main() {
     }
   });
 
+  test('V11.20: depth raster follows negative and positive vertices', () {
+    final bounds = EggDepthRasterBounds.fromPoints([
+      const EggShellPoint3(-239.7, -183, 28),
+      const EggShellPoint3(218.4, 154, -65),
+      const EggShellPoint3(0, 0, 0),
+    ]);
+    expect(bounds.left, lessThan(-239));
+    expect(bounds.top, lessThan(-183));
+    expect(bounds.width, greaterThan(450));
+    expect(bounds.height, greaterThan(335));
+    for (final p in [
+      const EggShellPoint3(-239.7, -183, 28),
+      const EggShellPoint3(218.4, 154, -65),
+      const EggShellPoint3(0, 0, 0),
+    ]) {
+      expect(bounds.contains(p), isTrue);
+    }
+    expect(() => EggDepthRasterBounds.fromPoints([]),
+        throwsArgumentError);
+    expect(() => EggDepthRasterBounds.fromPoints([
+      const EggShellPoint3(double.nan, 0, 0),
+    ]), throwsArgumentError);
+  });
+
+  test('V11.20: static exit camera contains both complete panels', () {
+    final assembly = EggShellFrontAssemblyBuilder.build(regions);
+    final motions = [
+      for (var i = 0; i < 2; i++)
+        EggPanelReleaseMotion.fromHinge(
+          panel: assembly.panels[i],
+          model: network.model,
+          hinge: EggPanelHingePose.fromGraph(
+            panel: assembly.panels[i],
+            region: regions.regions[i],
+            neighbor: regions.regions[1 - i],
+            network: network,
+            openingDegrees: EggExitTimeline.finalHingeDegrees,
+          ),
+          circumferentialAcceleration: 115,
+        ),
+    ];
+    final extent = EggExitFraming.horizontalExtent(
+      stationaryRadius: network.model.maxRadius,
+      panels: assembly.panels,
+      motions: motions,
+    );
+    expect(extent, greaterThan(network.model.maxRadius));
+    // Check intermediate times offset from the framing samples, to
+    // catch end-point-only assumptions or a frame-dependent camera.
+    for (var i = 0; i < 2; i++) {
+      for (final group in [
+        assembly.panels[i].outer,
+        assembly.panels[i].inner,
+      ]) {
+        for (final p in group) {
+          for (var s = 0; s < 24; s++) {
+            final t = EggExitTimeline.freeDuration * (s + .5) / 24;
+            expect(motions[i].transform(p, t).x.abs(),
+                lessThan(extent));
+          }
+        }
+      }
+    }
+    expect(() => EggExitFraming.horizontalExtent(
+      stationaryRadius: -1, panels: assembly.panels, motions: motions,
+    ), throwsArgumentError);
+  });
+
   test('V11.18: malformed progress is refused', () {
     for (final value in [double.nan, double.infinity, -.01, 1.01]) {
       expect(() => EggExitTimeline.hingeAngle(value), throwsArgumentError);
