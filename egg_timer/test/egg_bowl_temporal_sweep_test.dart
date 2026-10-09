@@ -127,7 +127,7 @@ void main() {
         expect(bound, greaterThan(0));
         // Include the furthest real model points, not only a centre probe.
         for (final group in [panel.outer, panel.inner]) {
-          final stride = (group.length ~/ 35).clamp(1, 100000);
+          final stride = (group.length ~/ 35).clamp(1, 100000).toInt();
           for (var k = 0; k < group.length; k += stride) {
             final point = group[k];
             final atMid = moving.transform(point, midpoint);
