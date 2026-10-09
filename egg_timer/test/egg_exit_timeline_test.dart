@@ -163,10 +163,10 @@ void main() {
     const floorTolerance = 1e-5;
     for (var i = 0; i < 2; i++) {
       final motion = motions[i];
-      final impact = motion.floorImpactSeconds;
-      expect(impact, isNotNull,
+      expect(motion.floorImpactSeconds, isNotNull,
           reason: 'Panel $i must reach the ground by the end of the exit');
-      expect(impact!, inExclusiveRange(.40, 2.0));
+      final impact = motion.floorImpactSeconds!;
+      expect(impact, inExclusiveRange(.40, 2.0));
       expect(motion.floorY, network.model.halfHeight + 8);
       final preContact = EggPanelReleaseMotion.fromHinge(
         panel: assembly.panels[i],
