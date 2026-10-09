@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:egg_timer/lab/egg_exit_motion_config.dart';
+import 'package:egg_timer/lab/egg_exit_motion_config.dart';
+import 'package:egg_timer/lab/egg_panel_pair_collision.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_panel_hinge_pose.dart';
@@ -133,6 +135,65 @@ void main() {
               staged[0], startA + offset);
           expect((atTime - atMid).length,
               lessThanOrEqualTo(bound + 1e-7));
+        }
+      }
+    }
+  });
+
+  test('V11.31: conservative relative envelope while panels settle', () {
+    final landed = [
+      for (var i = 0; i < 2; i++)
+        EggExitMotionConfig.build(
+          panel: assembly.panels[i],
+          model: graph.model,
+          hinge: motions[i].hinge,
+        ),
+    ];
+    for (var firstIndex = 0; firstIndex < 2; firstIndex++) {
+      final otherIndex = 1 - firstIndex;
+      final first = landed[firstIndex], second = landed[otherIndex];
+      final inspector = EggPanelPairCollisionInspector(
+        first: assembly.panels[firstIndex],
+        second: assembly.panels[otherIndex],
+        firstMotion: first,
+        secondMotion: second,
+      );
+      final sweep = EggPairTemporalSweep(
+        first: assembly.panels[firstIndex],
+        second: assembly.panels[otherIndex],
+        firstMotion: first,
+        secondMotion: second,
+      );
+      final contact = first.floorImpactSeconds;
+      expect(contact, isNotNull);
+      for (final start in [
+        .25,
+        math.max(0.0, contact! - .08),
+        math.min(1.80, contact + .10),
+      ]) {
+        const duration = .16;
+        final mid = start + duration / 2;
+        final bound = sweep.displacementBound(
+          firstStart: start, secondStart: start, duration: duration,
+        );
+        expect(bound.isFinite, isTrue);
+        for (final point in [
+          ...assembly.panels[otherIndex].outer.skip(4).take(20),
+          ...assembly.panels[otherIndex].inner.skip(4).take(20),
+        ]) {
+          final middle = inspector.toFirstMaterialSpace(
+            second.transform(point, mid), mid,
+          );
+          for (final fraction in [0.0, .25, .50, .75, 1.0]) {
+            final t = start + duration * fraction;
+            final relative = inspector.toFirstMaterialSpace(
+              second.transform(point, t), t,
+            );
+            expect((relative - middle).length,
+                lessThanOrEqualTo(bound + 1e-7),
+                reason: 'The pair sweep must bound the two-axis '
+                    'post-impact material motion at t=$t');
+          }
         }
       }
     }
