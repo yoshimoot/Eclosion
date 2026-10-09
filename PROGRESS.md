@@ -1,5 +1,13 @@
 ﻿# Eclosion — état courant
 
+## Validation V11.12–V11.17 — Contrôle local ciblé RÉUSSI (9 octobre 2026)
+
+**Preuve utilisateur sur le commit `7884560` :** `git pull --ff-only origin prototype/fragment-lab-v1` : succès. `flutter analyze --no-pub` : **No issues found!** (3,6 s). `flutter test --no-pub` avec l'ensemble des fichiers `test/*_test.dart` **SAUF** `test/widget_test.dart` : **95 tests réussis, zéro échec** (environ 4 s). La commande a terminé en affichant `TESTS CIBLÉS TERMINÉS`. Ce résultat englobe les tests des pivots, de l'expulsion, du diagnostic géométrique/temporal et les deux nouveaux tests de démarrage/navigation de l'atelier 3D actif.
+
+**Statut exact :** code analysé sans diagnostic et **sous-ensemble automatisé V11.12–V11.17 VALIDÉ par exécution locale**. Ne pas confondre avec une validation visuelle du naturel des mouvements ou avec une suite générale verte. Le lancement de `flutter test --no-pub` sans exclusion sur `4b4585b` a précédemment fait apparaître **16 échecs dans `widget_test.dart` et ses tests historiques `fragment_scene.dart`**, 113 réussites ; ces tests restent inchangés, actifs et en échec dans le périmètre général tant que leur état n'est pas réévalué. Ne pas les `skip` ni ajuster artificiellement les seuils.
+
+**Suite du développement :** unifier à terme les diagnostics V11.14–V11.17 avec les mouvements V11.12/V11.13 dans l'aperçu 3D, en gardant **une itération mécanique/visuelle à la fois** ; ne pas considérer la modélisation validée artistiquement et demander à l'utilisateur un contrôle Chrome ponctuel au jalon d'intégration plutôt qu'à chaque petite correction. Aucun nouveau test ou intervention requis pour ce statut.
+
 ## Validation groupée V11.12–V11.17 — Diagnostic des 16 échecs historiques (9 octobre 2026)
 
 **Résultat local réellement exécuté par l'utilisateur sur `4b4585b` :** `flutter analyze --no-pub` : **No issues found!**. `flutter test --no-pub` : **113 réussites / 16 échecs**. Les 16 échecs affichés dans le journal proviennent de `test/widget_test.dart` et de ses deux modules de tests importés `fragment_lab_continuity.dart` et `fragment_occlusion.dart`. Les six suites V11.12–V11.17 n'ont aucun échec signalé dans cette sortie, mais le résultat global est **rouge** ; ne pas annoncer « tous les tests réussis ».
