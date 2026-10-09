@@ -21,7 +21,9 @@ class EggExitTimeline {
   const EggExitTimeline._();
   static const releaseThreshold = .55;
   static const finalHingeDegrees = 30.0;
-  static const freeDuration = 1.2;
+  // V11.26: complete the staged, collision-conscious physical departure.
+  // The original 1.2 s truncated the V11.25 sideways travel at 100%.
+  static const freeDuration = 2.0;
 
   static void _check(double p) {
     if (!p.isFinite || p < 0 || p > 1) {
@@ -80,6 +82,35 @@ class EggExitFraming {
       }
     }
     // Additional physical-space slack also covers between-sample extrema.
+    return extent + 8;
+  }
+  /// V11.26: retain a fixed, fully visible portrait camera even if the
+  /// longer material flight changes vertical as well as horizontal extents.
+  static double verticalExtent({
+    required double stationaryHalfHeight,
+    required List<EggShellPanelMesh> panels,
+    required List<EggPanelReleaseMotion> motions,
+  }) {
+    if (!stationaryHalfHeight.isFinite ||
+        stationaryHalfHeight <= 0 ||
+        panels.isEmpty ||
+        panels.length != motions.length) {
+      throw ArgumentError('Invalid vertical exit framing');
+    }
+    var extent = stationaryHalfHeight;
+    for (var i = 0; i < panels.length; i++) {
+      for (final group in [panels[i].outer, panels[i].inner]) {
+        for (final point in group) {
+          extent = math.max(extent, point.y.abs());
+          for (var sample = 0; sample <= 24; sample++) {
+            final time = EggExitTimeline.freeDuration * sample / 24;
+            extent = math.max(
+              extent, motions[i].transform(point, time).y.abs(),
+            );
+          }
+        }
+      }
+    }
     return extent + 8;
   }
 }
@@ -141,6 +172,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   late final AnimationController _exitPlayback;
   late final List<EggPanelReleaseMotion> _exitMotion;
   late final double _exitHorizontalExtent;
+  late final double _exitVerticalExtent;
   int _mode = 0; // 0: assembled, 1: inspection, 2: hinge, 3: exit
   double _hingeDegrees = 20;
   bool _left = true;
@@ -189,6 +221,11 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
       panels: _assembly.panels,
       motions: _exitMotion,
     );
+    _exitVerticalExtent = EggExitFraming.verticalExtent(
+      stationaryHalfHeight: _model.halfHeight,
+      panels: _assembly.panels,
+      motions: _exitMotion,
+    );
   }
 
   @override
@@ -231,6 +268,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
               exitPlayback: _exitPlayback,
               exitMotion: _exitMotion,
               exitHorizontalExtent: _exitHorizontalExtent,
+              exitVerticalExtent: _exitVerticalExtent,
             ),
             child: const SizedBox.expand(),
           ),
@@ -242,7 +280,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.25',
+      Text('Géométrie V11.26',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
       const Text('Maillages 3D du bol avant, de la coquille arrière et '
@@ -345,7 +383,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
                 ),
               ]),
               const Text('Pivot 0–55 %, puis poussée 3D extérieure et '
-                  'latérale de 1,2 s. Collisions encore diagnostiquées '
+                  'latérale de 2 s. Collisions encore diagnostiquées '
                   'sans correction, gravité absente.',
                   style: TextStyle(fontSize: 12)),
             ],
@@ -464,6 +502,7 @@ class _ShellMeshPainter extends CustomPainter {
     required this.exitPlayback,
     required this.exitMotion,
     required this.exitHorizontalExtent,
+    required this.exitVerticalExtent,
   }) : super(repaint: exitPlayback);
 
   final EggShellModel model;
@@ -481,6 +520,7 @@ class _ShellMeshPainter extends CustomPainter {
   final Animation<double> exitPlayback;
   final List<EggPanelReleaseMotion> exitMotion;
   final double exitHorizontalExtent;
+  final double exitVerticalExtent;
 
   List<_Surface> _meshes() {
     final result = <_Surface>[];
@@ -599,10 +639,17 @@ class _ShellMeshPainter extends CustomPainter {
       size.width * .82 / (2 * model.maxRadius),
       size.height * .78 / (2 * model.halfHeight),
     );
-    // V11.20: fixed framing over every exit frame. Do not alter physical
-    // trajectories, do not dynamically zoom during the four-second playback.
+    // V11.20/V11.26: fixed framing over the full extended 3D exit.
+    // The camera never zooms with animation progress or clips the panel
+    // just because the release now moves farther along the same trajectory.
     final scale = mode == 3
-        ? math.min(baselineScale, size.width * .46 / exitHorizontalExtent)
+        ? math.min(
+            baselineScale,
+            math.min(
+              size.width * .46 / exitHorizontalExtent,
+              size.height * .44 / exitVerticalExtent,
+            ),
+          )
         : baselineScale;
     canvas.save();
     canvas.translate(size.width / 2, size.height * .52);
@@ -735,5 +782,6 @@ class _ShellMeshPainter extends CustomPainter {
       old.rightPanel != rightPanel || old.showInside != showInside ||
       old.outlines != outlines || old.inspectionYaw != inspectionYaw ||
        old.exitPlayback != exitPlayback || old.exitMotion != exitMotion ||
-       old.exitHorizontalExtent != exitHorizontalExtent;
+       old.exitHorizontalExtent != exitHorizontalExtent ||
+       old.exitVerticalExtent != exitVerticalExtent;
 }
