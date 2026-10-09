@@ -22,7 +22,7 @@ import 'egg_shell_model.dart';
 /// This is a kinematic model; it does NOT yet guarantee collision clearance
 /// against the fixed bowl or other moving pieces.
 class EggPanelReleaseMotion {
-  const EggPanelReleaseMotion._({
+  EggPanelReleaseMotion._({
     required this.hinge,
     required this.materialCenter,
     required this.releaseCenter,
@@ -32,6 +32,11 @@ class EggPanelReleaseMotion {
     required this.gravityAcceleration,
     required this.floorY,
     required this.floorImpactSeconds,
+    required this.groundRollAxis,
+    required this.groundSupport,
+    required this.settlingRadians,
+    required this.settlingDuration,
+    required this.materialRadius,
     required this.minimumOutwardClearance,
     required this.clearanceStartSeconds,
     required this.initialSpeed,
@@ -71,6 +76,24 @@ class EggPanelReleaseMotion {
   /// First contact of ANY real material vertex with that plane.
   /// Null if there is no floor, or no contact in the two-second window.
   final double? floorImpactSeconds;
+
+  /// Fixed horizontal 3D axis pointing the shell top away from the egg.
+  /// It is derived from material release position, never panel index.
+  final EggShellPoint3 groundRollAxis;
+
+  /// Exact convex 2D support hull for all hinged material vertices after
+  /// flight spin at first contact. Stores (height, height derivative with
+  /// roll angle). A support dot product suffices to keep every vertex up.
+  final List<(double, double)> groundSupport;
+
+  /// Optional rigid toppling after impact, with a zero-speed start and end.
+  /// The ground is a support plane, not a full dynamic friction solver.
+  final double settlingRadians;
+  final double settlingDuration;
+
+  /// Maximum material radius about the rigid centroid used in conservative
+  /// velocity bounds for the rolling support correction.
+  final double materialRadius;
 
   /// Model units of outward travel required before the panel begins to
   /// spin and travel circumferentially. Zero preserves legacy behavior.
@@ -114,6 +137,8 @@ class EggPanelReleaseMotion {
     double circumferentialAcceleration = 0,
     double gravityAcceleration = 0,
     double? floorY,
+    double settlingRadians = 0,
+    double settlingDuration = .5,
     double minimumOutwardClearance = 0,
   }) {
     if (!initialSpeed.isFinite || initialSpeed < 0 ||
@@ -123,6 +148,9 @@ class EggPanelReleaseMotion {
         circumferentialAcceleration < 0 ||
         !gravityAcceleration.isFinite || gravityAcceleration < 0 ||
         (floorY != null && !floorY.isFinite) ||
+        !settlingRadians.isFinite || settlingRadians < 0 ||
+        settlingRadians > math.pi ||
+        !settlingDuration.isFinite || settlingDuration <= 0 ||
         !minimumOutwardClearance.isFinite ||
         minimumOutwardClearance < 0 ||
         (initialSpeed == 0 && outwardAcceleration == 0)) {
@@ -200,6 +228,11 @@ class EggPanelReleaseMotion {
       gravityAcceleration: gravityAcceleration,
       floorY: null,
       floorImpactSeconds: null,
+      groundRollAxis: const EggShellPoint3(0, 0, 1),
+      groundSupport: const [],
+      settlingRadians: 0,
+      settlingDuration: settlingDuration,
+      materialRadius: 0,
       minimumOutwardClearance: minimumOutwardClearance,
       // Positive root of v0*t + (a*t*t)/2 = physical clearance.
       // Rationalized form avoids cancellation for tiny clearances.
@@ -267,6 +300,37 @@ class EggPanelReleaseMotion {
       }
       previous = now;
     }
+    final atImpact = impact == null ? free.releaseCenter
+        : free.centerAt(impact);
+    var radial = EggShellPoint3(atImpact.x, 0, atImpact.z);
+    if (radial.length < 1e-8) {
+      radial = EggShellPoint3(center.x, 0, center.z);
+    }
+    if (radial.length < 1e-8) {
+      throw StateError('Cannot determine material outwards rolling axis');
+    }
+    final normalizedRadial = radial.normalized;
+    final rollAxis = EggShellPoint3(
+      -normalizedRadial.z, 0, normalizedRadial.x,
+    );
+    final supportOffsets = impact == null
+        ? <EggShellPoint3>[]
+        : [
+            for (final offset in hingedOffsets)
+              _rotate(offset, hinge.axis, free._freeSpinRadiansAt(impact)),
+          ];
+    final supportPoints = [
+      for (final offset in supportOffsets)
+        (
+          offset.y,
+          rollAxis.z * offset.x - rollAxis.x * offset.z,
+        ),
+    ];
+    final supportHull = _supportHull(supportPoints);
+    var maxRadius = 0.0;
+    for (final offset in supportOffsets) {
+      maxRadius = math.max(maxRadius, offset.length);
+    }
     return EggPanelReleaseMotion._(
       hinge: hinge,
       materialCenter: free.materialCenter,
@@ -277,6 +341,11 @@ class EggPanelReleaseMotion {
       gravityAcceleration: free.gravityAcceleration,
       floorY: ground,
       floorImpactSeconds: impact,
+      groundRollAxis: rollAxis,
+      groundSupport: List.unmodifiable(supportHull),
+      settlingRadians: impact == null ? 0 : settlingRadians,
+      settlingDuration: settlingDuration,
+      materialRadius: maxRadius,
       minimumOutwardClearance: free.minimumOutwardClearance,
       clearanceStartSeconds: free.clearanceStartSeconds,
       initialSpeed: free.initialSpeed,
@@ -284,6 +353,43 @@ class EggPanelReleaseMotion {
       spinDegreesPerSecond: free.spinDegreesPerSecond,
       spinSign: free.spinSign,
     );
+  }
+
+  /// Monotone-chain convex hull of the material support samples.
+  /// This makes the exact floor support cheap to evaluate for each frame,
+  /// avoiding a full scan of thousands of triangles for every vertex.
+  static List<(double, double)> _supportHull(
+    List<(double, double)> points,
+  ) {
+    if (points.length < 3) return points;
+    points.sort((a, b) {
+      final first = a.$1.compareTo(b.$1);
+      return first != 0 ? first : a.$2.compareTo(b.$2);
+    });
+    double cross(
+      (double, double) o, (double, double) a, (double, double) b,
+    ) =>
+        (a.$1 - o.$1) * (b.$2 - o.$2) -
+        (a.$2 - o.$2) * (b.$1 - o.$1);
+    final lower = <(double, double)>[];
+    for (final p in points) {
+      while (lower.length >= 2 &&
+          cross(lower[lower.length - 2], lower.last, p) <= 0) {
+        lower.removeLast();
+      }
+      lower.add(p);
+    }
+    final upper = <(double, double)>[];
+    for (final p in points.reversed) {
+      while (upper.length >= 2 &&
+          cross(upper[upper.length - 2], upper.last, p) <= 0) {
+        upper.removeLast();
+      }
+      upper.add(p);
+    }
+    lower.removeLast();
+    upper.removeLast();
+    return [...lower, ...upper];
   }
 
   // Shared with conservative continuous-time collision inspectors.
