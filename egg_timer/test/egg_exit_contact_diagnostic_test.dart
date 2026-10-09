@@ -1,3 +1,4 @@
+import 'package:egg_timer/lab/egg_exit_motion_config.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_full_bowl_mesh.dart';
@@ -17,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// No movement, geometry, drawing or collision response is modified.
 /// A sampled clear frame NEVER certifies clearance between samples.
 void main() {
-  test('V11.22: locate the first physical 3D contact per panel', () {
+  test('V11.27: staged gravity exit and sampled material clearance', () {
     final network = EggFractureNetwork.fixed();
     final regions = EggFragmentRegionPlan.fromNetwork(network);
     final assembly = EggShellFrontAssemblyBuilder.build(regions);
@@ -28,7 +29,7 @@ void main() {
     final bowl = EggFullBowlMeshBuilder.build(front, rear);
     final motions = [
       for (var i = 0; i < 2; i++)
-        EggPanelReleaseMotion.fromHinge(
+        EggExitMotionConfig.build(
           panel: assembly.panels[i],
           model: network.model,
           hinge: EggPanelHingePose.fromGraph(
@@ -38,9 +39,6 @@ void main() {
             network: network,
             openingDegrees: 30,
           ),
-          circumferentialAcceleration: 115,
-          minimumOutwardClearance: 3 * assembly.panels[i].thickness,
-          gravityAcceleration: 70,
         ),
     ];
     final againstBowl = [
@@ -212,7 +210,7 @@ void main() {
     }
 
     debugPrintSynchronously(
-      'V11.25 seuil dégagement gauche='
+      'V11.27 seuil dégagement gauche='
       '${motions[0].clearanceStartSeconds.toStringAsFixed(3)} s '
       'droite=${motions[1].clearanceStartSeconds.toStringAsFixed(3)} s',
     );
@@ -220,8 +218,11 @@ void main() {
     // t = 0 starts at the LAST attached pose, i.e. 55% on the UI.
     // These are physical seconds since separation, not player seconds.
     for (final seconds in [0.0, .12, .3, .4, .5, .55, .65, .8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]) {
-      final a = againstBowl[0].inspect(seconds, maxPairs: 15000);
-      final b = againstBowl[1].inspect(seconds, maxPairs: 15000);
+      // The narrow initial departure remains inconclusive with 15k pairs.
+      // Increase the budget only at that physical instant.
+      final bowlBudget = seconds == .12 ? 150000 : 15000;
+      final a = againstBowl[0].inspect(seconds, maxPairs: bowlBudget);
+      final b = againstBowl[1].inspect(seconds, maxPairs: bowlBudget);
       final pair = betweenPanels.inspect(
         firstSeconds: seconds,
         secondSeconds: seconds,
