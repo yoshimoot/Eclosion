@@ -30,6 +30,8 @@ class EggPanelReleaseMotion {
     required this.circumferential,
     required this.circumferentialAcceleration,
     required this.gravityAcceleration,
+    required this.floorY,
+    required this.floorImpactSeconds,
     required this.minimumOutwardClearance,
     required this.clearanceStartSeconds,
     required this.initialSpeed,
@@ -61,6 +63,14 @@ class EggPanelReleaseMotion {
   /// Optional downward acceleration in the fixed world/model Y axis.
   /// Zero leaves all existing V11.13–V11.26 callers unchanged.
   final double gravityAcceleration;
+
+  /// Optional fixed 3D ground plane (+Y points downward). Legacy callers
+  /// leave it null, retaining exactly their ballistic V11.29 trajectory.
+  final double? floorY;
+
+  /// First contact of ANY real material vertex with that plane.
+  /// Null if there is no floor, or no contact in the two-second window.
+  final double? floorImpactSeconds;
 
   /// Model units of outward travel required before the panel begins to
   /// spin and travel circumferentially. Zero preserves legacy behavior.
@@ -103,6 +113,7 @@ class EggPanelReleaseMotion {
     double spinDegreesPerSecond = 28,
     double circumferentialAcceleration = 0,
     double gravityAcceleration = 0,
+    double? floorY,
     double minimumOutwardClearance = 0,
   }) {
     if (!initialSpeed.isFinite || initialSpeed < 0 ||
@@ -111,6 +122,7 @@ class EggPanelReleaseMotion {
         !circumferentialAcceleration.isFinite ||
         circumferentialAcceleration < 0 ||
         !gravityAcceleration.isFinite || gravityAcceleration < 0 ||
+        (floorY != null && !floorY.isFinite) ||
         !minimumOutwardClearance.isFinite ||
         minimumOutwardClearance < 0 ||
         (initialSpeed == 0 && outwardAcceleration == 0)) {
@@ -178,7 +190,7 @@ class EggPanelReleaseMotion {
       }
       tangent = inPlane.normalized;
     }
-    return EggPanelReleaseMotion._(
+    final free = EggPanelReleaseMotion._(
       hinge: hinge,
       materialCenter: center,
       releaseCenter: hinge.transform(center),
@@ -186,6 +198,8 @@ class EggPanelReleaseMotion {
       circumferential: tangent,
       circumferentialAcceleration: circumferentialAcceleration,
       gravityAcceleration: gravityAcceleration,
+      floorY: null,
+      floorImpactSeconds: null,
       minimumOutwardClearance: minimumOutwardClearance,
       // Positive root of v0*t + (a*t*t)/2 = physical clearance.
       // Rationalized form avoids cancellation for tiny clearances.
@@ -202,6 +216,62 @@ class EggPanelReleaseMotion {
       outwardAcceleration: outwardAcceleration,
       spinDegreesPerSecond: spinDegreesPerSecond,
       spinSign: hinge.signedRadians > 0 ? 1 : -1,
+    );
+    if (floorY == null) return free;
+
+    // First physical vertex contact, not the centre or a projected contour.
+    // Sweep the SAME rigid mesh and solve the first crossing by bisection.
+    final vertices = [...panel.outer, ...panel.inner];
+    double lowestMaterialClearance(double t) {
+      var maxY = double.negativeInfinity;
+      final center = free.centerAt(t);
+      final angle = free.spinRadiansAt(t);
+      for (final original in vertices) {
+        final p = hinge.transform(original);
+        final y = (center +
+            _rotate(p - free.releaseCenter, hinge.axis, angle)).y;
+        maxY = math.max(maxY, y);
+      }
+      return floorY - maxY;
+    }
+    if (lowestMaterialClearance(0) <= 0) {
+      throw StateError('A released panel cannot start inside the ground');
+    }
+    double? impact;
+    var previous = 0.0;
+    for (var tick = 1; tick <= 200; tick++) {
+      final now = tick / 100;
+      if (lowestMaterialClearance(now) <= 0) {
+        var lo = previous, hi = now;
+        for (var iteration = 0; iteration < 30; iteration++) {
+          final mid = (lo + hi) / 2;
+          if (lowestMaterialClearance(mid) > 0) {
+            lo = mid;
+          } else {
+            hi = mid;
+          }
+        }
+        impact = hi;
+        break;
+      }
+      previous = now;
+    }
+    return EggPanelReleaseMotion._(
+      hinge: hinge,
+      materialCenter: free.materialCenter,
+      releaseCenter: free.releaseCenter,
+      outward: free.outward,
+      circumferential: free.circumferential,
+      circumferentialAcceleration: free.circumferentialAcceleration,
+      gravityAcceleration: free.gravityAcceleration,
+      floorY: floorY,
+      floorImpactSeconds: impact,
+      minimumOutwardClearance: free.minimumOutwardClearance,
+      clearanceStartSeconds: free.clearanceStartSeconds,
+      initialSpeed: free.initialSpeed,
+      outwardAcceleration: free.outwardAcceleration,
+      spinDegreesPerSecond: free.spinDegreesPerSecond,
+      spinSign: free.spinSign,
     );
   }
 
@@ -248,6 +318,17 @@ class EggPanelReleaseMotion {
 
   double spinRadiansAt(double seconds) {
     _checkTime(seconds);
+    // An inelastic impact arrests the angular spin without changing
+    // shell geometry. The pre-impact orientation is continuous.
+    if (floorImpactSeconds case final impact?) {
+      if (seconds >= impact) {
+        return _freeSpinRadiansAt(impact);
+      }
+    }
+    return _freeSpinRadiansAt(seconds);
+  }
+
+  double _freeSpinRadiansAt(double seconds) {
     // The zero-clearance path must remain identical to V11.13.
     if (clearanceStartSeconds == 0) {
       return spinSign * spinDegreesPerSecond * math.pi / 180 * seconds;
@@ -276,11 +357,36 @@ class EggPanelReleaseMotion {
     return gravityAcceleration * elapsed * elapsed / 2;
   }
 
-  EggShellPoint3 centerAt(double seconds) =>
+  EggShellPoint3 _freeCenterAt(double seconds) =>
       releaseCenter +
       outward * outwardDistanceAt(seconds) +
       circumferential * circumferentialDistanceAt(seconds) +
       EggShellPoint3(0, fallDistanceAt(seconds), 0);
+
+  EggShellPoint3 centerAt(double seconds) {
+    _checkTime(seconds);
+    final impact = floorImpactSeconds;
+    if (impact == null || seconds <= impact) return _freeCenterAt(seconds);
+
+    // Inelastic floor reaction: the real material contact point stays at
+    // floorY, with no vertical penetration or change in shell orientation.
+    // A short frictional slide dissipates the existing horizontal velocity
+    // continuously instead of freezing the shell's XY screen coordinates.
+    const slideDamping = 8.0;
+    final elapsed = seconds - impact;
+    final weight = -math.expm1(-slideDamping * elapsed) / slideDamping;
+    final radialSpeed = initialSpeed + outwardAcceleration * impact;
+    final lateralTime = math.max(0.0, impact - clearanceStartSeconds);
+    final lateralSpeed = circumferentialAcceleration * lateralTime;
+    final velocity = outward * radialSpeed +
+        circumferential * lateralSpeed;
+    final hit = _freeCenterAt(impact);
+    return EggShellPoint3(
+      hit.x + velocity.x * weight,
+      hit.y,
+      hit.z + velocity.z * weight,
+    );
+  }
 
   /// The exact hinged state at t=0; later, a rigid body around its
   /// release-time centre plus outward and optional 3D tangential motion.
