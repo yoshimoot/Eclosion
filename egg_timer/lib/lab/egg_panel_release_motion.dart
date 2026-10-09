@@ -13,6 +13,9 @@ import 'egg_shell_model.dart';
 /// clock are introduced. Attachment failure is an INPUT, not simulated here.
 /// An optional circumferential impulse (V11.19 diagnostic only) adds a real
 /// 3D tangential acceleration, with zero extra velocity at release.
+/// V11.25 optionally postpones that impulse and the material spin until
+/// outward travel reaches a specified physical shell clearance. The default
+/// (zero clearance) retains the exact V11.13/V11.19 kinematics.
 ///
 /// This is a kinematic model; it does NOT yet guarantee collision clearance
 /// against the fixed bowl or other moving pieces.
@@ -24,6 +27,8 @@ class EggPanelReleaseMotion {
     required this.outward,
     required this.circumferential,
     required this.circumferentialAcceleration,
+    required this.minimumOutwardClearance,
+    required this.clearanceStartSeconds,
     required this.initialSpeed,
     required this.outwardAcceleration,
     required this.spinDegreesPerSecond,
@@ -49,6 +54,13 @@ class EggPanelReleaseMotion {
 
   /// Additional sideways acceleration in model units/s². Default: zero.
   final double circumferentialAcceleration;
+
+  /// Model units of outward travel required before the panel begins to
+  /// spin and travel circumferentially. Zero preserves legacy behavior.
+  final double minimumOutwardClearance;
+
+  /// Physical time when the early radial-only departure is complete.
+  final double clearanceStartSeconds;
 
   /// Model units per second, applied along outward. Diagnostic constants.
   final double initialSpeed;
@@ -83,14 +95,21 @@ class EggPanelReleaseMotion {
     double outwardAcceleration = 35,
     double spinDegreesPerSecond = 28,
     double circumferentialAcceleration = 0,
+    double minimumOutwardClearance = 0,
   }) {
     if (!initialSpeed.isFinite || initialSpeed < 0 ||
         !outwardAcceleration.isFinite || outwardAcceleration < 0 ||
         !spinDegreesPerSecond.isFinite || spinDegreesPerSecond < 0 ||
         !circumferentialAcceleration.isFinite ||
         circumferentialAcceleration < 0 ||
+        !minimumOutwardClearance.isFinite ||
+        minimumOutwardClearance < 0 ||
         (initialSpeed == 0 && outwardAcceleration == 0)) {
       throw ArgumentError('Release rates must be finite and outward');
+    }
+    if (minimumOutwardClearance >
+        initialSpeed * 2 + outwardAcceleration * 2) {
+      throw ArgumentError('Clearance cannot be reached within two seconds');
     }
     if (!hinge.openingDegrees.isFinite ||
         hinge.openingDegrees <= 0 ||
@@ -157,6 +176,18 @@ class EggPanelReleaseMotion {
       outward: direction,
       circumferential: tangent,
       circumferentialAcceleration: circumferentialAcceleration,
+      minimumOutwardClearance: minimumOutwardClearance,
+      // Positive root of v0*t + (a*t*t)/2 = physical clearance.
+      // Rationalized form avoids cancellation for tiny clearances.
+      clearanceStartSeconds: minimumOutwardClearance == 0
+          ? 0
+          : (2 * minimumOutwardClearance) /
+              (initialSpeed +
+                  math.sqrt(
+                    initialSpeed * initialSpeed +
+                        2 * outwardAcceleration *
+                            minimumOutwardClearance,
+                  )),
       initialSpeed: initialSpeed,
       outwardAcceleration: outwardAcceleration,
       spinDegreesPerSecond: spinDegreesPerSecond,
@@ -179,12 +210,24 @@ class EggPanelReleaseMotion {
 
   double spinRadiansAt(double seconds) {
     _checkTime(seconds);
-    return spinSign * spinDegreesPerSecond * math.pi / 180 * seconds;
+    // The zero-clearance path must remain identical to V11.13.
+    if (clearanceStartSeconds == 0) {
+      return spinSign * spinDegreesPerSecond * math.pi / 180 * seconds;
+    }
+    final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
+    // No jump in angular velocity when the cleared panel starts to turn:
+    // omega grows linearly to the existing rated speed over 0.15 s.
+    const rampSeconds = .15;
+    final spinClock = elapsed < rampSeconds
+        ? elapsed * elapsed / (2 * rampSeconds)
+        : elapsed - rampSeconds / 2;
+    return spinSign * spinDegreesPerSecond * math.pi / 180 * spinClock;
   }
 
   double circumferentialDistanceAt(double seconds) {
     _checkTime(seconds);
-    return circumferentialAcceleration * seconds * seconds / 2;
+    final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
+    return circumferentialAcceleration * elapsed * elapsed / 2;
   }
 
   EggShellPoint3 centerAt(double seconds) =>
