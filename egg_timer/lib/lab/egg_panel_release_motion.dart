@@ -405,8 +405,15 @@ class EggPanelReleaseMotion {
   double linearSpeedUpperBoundAt(double seconds) {
     _checkTime(seconds);
     final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
+    // The rolling contact support raises/lowers the rigid centre by at most
+    // maxRollRate * materialRadius. Include it even after linear damping.
+    final supportSpeed = floorImpactSeconds != null &&
+            seconds >= floorImpactSeconds!
+        ? 1.5 * settlingRadians / settlingDuration * materialRadius
+        : 0.0;
     return initialSpeed + outwardAcceleration * seconds +
-        (circumferentialAcceleration + gravityAcceleration) * elapsed;
+        (circumferentialAcceleration + gravityAcceleration) * elapsed +
+        supportSpeed;
   }
 
   /// A conservative upper bound on the rigid body's angular speed.
@@ -417,7 +424,12 @@ class EggPanelReleaseMotion {
     final rated = spinDegreesPerSecond * math.pi / 180;
     if (clearanceStartSeconds == 0) return rated;
     final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
-    return rated * math.min(1.0, elapsed / spinRampSeconds);
+    final spinBound = rated * math.min(1.0, elapsed / spinRampSeconds);
+    final rollBound = floorImpactSeconds != null &&
+            seconds >= floorImpactSeconds!
+        ? 1.5 * settlingRadians / settlingDuration
+        : 0.0;
+    return spinBound + rollBound;
   }
 
   static void _checkTime(double seconds) {
@@ -456,6 +468,32 @@ class EggPanelReleaseMotion {
         ? elapsed * elapsed / (2 * spinRampSeconds)
         : elapsed - spinRampSeconds / 2;
     return spinSign * spinDegreesPerSecond * math.pi / 180 * spinClock;
+  }
+
+  /// Additional toppling of the same curved material after the floor hit.
+  /// Smoothstep represents a finite angular impulse followed by settling:
+  /// angle and angular speed are continuous at the impact and at rest.
+  double groundRollRadiansAt(double seconds) {
+    _checkTime(seconds);
+    final impact = floorImpactSeconds;
+    if (impact == null || seconds <= impact || settlingRadians == 0) {
+      return 0;
+    }
+    final u = ((seconds - impact) / settlingDuration)
+        .clamp(0.0, 1.0).toDouble();
+    return settlingRadians * u * u * (3 - 2 * u);
+  }
+
+  double _supportHeightAt(double rollAngle) {
+    if (groundSupport.isEmpty) {
+      throw StateError('No 3D material support available at floor');
+    }
+    final c = math.cos(rollAngle), si = math.sin(rollAngle);
+    var maxY = double.negativeInfinity;
+    for (final p in groundSupport) {
+      maxY = math.max(maxY, p.$1 * c + p.$2 * si);
+    }
+    return maxY;
   }
 
   double circumferentialDistanceAt(double seconds) {
@@ -497,9 +535,10 @@ class EggPanelReleaseMotion {
     final velocity = outward * radialSpeed +
         circumferential * lateralSpeed;
     final hit = _freeCenterAt(impact);
+    final materialHeight = _supportHeightAt(groundRollRadiansAt(seconds));
     return EggShellPoint3(
       hit.x + velocity.x * weight,
-      hit.y,
+      floorY! - materialHeight,
       hit.z + velocity.z * weight,
     );
   }
@@ -509,14 +548,24 @@ class EggPanelReleaseMotion {
   EggShellPoint3 transform(EggShellPoint3 point, double seconds) {
     final angle = spinRadiansAt(seconds);
     final atRelease = hinge.transform(point);
-    return centerAt(seconds) +
+    final afterSpin =
         _rotate(atRelease - releaseCenter, hinge.axis, angle);
+    final roll = groundRollRadiansAt(seconds);
+    final positioned = roll == 0
+        ? afterSpin
+        : _rotate(afterSpin, groundRollAxis, roll);
+    return centerAt(seconds) + positioned;
   }
 
-  EggShellPoint3 rotateNormal(EggShellPoint3 normal, double seconds) =>
-      _rotate(
-        hinge.rotateNormal(normal), hinge.axis, spinRadiansAt(seconds),
-      );
+  EggShellPoint3 rotateNormal(EggShellPoint3 normal, double seconds) {
+    final afterSpin = _rotate(
+      hinge.rotateNormal(normal), hinge.axis, spinRadiansAt(seconds),
+    );
+    final roll = groundRollRadiansAt(seconds);
+    return roll == 0
+        ? afterSpin
+        : _rotate(afterSpin, groundRollAxis, roll);
+  }
 
   List<EggShellPoint3> transformAll(
     List<EggShellPoint3> points, double seconds,
