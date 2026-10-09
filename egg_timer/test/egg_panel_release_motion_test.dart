@@ -273,6 +273,60 @@ void main() {
     }
   });
 
+  test('V11.28: analytic speed bounds include exact delayed motion', () {
+    for (var i = 0; i < 2; i++) {
+      final legacy = motion(i);
+      final panel = panels[i];
+      final falling = EggPanelReleaseMotion.fromHinge(
+        panel: panel,
+        hinge: legacy.hinge,
+        model: graph.model,
+        circumferentialAcceleration: 115,
+        gravityAcceleration: 70,
+        minimumOutwardClearance: 3 * panel.thickness,
+      );
+      const delta = 0.00001;
+      for (final m in [legacy, falling]) {
+        for (final seconds in [
+          0.02, 0.22, 0.38, 0.43, 0.50, 0.60, 0.80, 1.30, 1.98,
+        ]) {
+          final before = seconds - delta;
+          final after = seconds + delta;
+          final measuredLinear =
+              (m.centerAt(after) - m.centerAt(before)).length /
+                  (2 * delta);
+          final measuredAngular =
+              (m.spinRadiansAt(after) - m.spinRadiansAt(before)).abs() /
+                  (2 * delta);
+          final linearBound = m.linearSpeedUpperBoundAt(seconds);
+          final angularBound = m.angularSpeedUpperBoundAt(seconds);
+          expect(linearBound, greaterThanOrEqualTo(0));
+          expect(angularBound, greaterThanOrEqualTo(0));
+          expect(measuredLinear, lessThanOrEqualTo(linearBound + .001));
+          expect(measuredAngular, lessThanOrEqualTo(angularBound + .001));
+          final legacyLoose = m.initialSpeed +
+              (m.outwardAcceleration +
+                  m.circumferentialAcceleration +
+                  m.gravityAcceleration) * seconds;
+          expect(linearBound, lessThanOrEqualTo(legacyLoose + 1e-9));
+          expect(angularBound,
+              lessThanOrEqualTo(
+                  m.spinDegreesPerSecond * math.pi / 180 + 1e-12));
+        }
+      }
+      // Delayed acceleration and spin cannot be active before clearance.
+      expect(falling.linearSpeedUpperBoundAt(.2),
+          closeTo(12 + 35 * .2, 1e-12));
+      expect(falling.angularSpeedUpperBoundAt(.2), 0);
+      expect(legacy.angularSpeedUpperBoundAt(.2),
+          closeTo(legacy.spinDegreesPerSecond * math.pi / 180, 1e-12));
+      expect(() => falling.linearSpeedUpperBoundAt(-.01),
+          throwsArgumentError);
+      expect(() => falling.angularSpeedUpperBoundAt(2.1),
+          throwsArgumentError);
+    }
+  });
+
   test('V11.13: pure deterministic query, no frame-to-frame accumulation', () {
     for (var i = 0; i < 2; i++) {
       final release = motion(i);
