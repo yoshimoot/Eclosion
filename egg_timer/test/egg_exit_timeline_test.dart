@@ -105,12 +105,12 @@ void main() {
     // Lock the exact experimental Chrome configuration as a visible
     // contract: diagnostics should not accidentally test a different run.
     expect(EggExitMotionConfig.circumferentialAcceleration, 115);
-    expect(EggExitMotionConfig.gravityAcceleration, 135);
+    expect(EggExitMotionConfig.gravityAcceleration, 220);
     expect(EggExitMotionConfig.clearanceThicknesses, 3);
     for (var i = 0; i < 2; i++) {
       final motion = motions[i];
       expect(motion.circumferentialAcceleration, 115);
-      expect(motion.gravityAcceleration, 135);
+      expect(motion.gravityAcceleration, 220);
       expect(motion.minimumOutwardClearance,
           closeTo(3 * assembly.panels[i].thickness, 1e-12));
       expect(motion.fallDistanceAt(motion.clearanceStartSeconds), 0);
@@ -158,56 +158,63 @@ void main() {
         }
       }
     }
-    // Regression: increasing gravity is the ONLY movement change from
-    // V11.27. All shell vertices retain their X/Z motion and rigid spin.
+    // V11.30: the exact outer + inner shell meshes must contact the
+    // physical floor and remain above it after the first material impact.
+    const floorTolerance = 1e-5;
     for (var i = 0; i < 2; i++) {
-      final newMotion = motions[i];
-      final previous = EggPanelReleaseMotion.fromHinge(
+      final motion = motions[i];
+      final impact = motion.floorImpactSeconds;
+      expect(impact, isNotNull,
+          reason: 'Panel $i must reach the ground by the end of the exit');
+      expect(impact!, inExclusiveRange(.40, 2.0));
+      expect(motion.floorY, network.model.halfHeight + 8);
+      final preContact = EggPanelReleaseMotion.fromHinge(
         panel: assembly.panels[i],
         model: network.model,
-        hinge: newMotion.hinge,
-        circumferentialAcceleration: 115,
-        minimumOutwardClearance: 3 * assembly.panels[i].thickness,
-        gravityAcceleration: 70,
+        hinge: motion.hinge,
+        circumferentialAcceleration:
+            EggExitMotionConfig.circumferentialAcceleration,
+        minimumOutwardClearance:
+            EggExitMotionConfig.clearanceThicknesses *
+                assembly.panels[i].thickness,
+        gravityAcceleration: EggExitMotionConfig.gravityAcceleration,
       );
-      for (final t in [0.0, .12, .35, .4, .8, 1.2, 1.6, 2.0]) {
-        final elapsed =
-            (t - newMotion.clearanceStartSeconds).clamp(0.0, 2.0);
-        final predictedAdditionalDrop = 32.5 * elapsed * elapsed;
-        expect(newMotion.spinRadiansAt(t),
-            closeTo(previous.spinRadiansAt(t), 1e-12));
+      for (final t in [0.0, .12, .30, impact * .9, impact]) {
         final p = assembly.panels[i].outer[0];
-        final displaced = newMotion.transform(p, t) -
-            previous.transform(p, t);
-        expect(displaced.x, closeTo(0, 1e-8));
-        expect(displaced.z, closeTo(0, 1e-8));
-        expect(displaced.y,
-            closeTo(predictedAdditionalDrop, 1e-8));
+        expect((motion.transform(p, t) - preContact.transform(p, t)).length,
+            lessThan(1e-8));
       }
-    }
-    // V11.29: landing proximity is measured in actual world-space shell
-    // vertices, not on a 2D painted contour. +Y points toward the floor.
-    // No floor collision response exists yet; this check only constrains
-    // the end pose to a realistic vicinity of the egg's base plane.
-    for (var i = 0; i < 2; i++) {
-      var lowestY = double.negativeInfinity;
-      for (final group in [
-        assembly.panels[i].outer,
-        assembly.panels[i].inner,
-      ]) {
-        for (final vertex in group) {
-          final y = motions[i].transform(
-            vertex, EggExitTimeline.freeDuration,
-          ).y;
-          if (y > lowestY) lowestY = y;
+      // Contact changes motion, not material dimensions: outside,
+      // interior and original 2.5-thick walls share one rigid transform.
+      for (final t in [0.0, .4, impact, (impact + 2) / 2, 2.0]) {
+        var maxY = double.negativeInfinity;
+        final panel = assembly.panels[i];
+        for (final group in [panel.outer, panel.inner]) {
+          for (final v in group) {
+            final placed = motion.transform(v, t);
+            if (placed.y > maxY) maxY = placed.y;
+          }
+        }
+        expect(maxY,
+            lessThanOrEqualTo(motion.floorY! + floorTolerance),
+            reason: 'Rigid panel $i crosses floor at t=$t');
+        if (t >= impact) {
+          expect(maxY, closeTo(motion.floorY!, floorTolerance));
+        }
+        for (var j = 0; j < panel.outer.length; j += 30) {
+          final wallThickness =
+              (motion.transform(panel.outer[j], t) -
+                      motion.transform(panel.inner[j], t)).length;
+          expect(wallThickness, closeTo(panel.thickness, 1e-7));
         }
       }
-      expect(lowestY.isFinite, isTrue);
-      expect(lowestY,
-          inInclusiveRange(network.model.halfHeight - 55,
-              network.model.halfHeight + 25),
-          reason: 'The released rigid shell must approach the ground '
-              'without disappearing far underneath it (panel $i)');
+      final last = motion.centerAt(2.0);
+      final justAfter = motion.centerAt(impact + 1e-6);
+      final atImpact = motion.centerAt(impact);
+      expect((atImpact - justAfter).length, lessThan(.01));
+      expect(motion.spinRadiansAt(2),
+          closeTo(motion.spinRadiansAt(impact), 1e-12));
+      expect(last.y, closeTo(atImpact.y, 1e-8));
     }
     expect(() => EggExitFraming.verticalExtent(
       stationaryHalfHeight: -1, panels: assembly.panels, motions: motions,
