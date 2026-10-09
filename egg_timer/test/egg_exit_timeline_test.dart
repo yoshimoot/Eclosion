@@ -158,6 +158,33 @@ void main() {
         }
       }
     }
+    // Regression: increasing gravity is the ONLY movement change from
+    // V11.27. All shell vertices retain their X/Z motion and rigid spin.
+    for (var i = 0; i < 2; i++) {
+      final newMotion = motions[i];
+      final previous = EggPanelReleaseMotion.fromHinge(
+        panel: assembly.panels[i],
+        model: network.model,
+        hinge: newMotion.hinge,
+        circumferentialAcceleration: 115,
+        minimumOutwardClearance: 3 * assembly.panels[i].thickness,
+        gravityAcceleration: 70,
+      );
+      for (final t in [0.0, .12, .35, .4, .8, 1.2, 1.6, 2.0]) {
+        final elapsed =
+            (t - newMotion.clearanceStartSeconds).clamp(0.0, 2.0);
+        final predictedAdditionalDrop = 32.5 * elapsed * elapsed;
+        expect(newMotion.spinRadiansAt(t),
+            closeTo(previous.spinRadiansAt(t), 1e-12));
+        final p = assembly.panels[i].outer[0];
+        final displaced = newMotion.transform(p, t) -
+            previous.transform(p, t);
+        expect(displaced.x, closeTo(0, 1e-8));
+        expect(displaced.z, closeTo(0, 1e-8));
+        expect(displaced.y,
+            closeTo(predictedAdditionalDrop, 1e-8));
+      }
+    }
     // V11.29: landing proximity is measured in actual world-space shell
     // vertices, not on a 2D painted contour. +Y points toward the floor.
     // No floor collision response exists yet; this check only constrains
