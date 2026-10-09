@@ -19,6 +19,11 @@ final class EggExitMotionConfig {
   static const double gravityAcceleration = 220;
   static const double clearanceThicknesses = 3;
 
+  // V11.31: after first contact, rotate the SAME 3D solid away from the
+  // egg around a world-horizontal axis. No geometry edits or 2D warping.
+  static const double groundSettlingRadians = 1.0;
+  static const double groundSettlingDuration = .45;
+
   static EggPanelReleaseMotion build({
     required EggShellPanelMesh panel,
     required EggPanelHingePose hinge,
@@ -34,5 +39,7 @@ final class EggExitMotionConfig {
         // The physical ground lies below the validated egg silhouette.
         // Match the plane already used for the original shadow projection.
         floorY: model.halfHeight + 8,
+        settlingRadians: groundSettlingRadians,
+        settlingDuration: groundSettlingDuration,
       );
 }
