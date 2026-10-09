@@ -1,3 +1,4 @@
+import 'package:egg_timer/lab/egg_exit_motion_config.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_geometry_preview.dart';
@@ -89,7 +90,7 @@ void main() {
     final assembly = EggShellFrontAssemblyBuilder.build(regions);
     final motions = [
       for (var i = 0; i < 2; i++)
-        EggPanelReleaseMotion.fromHinge(
+        EggExitMotionConfig.build(
           panel: assembly.panels[i],
           model: network.model,
           hinge: EggPanelHingePose.fromGraph(
@@ -99,9 +100,6 @@ void main() {
             network: network,
             openingDegrees: EggExitTimeline.finalHingeDegrees,
           ),
-          circumferentialAcceleration: 115,
-          minimumOutwardClearance: 3 * assembly.panels[i].thickness,
-          gravityAcceleration: 70,
         ),
     ];
     final extent = EggExitFraming.horizontalExtent(
