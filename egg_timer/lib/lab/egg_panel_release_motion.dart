@@ -320,10 +320,9 @@ class EggPanelReleaseMotion {
     _checkTime(seconds);
     // An inelastic impact arrests the angular spin without changing
     // shell geometry. The pre-impact orientation is continuous.
-    if (floorImpactSeconds case final impact?) {
-      if (seconds >= impact) {
-        return _freeSpinRadiansAt(impact);
-      }
+    final impact = floorImpactSeconds;
+    if (impact != null && seconds >= impact) {
+      return _freeSpinRadiansAt(impact);
     }
     return _freeSpinRadiansAt(seconds);
   }
