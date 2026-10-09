@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## V11.9 — Contrôle du volume de coquille avant + arrière (9 octobre 2026 ; tests en attente)
+
+**Retours Chrome V11.8 reçus :** les captures de la page dédiée montrent (1) les deux panneaux **assemblés**, contour des fissures visible et bol inférieur continu ; (2) les panneaux **écartés**, mêmes contours, trou apparent entre eux sans disparition. La bande brune près de la couronne est **compatible avec la face intérieure arrière visible sans F1** et ne suffit pas à démontrer un défaut. Les panneaux ont encore une apparence mince/plate du fait de la projection orthographique statique : leur épaisseur 2.5 existe mais sa lisibilité artistique n'est **pas validée**. Le rendu ne valide ni l'orientation ni le manifold de la jonction arrière.
+
+**Objet unique V11.9 :** vérification d'assemblage topologique **sans changement d'affichage**, dans `egg_full_bowl_mesh.dart`. Le builder accepte la `EggStationaryBowlShell` V11.6 et la `EggRearBowlMesh` V11.8 correspondantes. Il réutilise **par identité** tous les sommets latéraux validés V11.7 (y compris le pôle commun), reconstruit un espace d'indices global [extérieur, intérieur], et remappe les triangles avant, arrière et les tranches supérieures existantes. **Aucune paroi latérale** n'est ajoutée ; les deux bandes de tranche de la couronne avant et arrière se rejoignent aux mêmes sommets. Le modèle et les deux maillages sources restent inchangés.
+
+**Cinq tests ajoutés mais non exécutés ici :** (1) fusion exacte des sommets de couture et invariance des positions, (2) pour CHAQUE arête de triangle, exactement deux faces d'incidence et directions opposées, plus caractéristique d'Euler = 2 pour un volume monocoquille, (3) uniquement les parois supérieures existantes, (4) épaisseur 2.5 sur tous les sommets, (5) déterminisme et rejet d'un assemblage incohérent. Le constructeur vérifie l'identité des deux demi-coquilles et l'identité des faces intérieures le long des côtés. Un échec sera corrigé **dans la structure**, jamais par un cache ou une bande de dissimulation.
+
+**Ne rien changer aux validations :** F1, fissures V10.4, contours, épaisseur, oscillation, modèle, atelier et vue V11.8, poussin, propagation et temps. Tests à exécuter localement : `flutter test --no-pub test/egg_full_bowl_mesh_test.dart test/egg_rear_bowl_mesh_test.dart`. Attendre les résultats avant d'intégrer `EggFullBowlMesh` dans le moteur visuel et de travailler la lisibilité volumétrique.
+
 ## V11.8 — Premier aperçu Chrome des maillages validés (9 octobre 2026 ; validation visuelle en attente)
 
 **Retour utilisateur :** après `a477453`, `flutter test --no-pub test/egg_rear_bowl_mesh_test.dart test/egg_rear_bowl_boundary_test.dart` → **`00:01 +10: All tests passed!`**. Les deux faces du bol arrière et son contour ont ainsi passé les dix tests techniques ; aucun affichage artistique validé à ce stade. Demande explicite : « je voudrais voir ce que ça donne sur Chrome ».
