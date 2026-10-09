@@ -258,6 +258,32 @@ void main() {
             reason: 'Shell $i must maintain real ground contact '
                 'throughout settling at t=$time');
       }
+      // Rendering uses transformAll; it must be identical to per-point
+      // collision queries after the new ground-support correction.
+      for (final t in [impact, (impact + 2) / 2, 2.0]) {
+        final panel = assembly.panels[i];
+        final batch = motion.transformAll(panel.outer, t);
+        for (var j = 0; j < panel.outer.length; j += 41) {
+          expect((batch[j] - motion.transform(panel.outer[j], t)).length,
+              lessThan(1e-9));
+        }
+      }
+      // Conservative velocity envelopes must remain conservative AFTER
+      // impact too, when the panel rotates about the support axis.
+      for (final fraction in [.15, .50, .85]) {
+        final t = impact + (2.0 - impact) * fraction;
+        const dt = 1e-5;
+        final observedCentreSpeed =
+            (motion.centerAt(t + dt) - motion.centerAt(t - dt)).length /
+                (2 * dt);
+        expect(observedCentreSpeed,
+            lessThanOrEqualTo(motion.linearSpeedUpperBoundAt(t) + .02));
+        final observedRollSpeed =
+            (motion.groundRollRadiansAt(t + dt) -
+                motion.groundRollRadiansAt(t - dt)).abs() / (2 * dt);
+        expect(observedRollSpeed,
+            lessThanOrEqualTo(motion.angularSpeedUpperBoundAt(t) + .02));
+      }
       final contactAxis = motion.groundRollAxis;
       expect(contactAxis.y, 0);
       expect(contactAxis.length, closeTo(1, 1e-9));
