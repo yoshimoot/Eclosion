@@ -102,6 +102,19 @@ void main() {
           ),
         ),
     ];
+    // Lock the exact experimental Chrome configuration as a visible
+    // contract: diagnostics should not accidentally test a different run.
+    expect(EggExitMotionConfig.circumferentialAcceleration, 115);
+    expect(EggExitMotionConfig.gravityAcceleration, 70);
+    expect(EggExitMotionConfig.clearanceThicknesses, 3);
+    for (var i = 0; i < 2; i++) {
+      final motion = motions[i];
+      expect(motion.circumferentialAcceleration, 115);
+      expect(motion.gravityAcceleration, 70);
+      expect(motion.minimumOutwardClearance,
+          closeTo(3 * assembly.panels[i].thickness, 1e-12));
+      expect(motion.fallDistanceAt(motion.clearanceStartSeconds), 0);
+    }
     final extent = EggExitFraming.horizontalExtent(
       stationaryRadius: network.model.maxRadius,
       panels: assembly.panels,
