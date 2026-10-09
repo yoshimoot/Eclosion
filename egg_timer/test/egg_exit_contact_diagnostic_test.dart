@@ -13,7 +13,7 @@ import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// V11.26: inspect the complete 2s staged radial-then-lateral exit.
+/// V11.27: inspect the complete 2s radial, lateral and falling exit.
 /// No movement, geometry, drawing or collision response is modified.
 /// A sampled clear frame NEVER certifies clearance between samples.
 void main() {
@@ -40,6 +40,7 @@ void main() {
           ),
           circumferentialAcceleration: 115,
           minimumOutwardClearance: 3 * assembly.panels[i].thickness,
+          gravityAcceleration: 70,
         ),
     ];
     final againstBowl = [
@@ -232,7 +233,7 @@ void main() {
       expect(pair.secondSeconds, seconds);
       // Reports describe ONLY sampled instants, not the entire interval.
       // Actual pair counts and completion prevent false clearance claims.
-      debugPrintSynchronously('V11.26 t=${seconds.toStringAsFixed(2)} s '
+      debugPrintSynchronously('V11.27 t=${seconds.toStringAsFixed(2)} s '
           'gauche/bol: ${verdict(
             hasIntersection: a.hasIntersection,
             hasContact: a.hasContact,
@@ -261,7 +262,7 @@ void main() {
         );
       }
     }
-    debugPrintSynchronously('V11.26 : aucun échantillon libre ne certifie '
+    debugPrintSynchronously('V11.27 : aucun échantillon libre ne certifie '
         "l'absence de collision entre les instants vérifiés.");
   });
 }
