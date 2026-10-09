@@ -835,7 +835,9 @@ void main() {
 
     final majorOblique = network.edges.where((edge) {
       if (edge.kind != EggCrackKind.primary &&
-          edge.kind != EggCrackKind.connection) return false;
+          edge.kind != EggCrackKind.connection) {
+        return false;
+      }
       final a = network.nodes[edge.startNode].onShell(network.model);
       final b = network.nodes[edge.endNode].onShell(network.model);
       return (a.x-b.x).abs() > (a.y-b.y).abs() * .65;

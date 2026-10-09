@@ -6,7 +6,6 @@ import 'package:egg_timer/lab/egg_panel_hinge_pose.dart';
 import 'package:egg_timer/lab/egg_panel_pair_collision.dart';
 import 'package:egg_timer/lab/egg_panel_release_motion.dart';
 import 'package:egg_timer/lab/egg_shell_front_assembly.dart';
-import 'package:egg_timer/lab/egg_shell_model.dart';
 
 void main() {
   final network = EggFractureNetwork.fixed();

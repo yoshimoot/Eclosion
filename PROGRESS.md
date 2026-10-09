@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## Validation groupée V11.12–V11.17 — Correction des avertissements d'analyse (9 octobre 2026 ; tests en attente)
+
+**Retour local exact reçu :** `git pull --ff-only origin prototype/fragment-lab-v1` a réussi, jusqu'au commit `e2473f2`. `flutter analyze --no-pub` a signalé **7 diagnostics** (5 warnings et 2 infos), puis le script PowerShell s'est arrêté sur le code retour non nul : **aucune suite `flutter test --no-pub` n'a été exécutée**. Il n'y a pas de compilation Flutter ou de test réussi à déclarer à cette étape.
+
+**Correction ponctuelle :** supprimer le paramètre privé `_Surface.offset` de `egg_geometry_preview.dart` car aucun appel ne fournit une valeur autre que `Offset.zero` ; le rendu garde donc sa projection identique `Offset(p.x,p.y)`. Ajouter les accolades au `while` local (même incrémentation), et au `if` du test V10.4 (même prédicat et retour). Supprimer les imports inutilisés exactement signalés par l'analyseur dans `egg_bowl_temporal_sweep_test.dart` (`dart:math`, `egg_shell_model`), `egg_full_bowl_mesh_test.dart` (`egg_shell_fragment_mesh`) et `egg_panel_pair_collision_test.dart` (`egg_shell_model`). Les sept diagnostics sont corrigés par revue statique, mais le statut final de l'analyseur est **non confirmé avant sa prochaine exécution locale**.
+
+**Aucun changement de mécanique ni de données :** `EggShellModel`, F1, réseau V10.4, seed, tessellations V11.2–V11.9, charnières V11.12, expulsion V11.13 et diagnostics V11.14–V11.17 gelés. Le fonctionnement logique des tests existants reste identique. Aucune mise à jour d'image, CI ou Chrome.
+
+**Validation suivante :** un seul contrôle local : `flutter analyze --no-pub`, puis `flutter test --no-pub` uniquement si l'analyse passe. Attendre les sorties réelles pour corriger d'éventuelles erreurs de compilation ou échecs fonctionnels, sans les présumer.
+
 ## V11.17 — Balayage temporel du fragment contre le bol fixe (9 octobre 2026 ; tests Flutter en attente)
 
 **Objet unique :** couvrir le dernier risque de traversée temporelle non diagnostiqué : le panneau 3D V11.13 peut contacter le bol fixe V11.9 **entre deux images** même lorsque des contrôles instantanés V11.14 sont négatifs. La V11.16 traite déjà les contacts inter-fragments dans le temps ; ce module la complète pour le bol **immobile**, sans modifier les trajectoires.

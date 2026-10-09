@@ -7,7 +7,6 @@ import 'package:egg_timer/lab/egg_full_bowl_mesh.dart';
 import 'package:egg_timer/lab/egg_rear_bowl_boundary.dart';
 import 'package:egg_timer/lab/egg_rear_bowl_mesh.dart';
 import 'package:egg_timer/lab/egg_shell_front_assembly.dart';
-import 'package:egg_timer/lab/egg_shell_fragment_mesh.dart';
 import 'package:egg_timer/lab/egg_stationary_bowl_shell.dart';
 
 void main() {

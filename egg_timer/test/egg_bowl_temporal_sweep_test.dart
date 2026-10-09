@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:egg_timer/lab/egg_bowl_temporal_sweep.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
@@ -10,7 +8,6 @@ import 'package:egg_timer/lab/egg_panel_release_motion.dart';
 import 'package:egg_timer/lab/egg_rear_bowl_boundary.dart';
 import 'package:egg_timer/lab/egg_rear_bowl_mesh.dart';
 import 'package:egg_timer/lab/egg_shell_front_assembly.dart';
-import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:egg_timer/lab/egg_stationary_bowl_shell.dart';
 
 void main() {

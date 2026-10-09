@@ -207,20 +207,19 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
 /// A 3D mesh in a temporary diagnostic position (no model mutation).
 class _Surface {
   _Surface(this.points, this.faces, this.color,
-      {this.offset = Offset.zero, this.inside = false, this.rim,
+      {this.inside = false, this.rim,
       this.originalPoints, this.pose, this.hingePose});
 
   final List<EggShellPoint3> points;
   final List<EggShellTriangle> faces;
   final Color color;
-  final Offset offset;
   final bool inside;
   final List<int>? rim;
   final List<EggShellPoint3>? originalPoints;
   final EggPanelInspectionPose? pose;
   final EggPanelHingePose? hingePose;
   late final List<Offset> xy = [
-    for (final p in points) Offset(p.x + offset.dx, p.y + offset.dy),
+    for (final p in points) Offset(p.x, p.y),
   ];
   late final List<int> indices = [
     for (final t in faces) ...[t.a, t.b, t.c],
@@ -431,7 +430,9 @@ class _ShellMeshPainter extends CustomPainter {
       while (x < width) {
         final id = owner[y * width + x];
         final start = x;
-        while (x < width && owner[y * width + x] == id) x++;
+        while (x < width && owner[y * width + x] == id) {
+          x++;
+        }
         if (id == 0) continue;
         masks[id - 1].addRect(Rect.fromLTWH(
           (left + start).toDouble(), (top + y).toDouble(),
