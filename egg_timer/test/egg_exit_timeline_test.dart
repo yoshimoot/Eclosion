@@ -239,6 +239,25 @@ void main() {
           topFraction * topFraction * (3 - 2 * topFraction);
       expect(motion.groundRollRadiansAt(topTime),
           closeTo(expectedTopple, 1e-9));
+      // Sweep intermediate poses, not just the contact and endpoint:
+      // the convex support hull must keep EVERY real material vertex
+      // tangent to (and never through) the fixed 3D ground throughout.
+      for (var step = 0; step <= 12; step++) {
+        final time = impact + (2.0 - impact) * step / 12;
+        var maxMaterialY = double.negativeInfinity;
+        for (final group in [
+          assembly.panels[i].outer, assembly.panels[i].inner,
+        ]) {
+          for (final point in group) {
+            maxMaterialY = math.max(
+              maxMaterialY, motion.transform(point, time).y,
+            );
+          }
+        }
+        expect(maxMaterialY, closeTo(motion.floorY!, floorTolerance),
+            reason: 'Shell $i must maintain real ground contact '
+                'throughout settling at t=$time');
+      }
       final contactAxis = motion.groundRollAxis;
       expect(contactAxis.y, 0);
       expect(contactAxis.length, closeTo(1, 1e-9));
