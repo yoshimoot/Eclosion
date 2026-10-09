@@ -152,6 +152,69 @@ void main() {
     }
   });
 
+  test('V11.25: clear by material thickness before sideways spin', () {
+    for (var i = 0; i < 2; i++) {
+      final baseline = motion(i);
+      final panel = panels[i];
+      final staged = EggPanelReleaseMotion.fromHinge(
+        panel: panel,
+        hinge: baseline.hinge,
+        model: graph.model,
+        circumferentialAcceleration: 115,
+        minimumOutwardClearance: 3 * panel.thickness,
+      );
+      final start = staged.clearanceStartSeconds;
+      expect(start, inExclusiveRange(.3, .5));
+      expect(staged.outwardDistanceAt(start),
+          closeTo(3 * panel.thickness, 1e-8));
+      for (final t in [0.0, start / 2, start]) {
+        expect(staged.spinRadiansAt(t), 0);
+        expect(staged.circumferentialDistanceAt(t), 0);
+        expect(
+          (staged.centerAt(t) -
+                  staged.releaseCenter -
+                  staged.outward * staged.outwardDistanceAt(t))
+              .length,
+          lessThan(1e-8),
+        );
+      }
+      // Spin and translation both begin at zero velocity at the threshold.
+      final shortlyAfter = start + .00001;
+      expect(staged.spinRadiansAt(shortlyAfter).abs(),
+          lessThan(1e-7));
+      expect(staged.circumferentialDistanceAt(shortlyAfter),
+          lessThan(1e-7));
+      expect(staged.spinRadiansAt(1.2).abs(), greaterThan(0));
+      expect(staged.circumferentialDistanceAt(1.2),
+          greaterThan(0));
+      for (final t in [0.0, .12, start, .7, 1.2]) {
+        final surface = staged.transform(panel.outer[0], t);
+        final inner = staged.transform(panel.inner[0], t);
+        expect((surface - inner).length,
+            closeTo(panel.thickness, 1e-7));
+      }
+      expect(
+        (staged.transform(panel.outer[0], 0) -
+                baseline.hinge.transform(panel.outer[0]))
+            .length,
+        lessThan(1e-8),
+      );
+      expect(baseline.clearanceStartSeconds, 0);
+      expect(() => EggPanelReleaseMotion.fromHinge(
+        panel: panel, hinge: baseline.hinge, model: graph.model,
+        minimumOutwardClearance: -1,
+      ), throwsArgumentError);
+      expect(() => EggPanelReleaseMotion.fromHinge(
+        panel: panel, hinge: baseline.hinge, model: graph.model,
+        minimumOutwardClearance: double.infinity,
+      ), throwsArgumentError);
+      expect(() => EggPanelReleaseMotion.fromHinge(
+        panel: panel, hinge: baseline.hinge, model: graph.model,
+        minimumOutwardClearance: 1e5,
+      ), throwsArgumentError);
+    }
+  });
+
   test('V11.13: pure deterministic query, no frame-to-frame accumulation', () {
     for (var i = 0; i < 2; i++) {
       final release = motion(i);
