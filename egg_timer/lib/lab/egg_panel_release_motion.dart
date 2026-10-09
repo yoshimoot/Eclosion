@@ -221,15 +221,25 @@ class EggPanelReleaseMotion {
 
     // First physical vertex contact, not the centre or a projected contour.
     // Sweep the SAME rigid mesh and solve the first crossing by bisection.
-    final vertices = [...panel.outer, ...panel.inner];
+    // Material coordinates after hinge do not depend on elapsed time.
+    // Precompute them ONCE: contact search needs many time samples but must
+    // not redo the costly hinge transform for every vertex at every sample.
+    final hingedOffsets = [
+      for (final p in [...panel.outer, ...panel.inner])
+        hinge.transform(p) - free.releaseCenter,
+    ];
     double lowestMaterialClearance(double t) {
       var maxY = double.negativeInfinity;
       final center = free.centerAt(t);
       final angle = free.spinRadiansAt(t);
-      for (final original in vertices) {
-        final p = hinge.transform(original);
-        final y = (center +
-            _rotate(p - free.releaseCenter, hinge.axis, angle)).y;
+      final c = math.cos(angle), si = math.sin(angle);
+      final axis = hinge.axis;
+      for (final offset in hingedOffsets) {
+        // Rodrigues' rigid rotation; only the world Y component is needed.
+        final crossY = axis.z * offset.x - axis.x * offset.z;
+        final projection = _dot(axis, offset);
+        final y = center.y + offset.y * c + crossY * si +
+            axis.y * projection * (1 - c);
         maxY = math.max(maxY, y);
       }
       return floorY - maxY;
