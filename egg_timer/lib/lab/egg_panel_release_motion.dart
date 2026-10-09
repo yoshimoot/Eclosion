@@ -9,13 +9,15 @@ import 'egg_shell_model.dart';
 /// At t=0 every vertex is exactly where EggPanelHingePose left it.
 /// Subsequently a push along the rotated outward material normal is combined
 /// with rotation around the panel's OWN surface-area centroid. No new shell
-/// faces, geometry masks, shrinkage, fake translations, gravity or animation
-/// clock are introduced. Attachment failure is an INPUT, not simulated here.
+/// faces, geometry masks, shrinkage or fake translations are introduced.
+/// Clock progression is defined outside this rigid material transform. Attachment failure is an INPUT, not simulated here.
 /// An optional circumferential impulse (V11.19 diagnostic only) adds a real
 /// 3D tangential acceleration, with zero extra velocity at release.
 /// V11.25 optionally postpones that impulse and the material spin until
 /// outward travel reaches a specified physical shell clearance. The default
 /// (zero clearance) retains the exact V11.13/V11.19 kinematics.
+/// V11.27 optionally adds true vertical world-space acceleration (positive
+/// y is downward), beginning only after the shell clearance phase.
 ///
 /// This is a kinematic model; it does NOT yet guarantee collision clearance
 /// against the fixed bowl or other moving pieces.
@@ -27,6 +29,7 @@ class EggPanelReleaseMotion {
     required this.outward,
     required this.circumferential,
     required this.circumferentialAcceleration,
+    required this.gravityAcceleration,
     required this.minimumOutwardClearance,
     required this.clearanceStartSeconds,
     required this.initialSpeed,
@@ -54,6 +57,10 @@ class EggPanelReleaseMotion {
 
   /// Additional sideways acceleration in model units/s². Default: zero.
   final double circumferentialAcceleration;
+
+  /// Optional downward acceleration in the fixed world/model Y axis.
+  /// Zero leaves all existing V11.13–V11.26 callers unchanged.
+  final double gravityAcceleration;
 
   /// Model units of outward travel required before the panel begins to
   /// spin and travel circumferentially. Zero preserves legacy behavior.
@@ -95,6 +102,7 @@ class EggPanelReleaseMotion {
     double outwardAcceleration = 35,
     double spinDegreesPerSecond = 28,
     double circumferentialAcceleration = 0,
+    double gravityAcceleration = 0,
     double minimumOutwardClearance = 0,
   }) {
     if (!initialSpeed.isFinite || initialSpeed < 0 ||
@@ -102,6 +110,7 @@ class EggPanelReleaseMotion {
         !spinDegreesPerSecond.isFinite || spinDegreesPerSecond < 0 ||
         !circumferentialAcceleration.isFinite ||
         circumferentialAcceleration < 0 ||
+        !gravityAcceleration.isFinite || gravityAcceleration < 0 ||
         !minimumOutwardClearance.isFinite ||
         minimumOutwardClearance < 0 ||
         (initialSpeed == 0 && outwardAcceleration == 0)) {
@@ -176,6 +185,7 @@ class EggPanelReleaseMotion {
       outward: direction,
       circumferential: tangent,
       circumferentialAcceleration: circumferentialAcceleration,
+      gravityAcceleration: gravityAcceleration,
       minimumOutwardClearance: minimumOutwardClearance,
       // Positive root of v0*t + (a*t*t)/2 = physical clearance.
       // Rationalized form avoids cancellation for tiny clearances.
@@ -230,10 +240,20 @@ class EggPanelReleaseMotion {
     return circumferentialAcceleration * elapsed * elapsed / 2;
   }
 
+  /// The fall is postponed until radial clearance of the centre. This
+  /// avoids immediate downward travel against the still-attached cut rim.
+  /// Its displacement and velocity are exactly zero at the threshold.
+  double fallDistanceAt(double seconds) {
+    _checkTime(seconds);
+    final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
+    return gravityAcceleration * elapsed * elapsed / 2;
+  }
+
   EggShellPoint3 centerAt(double seconds) =>
       releaseCenter +
       outward * outwardDistanceAt(seconds) +
-      circumferential * circumferentialDistanceAt(seconds);
+      circumferential * circumferentialDistanceAt(seconds) +
+      EggShellPoint3(0, fallDistanceAt(seconds), 0);
 
   /// The exact hinged state at t=0; later, a rigid body around its
   /// release-time centre plus outward and optional 3D tangential motion.
