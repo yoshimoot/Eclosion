@@ -102,10 +102,12 @@ class EggPairTemporalSweep {
     // an upper bound, including the V11.19 diagnostic departure impulse.
     final maxV1 = _first.initialSpeed +
         (_first.outwardAcceleration +
-            _first.circumferentialAcceleration) * (firstStart + duration);
+            _first.circumferentialAcceleration +
+            _first.gravityAcceleration) * (firstStart + duration);
     final maxV2 = _second.initialSpeed +
         (_second.outwardAcceleration +
-            _second.circumferentialAcceleration) * (secondStart + duration);
+            _second.circumferentialAcceleration +
+            _second.gravityAcceleration) * (secondStart + duration);
     final w1 = _first.spinDegreesPerSecond * math.pi / 180;
     final w2 = _second.spinDegreesPerSecond * math.pi / 180;
     final centerDistance = (
