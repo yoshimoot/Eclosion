@@ -35,6 +35,15 @@ void main() {
     ), EggTriangleContact.intersecting);
   });
 
+  test('V11.14: shallow intersection away from edges is detected', () {
+    expect(EggTriangleCollision.classify(
+      p0, p1, p2,
+      const EggShellPoint3(.5, .5, -.001),
+      const EggShellPoint3(.5, .5, .001),
+      const EggShellPoint3(1, 1, .001),
+    ), EggTriangleContact.intersecting);
+  });
+
   test('V11.14: shared edge is touching, not penetrating', () {
     expect(EggTriangleCollision.classify(
       p0, p1, p2,

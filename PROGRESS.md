@@ -1,5 +1,9 @@
 ﻿# Eclosion — état courant
 
+## V11.14 — Correction du classement contact/intersection (9 octobre 2026 ; tests Flutter en attente)
+
+Une vérification numérique indépendante des exemples de test a révélé que le simple critère « pénétration positive sur tous les axes séparateurs » échouait sur deux triangles qui **se traversent réellement** : un triangle infiniment mince a nécessairement une épaisseur nulle le long de sa propre normale. Le commit initial `db34c89` classait cette intersection transverse comme un simple `touching`, ce qui était incorrect. La classification utilise maintenant les axes séparateurs pour **rejeter les paires disjointes**, puis teste explicitement une **traversée stricte du plan du triangle opposé avec coordonnées barycentriques intérieures**. Les contacts coplanaires ou aux frontières restent classés `touching`, conformément au contrat actuel. Nouveau test de traversée très peu profonde. Ce contrôle géométrique non exécuté en Flutter ne constitue pas une garantie de collision continue, de résolution ni de robustesse sur tout le maillage réel. Le total de tests nouveaux est désormais de **8**.
+
 ## V11.14 — Diagnostic de contact triangle/triangle entre fragment et bol (9 octobre 2026 ; tests en attente)
 
 **Accord utilisateur :** poursuivre les corrections techniques avec peu d'interventions ; demander Chrome seulement aux jalons visuels importants. À la V11.13, la rotation libre + poussée selon la normale existe en **données**, mais n'est pas encore animée sur Chrome ; les tests V11.12/V11.13 restent à confirmer. Ne pas parler d'expulsion validée.

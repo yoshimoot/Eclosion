@@ -26,6 +26,49 @@ class EggTriangleCollision {
   static double _dot(EggShellPoint3 a, EggShellPoint3 b) =>
       a.x * b.x + a.y * b.y + a.z * b.z;
 
+  /// True only when a segment crosses the opposing triangle's PLANE
+  /// and the crossing lies strictly inside its material face. Boundary
+  /// touches and coplanar intersections are not volume penetrations.
+  static bool _pierces(
+    List<EggShellPoint3> moving,
+    List<EggShellPoint3> fixed,
+    EggShellPoint3 fixedNormal,
+    double tolerance,
+  ) {
+    final planeScale = fixedNormal.length;
+    final base = fixed[0];
+    final ab = fixed[1] - base;
+    final ac = fixed[2] - base;
+    final d00 = _dot(ab, ab);
+    final d01 = _dot(ab, ac);
+    final d11 = _dot(ac, ac);
+    final determinant = d00 * d11 - d01 * d01;
+    if (determinant <= 1e-20) {
+      throw StateError('Degenerate collision target triangle');
+    }
+    for (var i = 0; i < 3; i++) {
+      final from = moving[i];
+      final to = moving[(i + 1) % 3];
+      final start = _dot(from - base, fixedNormal) / planeScale;
+      final end = _dot(to - base, fixedNormal) / planeScale;
+      final straddles = (start < -tolerance && end > tolerance) ||
+          (start > tolerance && end < -tolerance);
+      if (!straddles) continue;
+      final fraction = start / (start - end);
+      final point = from + (to - from) * fraction;
+      final ap = point - base;
+      final d20 = _dot(ap, ab), d21 = _dot(ap, ac);
+      final u = (d11 * d20 - d01 * d21) / determinant;
+      final v = (d00 * d21 - d01 * d20) / determinant;
+      final minBarycentric = 1e-9;
+      if (u > minBarycentric && v > minBarycentric &&
+          u + v < 1 - minBarycentric) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   static EggTriangleContact classify(
     EggShellPoint3 a0,
     EggShellPoint3 a1,
@@ -60,7 +103,6 @@ class EggTriangleCollision {
       for (final x in ea)
         for (final y in eb) _cross(x, y),
     ];
-    var touching = false;
     for (final candidate in axes) {
       final length = candidate.length;
       if (length < 1e-10) continue;
@@ -71,11 +113,15 @@ class EggTriangleCollision {
       final bMin = bv.reduce(math.min), bMax = bv.reduce(math.max);
       final overlap = math.min(aMax, bMax) - math.max(aMin, bMin);
       if (overlap < -tolerance) return EggTriangleContact.separated;
-      if (overlap <= tolerance) touching = true;
     }
-    return touching
-        ? EggTriangleContact.touching
-        : EggTriangleContact.intersecting;
+    // Planar triangles have zero extent along their OWN face normals.
+    // SAT can reject disjoint pairs, but its overlap depth CANNOT classify
+    // contact versus transversal crossing. Test plane crossings explicitly.
+    if (_pierces(a, b, nb, tolerance) ||
+        _pierces(b, a, na, tolerance)) {
+      return EggTriangleContact.intersecting;
+    }
+    return EggTriangleContact.touching;
   }
 }
 
