@@ -422,9 +422,10 @@ class EggPanelReleaseMotion {
   double angularSpeedUpperBoundAt(double seconds) {
     _checkTime(seconds);
     final rated = spinDegreesPerSecond * math.pi / 180;
-    if (clearanceStartSeconds == 0) return rated;
     final elapsed = math.max(0.0, seconds - clearanceStartSeconds);
-    final spinBound = rated * math.min(1.0, elapsed / spinRampSeconds);
+    final spinBound = clearanceStartSeconds == 0
+        ? rated
+        : rated * math.min(1.0, elapsed / spinRampSeconds);
     final rollBound = floorImpactSeconds != null &&
             seconds >= floorImpactSeconds!
         ? 1.5 * settlingRadians / settlingDuration
