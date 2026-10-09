@@ -222,6 +222,53 @@ class EggPanelPairCollisionInspector {
         );
   }
 
+  /// Broad-phase only: determines whether a triangle from the second
+  /// panel, transformed into the first panel's REST frame, could contact
+  /// any triangle from the first panel after any displacement of up to
+  /// [padding]. A false result certifies separation for that envelope;
+  /// a true result is NOT a collision.
+  bool hasBroadPhaseCandidate({
+    required double firstSeconds,
+    required double secondSeconds,
+    required double padding,
+  }) {
+    if (!padding.isFinite || padding < 0) {
+      throw ArgumentError.value(padding, 'padding');
+    }
+    if (!firstSeconds.isFinite || firstSeconds < 0 ||
+        firstSeconds > 2) {
+      throw ArgumentError.value(firstSeconds, 'firstSeconds');
+    }
+    final outer = _secondMotion.transformAll(_second.outer, secondSeconds);
+    final inner = _secondMotion.transformAll(_second.inner, secondSeconds);
+    final points = <EggShellPoint3>[
+      for (final p in [...outer, ...inner])
+        toFirstMaterialSpace(p, firstSeconds),
+    ];
+    final margin = padding + tolerance;
+
+    bool matches(_PairNode node, _Bounds3 moving) {
+      if (!node.bounds.overlaps(moving, margin)) return false;
+      final ids = node.ids;
+      if (ids != null) {
+        for (final id in ids) {
+          if (_firstBoxes[id].overlaps(moving, margin)) return true;
+        }
+        return false;
+      }
+      return (node.left != null && matches(node.left!, moving)) ||
+          (node.right != null && matches(node.right!, moving));
+    }
+
+    for (final face in _secondTriangles) {
+      final box = _Bounds3.triangle(
+        points[face.a], points[face.b], points[face.c],
+      );
+      if (matches(_firstTree, box)) return true;
+    }
+    return false;
+  }
+
   /// Inspect an instantaneous pose of both moving shell panels.
   ///
   /// The budget counts candidate TRIANGLE PAIRS after the broad-phase

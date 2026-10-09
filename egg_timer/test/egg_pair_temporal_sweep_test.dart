@@ -1,0 +1,151 @@
+import 'dart:math' as math;
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:egg_timer/lab/egg_fragment_regions.dart';
+import 'package:egg_timer/lab/egg_fracture_network.dart';
+import 'package:egg_timer/lab/egg_panel_hinge_pose.dart';
+import 'package:egg_timer/lab/egg_panel_release_motion.dart';
+import 'package:egg_timer/lab/egg_pair_temporal_sweep.dart';
+import 'package:egg_timer/lab/egg_shell_front_assembly.dart';
+import 'package:egg_timer/lab/egg_shell_model.dart';
+
+void main() {
+  final graph = EggFractureNetwork.fixed();
+  final regions = EggFragmentRegionPlan.fromNetwork(graph);
+  late EggShellFrontAssembly assembly;
+  late List<EggPanelReleaseMotion> motions;
+  late EggPairTemporalSweep sweep;
+
+  setUpAll(() {
+    assembly = EggShellFrontAssemblyBuilder.build(regions);
+    motions = [
+      for (var i = 0; i < 2; i++)
+        EggPanelReleaseMotion.fromHinge(
+          panel: assembly.panels[i],
+          model: graph.model,
+          hinge: EggPanelHingePose.fromGraph(
+            panel: assembly.panels[i], region: regions.regions[i],
+            neighbor: regions.regions[1 - i],
+            network: graph, openingDegrees: 30,
+          ),
+        ),
+    ];
+    sweep = EggPairTemporalSweep(
+      first: assembly.panels[0], second: assembly.panels[1],
+      firstMotion: motions[0], secondMotion: motions[1],
+    );
+  });
+
+  test('V11.16: zero-duration bound and valid finite interval bound', () {
+    expect(sweep.displacementBound(
+      firstStart: .2, secondStart: .3, duration: 0,
+    ), 0);
+    expect(sweep.displacementBound(
+      firstStart: .2, secondStart: .3, duration: .15,
+    ), greaterThan(0));
+  });
+
+  test('V11.16: independent inverse confirms conservative motion radius', () {
+    final t1 = .3, t2 = .5, span = .12, h = span / 2;
+    final bound = sweep.displacementBound(
+      firstStart: t1, secondStart: t2, duration: span,
+    );
+    for (final dt in [0.0, .02, h, .1, span]) {
+      for (final p in assembly.panels[1].outer.skip(3).take(12)) {
+        final mid = _inverse(
+          motions[1].transform(p, t2 + h), motions[0], t1 + h,
+        );
+        final other = _inverse(
+          motions[1].transform(p, t2 + dt), motions[0], t1 + dt,
+        );
+        expect((other - mid).length, lessThan(bound + 1e-7));
+      }
+    }
+  });
+
+  test('V11.16: deterministic conservative sweep with bounded work', () {
+    EggPairSweepReport call() => sweep.inspect(
+      firstStart: .3, secondStart: .5, duration: .08,
+      maxDepth: 2, maxFrames: 3, maxPairsPerFrame: 24,
+    );
+    final a = call(), b = call();
+    expect(a.verdict, b.verdict);
+    expect(a.sampledFrames, b.sampledFrames);
+    expect(a.provenIntervals, b.provenIntervals);
+    expect(a.unresolvedIntervals, b.unresolvedIntervals);
+    expect(a.testedPairs, b.testedPairs);
+    expect(a.sampledFrames, inInclusiveRange(0, 3));
+    expect(a.testedPairs, lessThanOrEqualTo(3 * 24));
+  });
+
+  test('V11.16: no frames cannot invent proof of possible contact', () {
+    final result = sweep.inspect(
+      firstStart: 0, secondStart: 0, duration: .2,
+      maxDepth: 0, maxFrames: 0,
+    );
+    expect(result.sampledFrames, 0);
+    expect(result.hasObservedContact, isFalse);
+    if (result.unresolvedIntervals > 0) {
+      expect(result.verdict, EggPairSweepVerdict.inconclusive);
+    } else {
+      expect(result.verdict, EggPairSweepVerdict.certifiedClear);
+    }
+  });
+
+  test('V11.16: zero interval records a sample or conservative rejection', () {
+    final result = sweep.inspect(
+      firstStart: .1, secondStart: .2, duration: 0,
+      maxFrames: 1, maxPairsPerFrame: 16,
+    );
+    expect(result.sampledFrames, inInclusiveRange(0, 1));
+    expect(result.testedPairs, inInclusiveRange(0, 16));
+    if (result.hasObservedContact) {
+      expect(result.firstObservedTime, 0);
+      expect(result.firstObservedFrame?.hasContact, isTrue);
+    }
+    if (result.provenClear) {
+      expect(result.unresolvedIntervals, 0);
+    }
+  });
+
+  test('V11.16: invalid windows and budgets are rejected', () {
+    expect(() => sweep.inspect(
+      firstStart: -1, secondStart: 0, duration: 0,
+    ), throwsArgumentError);
+    expect(() => sweep.inspect(
+      firstStart: 1.9, secondStart: .1, duration: .2,
+    ), throwsArgumentError);
+    expect(() => sweep.inspect(
+      firstStart: 0, secondStart: double.nan, duration: .1,
+    ), throwsArgumentError);
+    expect(() => sweep.inspect(
+      firstStart: 0, secondStart: 0, duration: .1,
+      maxFrames: -1,
+    ), throwsArgumentError);
+    expect(() => sweep.inspect(
+      firstStart: 0, secondStart: 0, duration: .1,
+      maxPairsPerFrame: 0,
+    ), throwsArgumentError);
+    expect(() => sweep.displacementBound(
+      firstStart: 0, secondStart: 0, duration: double.infinity,
+    ), throwsArgumentError);
+  });
+}
+
+EggShellPoint3 _inverse(
+  EggShellPoint3 world, EggPanelReleaseMotion motion, double seconds,
+) {
+  final a = motion.hinge.axis;
+  final delta = world - motion.centerAt(seconds);
+  final angle = -(motion.hinge.signedRadians +
+      motion.spinRadiansAt(seconds));
+  final c = math.cos(angle), s = math.sin(angle);
+  final cross = EggShellPoint3(
+    a.y * delta.z - a.z * delta.y,
+    a.z * delta.x - a.x * delta.z,
+    a.x * delta.y - a.y * delta.x,
+  );
+  final projection = a.x * delta.x + a.y * delta.y + a.z * delta.z;
+  return motion.materialCenter +
+      delta * c + cross * s + a * (projection * (1 - c));
+}

@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## V11.16 — Balayage temporel conservateur des collisions (9 octobre 2026 ; tests locaux en attente)
+
+**Problème traité :** les diagnostics instantanés V11.14/V11.15 peuvent manquer une traversée entre deux instants échantillonnés. La V11.16 ajoute une recherche adaptative qui distingue trois résultats : **certifiedClear** (une enveloppe géométrique conservatrice prouve l'absence de contact sur TOUS les instants de l'intervalle), **observedContact** (contact réellement observé sur une trame, instant non assimilable à l'heure exacte d'impact) et **inconclusive** (budget ou résolution insuffisante). Aucune absence de collision n'est inférée d'échantillons simplement négatifs.
+
+**Architecture :** `EggPanelPairCollisionInspector.hasBroadPhaseCandidate` utilise la BVH V11.15, dans le repère matériel du premier panneau, et des boîtes de triangles mobiles élargies d'une marge de déplacement. Nouveau module `egg_pair_temporal_sweep.dart` : bornes analytiques de vitesse relative des sommets selon V11.13, `v1+v2+w2*r2+w1*(distance_centres_majorée+r2)`. Le majorant des centres utilise la distance au milieu et les vitesses bornées par la FIN de la fenêtre. Pour chaque intervalle, déplacer théoriquement chaque sommet de `L*(durée/2)` autour du milieu ; si aucune boîte élargie ne rejoint le panneau indexé, l'intervalle entier est libre sous les cinématiques rigides définies. Sinon inspection au milieu et découpe récursive des intervalles, avec limites explicites `maxDepth`, `maxFrames`, `maxPairsPerFrame` et `minInterval`. Tous les temps individuels restent entre 0 et 2 s ; les deux horloges peuvent être décalées.
+
+**Limites :** cette garantie concerne les maillages/trajectoires V11.13 et une enveloppe conservatrice sous tolérance numérique, pas une simulation physique complète, ni une résolution de collision, ni un calcul exact du premier instant d'impact. Les régions candidates peuvent être indéterminées. Aucun déplacement, fissure, attache ou surface source n'est modifié. L'atelier Chrome demeure identique.
+
+**Tests ajoutés :** six tests `egg_pair_temporal_sweep_test.dart`, couvrant borne nulle et positive, contrôle indépendant de la majoration sur sommets physiques, déterminisme, refus de faux verdict en cas de budget nul, instant ponctuel et entrées invalides. `flutter analyze` et tests Flutter restent **non exécutés dans cet environnement**. Les suites V11.12–V11.15 doivent être rejouées lors du prochain lot de tests locaux. Aucune capture Chrome demandée maintenant.
+
 ## V11.15 — Diagnostic 3D des collisions ENTRE panneaux mobiles (9 octobre 2026 ; tests en attente)
 
 **Priorité actuelle :** poursuivre l'inspection des libérations V11.13 sans solliciter de captures Chrome à chaque itération. La V11.14 a introduit le classement triangle–triangle et son correctif de traversée (commit `52f07f3`) ; une comparaison mathématique indépendante de six cas synthétiques est passée, **mais les tests Flutter V11.12–V11.14 restent non confirmés**. Ne pas présenter le mouvement comme visuellement ou physiquement validé.
