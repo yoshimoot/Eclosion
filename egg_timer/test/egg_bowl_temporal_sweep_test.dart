@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:egg_timer/lab/egg_bowl_temporal_sweep.dart';
+import 'package:egg_timer/lab/egg_exit_motion_config.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_full_bowl_mesh.dart';
@@ -96,6 +97,47 @@ void main() {
           expect((motion.transform(point, start + fraction * duration) -
                   atMiddle).length,
               lessThanOrEqualTo(bound + 1e-7));
+        }
+      }
+    }
+  });
+
+  test('V11.28: staged gravity never escapes tighter swept bounds', () {
+    for (var i = 0; i < 2; i++) {
+      final panel = assembly.panels[i];
+      final moving = EggExitMotionConfig.build(
+        panel: panel,
+        hinge: motions[i].hinge,
+        model: network.model,
+      );
+      final sweep = EggBowlTemporalSweep(
+        bowl: bowl, panel: panel, motion: moving,
+      );
+      for (final (start, span) in [
+        (0.05, 0.22),
+        (0.33, 0.13),
+        (0.42, 0.18),
+        (0.78, 0.32),
+        (1.40, 0.60),
+      ]) {
+        final midpoint = start + span / 2;
+        final bound = sweep.displacementBound(
+          start: start, duration: span,
+        );
+        expect(bound, greaterThan(0));
+        // Include the furthest real model points, not only a centre probe.
+        for (final group in [panel.outer, panel.inner]) {
+          final stride = (group.length ~/ 35).clamp(1, 100000);
+          for (var k = 0; k < group.length; k += stride) {
+            final point = group[k];
+            final atMid = moving.transform(point, midpoint);
+            for (final fraction in [0.0, .15, .4, .75, 1.0]) {
+              final actual =
+                  moving.transform(point, start + span * fraction);
+              expect((actual - atMid).length,
+                  lessThanOrEqualTo(bound + 1e-7));
+            }
+          }
         }
       }
     }
