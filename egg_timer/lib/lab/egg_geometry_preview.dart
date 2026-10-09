@@ -275,7 +275,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.30',
+      Text('Géométrie V11.31',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
       const Text('Maillages 3D du bol avant, de la coquille arrière et '
@@ -378,9 +378,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
                 ),
               ]),
               const Text('Pivot 0–55 %, puis poussée 3D extérieure et '
-                  'latérale, chute et premier contact 3D avec le sol. '
-                  'Translation amortie après impact ; collisions bol '
-                  'et panneaux suivies par diagnostic.',
+                  'latérale, chute et contact 3D avec le sol. '
+                  'Après impact : basculement rigide vers l’extérieur '
+                  'et glissement amorti ; collisions diagnostiquées.',
                   style: TextStyle(fontSize: 12)),
             ],
           ),
