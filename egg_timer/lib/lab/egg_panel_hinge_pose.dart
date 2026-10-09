@@ -1,0 +1,150 @@
+import 'dart:math' as math;
+
+import 'egg_fragment_regions.dart';
+import 'egg_fracture_network.dart';
+import 'egg_shell_fragment_mesh.dart';
+import 'egg_shell_model.dart';
+
+/// V11.11: a rigid, *attached* rotation around one SHORT EXISTING 3D
+/// fracture subsegment, with NO translation or free flight.
+///
+/// The two exact graph sample endpoints are fixed by the hinge axis.
+/// An entire curved crack is not a straight rigid axis: other attachments
+/// and their release must be modeled separately, never silently welded.
+/// Diagnostic pose only, NOT the final timing/rupture mechanics.
+class EggPanelHingePose {
+  const EggPanelHingePose._({
+    required this.edgeId,
+    required this.anchorA,
+    required this.anchorB,
+    required this.axis,
+    required this.openingDegrees,
+    required this.signedRadians,
+    required this.probeIndex,
+  });
+
+  final int edgeId;
+  final EggShellPoint3 anchorA;
+  final EggShellPoint3 anchorB;
+  final EggShellPoint3 axis;
+  final double openingDegrees;
+  final double signedRadians;
+  final int probeIndex;
+
+  static double _dot(EggShellPoint3 a, EggShellPoint3 b) =>
+      a.x * b.x + a.y * b.y + a.z * b.z;
+
+  static EggShellPoint3 _cross(EggShellPoint3 a, EggShellPoint3 b) =>
+      EggShellPoint3(
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x,
+      );
+
+  static EggShellPoint3 _rotate(
+    EggShellPoint3 vector, EggShellPoint3 axis, double radians,
+  ) {
+    final c = math.cos(radians), s = math.sin(radians);
+    return vector * c +
+        _cross(axis, vector) * s +
+        axis * (_dot(axis, vector) * (1 - c));
+  }
+
+  /// Select the lowest available PRIMARY graph edge belonging to the
+  /// candidate region but NOT to the neighboring candidate panel.
+  /// The midpoint subsegment of that original graph edge is the hinge.
+  /// No crack graph samples or candidate region definitions are changed.
+  factory EggPanelHingePose.fromGraph({
+    required EggShellPanelMesh panel,
+    required EggCandidateShellRegion region,
+    required EggCandidateShellRegion neighbor,
+    required EggFractureNetwork network,
+    required double openingDegrees,
+  }) {
+    if (!openingDegrees.isFinite ||
+        openingDegrees < 0 || openingDegrees > 55) {
+      throw ArgumentError.value(openingDegrees, 'openingDegrees');
+    }
+    if (panel.regionId != region.id) {
+      throw ArgumentError.value(panel.regionId, 'panel', 'Region mismatch');
+    }
+    final shared = region.sharedEdgeIds(neighbor).toSet();
+    final candidates = <EggCrackEdge>[
+      for (final segment in region.boundary)
+        if (!shared.contains(segment.edgeId) &&
+            network.edges[segment.edgeId].kind == EggCrackKind.primary)
+          network.edges[segment.edgeId],
+    ];
+    if (candidates.isEmpty) {
+      throw StateError('No fixed-bowl fracture available for a hinge');
+    }
+    candidates.sort((a, b) {
+      final ya = (a.samples.first.y + a.samples.last.y) / 2;
+      final yb = (b.samples.first.y + b.samples.last.y) / 2;
+      final byDepth = yb.compareTo(ya);
+      return byDepth != 0 ? byDepth : a.id.compareTo(b.id);
+    });
+    final edge = candidates.first;
+    if (edge.samples.length < 4) {
+      throw StateError('Hinge must use an internal graph subsegment');
+    }
+    final j = edge.samples.length ~/ 2 - 1;
+    final a = edge.samples[j], b = edge.samples[j + 1];
+    // The tessellator preserves all original graph points by identity.
+    if (!panel.outer.any((p) => identical(p, a)) ||
+        !panel.outer.any((p) => identical(p, b))) {
+      throw StateError('Hinge endpoints were lost from the panel rim');
+    }
+    final direction = b - a;
+    if (direction.length <= 1e-8) {
+      throw StateError('Degenerate material hinge');
+    }
+    final axis = direction.normalized;
+
+    // Choose the point with the greatest perpendicular lever arm and
+    // determine which sign of rotation moves it outward from EggShellModel.
+    var lever = -1.0;
+    var probe = -1;
+    for (var i = 0; i < panel.outer.length; i++) {
+      final v = panel.outer[i] - a;
+      final radial = v - axis * _dot(v, axis);
+      if (radial.length > lever) {
+        lever = radial.length;
+        probe = i;
+      }
+    }
+    if (probe < 0 || lever < 1e-6) {
+      throw StateError('Panel has no lever arm around its hinge');
+    }
+    final probePoint = panel.outer[probe];
+    final trial = a + _rotate(
+      probePoint - a, axis, math.pi / 180,
+    );
+    final normal = network.model.normalAt(probePoint);
+    final outward = _dot(trial - probePoint, normal);
+    if (outward.abs() < 1e-8) {
+      throw StateError('Cannot determine outward hinge direction');
+    }
+    final sign = outward > 0 ? 1.0 : -1.0;
+    return EggPanelHingePose._(
+      edgeId: edge.id,
+      anchorA: a,
+      anchorB: b,
+      axis: axis,
+      openingDegrees: openingDegrees,
+      signedRadians: sign * openingDegrees * math.pi / 180,
+      probeIndex: probe,
+    );
+  }
+
+  EggShellPoint3 transform(EggShellPoint3 point) =>
+      anchorA + _rotate(point - anchorA, axis, signedRadians);
+
+  EggShellPoint3 rotateNormal(EggShellPoint3 normal) =>
+      _rotate(normal, axis, signedRadians);
+
+  List<EggShellPoint3> transformAll(List<EggShellPoint3> points) =>
+      List<EggShellPoint3>.unmodifiable([
+        for (final point in points) transform(point),
+      ]);
+}

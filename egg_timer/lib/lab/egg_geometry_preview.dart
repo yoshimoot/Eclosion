@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'egg_fragment_regions.dart';
 import 'egg_panel_inspection_pose.dart';
+import 'egg_panel_hinge_pose.dart';
 import 'egg_fracture_network.dart';
 import 'egg_rear_bowl_boundary.dart';
 import 'egg_rear_bowl_mesh.dart';
@@ -25,10 +26,12 @@ class EggGeometryPreview extends StatefulWidget {
 
 class _EggGeometryPreviewState extends State<EggGeometryPreview> {
   late final EggShellFrontAssembly _assembly;
+  late final EggFragmentRegionPlan _regions;
   late final EggStationaryBowlShell _front;
   late final EggRearBowlMesh _rear;
   late final EggShellModel _model;
-  bool _separated = false;
+  int _mode = 0; // 0: assembled, 1: free inspection, 2: attached hinge
+  double _hingeDegrees = 20;
   bool _left = true;
   bool _right = true;
   bool _inside = true;
@@ -40,9 +43,8 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
     super.initState();
     final network = EggFractureNetwork.fixed();
     _model = network.model;
-    _assembly = EggShellFrontAssemblyBuilder.build(
-      EggFragmentRegionPlan.fromNetwork(network),
-    );
+    _regions = EggFragmentRegionPlan.fromNetwork(network);
+    _assembly = EggShellFrontAssemblyBuilder.build(_regions);
     _front = EggStationaryBowlShellBuilder.build(_assembly);
     _rear = EggRearBowlMeshBuilder.build(
       EggRearBowlBoundaryBuilder.build(_front),
@@ -62,7 +64,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
               front: _front,
               rear: _rear,
               panels: _assembly.panels,
-              separated: _separated,
+              mode: _mode,
+              regions: _regions,
+              hingeDegrees: _hingeDegrees,
               leftPanel: _left,
               rightPanel: _right,
               showInside: _inside,
@@ -86,19 +90,23 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
           'de la coquille arrière et des deux panneaux. '
           'Le chapeau F1 n’est pas encore inclus dans cet assemblage.'),
       const SizedBox(height: 20),
-      SegmentedButton<bool>(
+      SegmentedButton<int>(
         segments: const [
-          ButtonSegment(value: false, label: Text('Assemblé')),
-          ButtonSegment(value: true, label: Text('Écarté')),
+          ButtonSegment(value: 0, label: Text('Assemblé')),
+          ButtonSegment(value: 1, label: Text('Écarté')),
+          ButtonSegment(value: 2, label: Text('Pivot')),
         ],
-        selected: {_separated},
+        selected: {_mode},
         onSelectionChanged: (values) =>
-            setState(() => _separated = values.first),
+            setState(() => _mode = values.first),
       ),
       const SizedBox(height: 8),
-      const Text('Écarté = décalage de présentation, '
-          'pas une animation physique validée.',
-          style: TextStyle(fontSize: 12)),
+      Text(_mode == 2
+          ? 'Pivot : deux points d’une courte arête existante restent '
+              'fixes. Aucun mouvement libre ni rupture automatique.'
+          : 'Écarté = décalage de présentation, '
+              'pas une animation physique validée.',
+          style: const TextStyle(fontSize: 12)),
       const SizedBox(height: 14),
       Text('Inclinaison 3D des panneaux · ${_inspectionYaw.round()}°'),
       Slider(
@@ -106,13 +114,27 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
         min: 0,
         max: 70,
         divisions: 14,
-        onChanged: _separated
+        onChanged: _mode == 1
             ? (value) => setState(() => _inspectionYaw = value)
             : null,
       ),
       const Text('Inspection uniquement en mode Écarté : rotation rigide '
-          'des faces et des tranches autour d’un axe vertical. '
-          'Ce n’est pas le pivot final des fragments.',
+          'des faces et des tranches autour d’un axe vertical.',
+          style: TextStyle(fontSize: 12)),
+      const SizedBox(height: 12),
+      Text('Ouverture autour de l’attache · ${_hingeDegrees.round()}°'),
+      Slider(
+        value: _hingeDegrees,
+        min: 0,
+        max: 55,
+        divisions: 11,
+        onChanged: _mode == 2
+            ? (value) => setState(() => _hingeDegrees = value)
+            : null,
+      ),
+      const Text('V11.11 : charnière courte issue des fissures V10.4. '
+          'La géométrie tourne d’un seul bloc. Expulsion et chute '
+          'non intégrées.',
           style: TextStyle(fontSize: 12)),
       const SizedBox(height: 14),
       SwitchListTile(
@@ -186,7 +208,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
 class _Surface {
   _Surface(this.points, this.faces, this.color,
       {this.offset = Offset.zero, this.inside = false, this.rim,
-      this.originalPoints, this.pose});
+      this.originalPoints, this.pose, this.hingePose});
 
   final List<EggShellPoint3> points;
   final List<EggShellTriangle> faces;
@@ -196,6 +218,7 @@ class _Surface {
   final List<int>? rim;
   final List<EggShellPoint3>? originalPoints;
   final EggPanelInspectionPose? pose;
+  final EggPanelHingePose? hingePose;
   late final List<Offset> xy = [
     for (final p in points) Offset(p.x + offset.dx, p.y + offset.dy),
   ];
@@ -213,7 +236,9 @@ class _ShellMeshPainter extends CustomPainter {
     required this.front,
     required this.rear,
     required this.panels,
-    required this.separated,
+    required this.mode,
+    required this.regions,
+    required this.hingeDegrees,
     required this.leftPanel,
     required this.rightPanel,
     required this.showInside,
@@ -225,7 +250,9 @@ class _ShellMeshPainter extends CustomPainter {
   final EggStationaryBowlShell front;
   final EggRearBowlMesh rear;
   final List<EggShellPanelMesh> panels;
-  final bool separated;
+  final int mode;
+  final EggFragmentRegionPlan regions;
+  final double hingeDegrees;
   final bool leftPanel;
   final bool rightPanel;
   final bool showInside;
@@ -264,7 +291,7 @@ class _ShellMeshPainter extends CustomPainter {
       // Pure diagnostic rigid rotation: apply the SAME 3D pose to
       // exterior, inner face and thickness walls, never to the source mesh.
       // At rest retain the exact original objects and drawing behavior.
-      final pose = separated
+      final pose = mode == 1
           ? EggPanelInspectionPose.forPanel(
               panel.outer,
               yawDegrees: i == 0 ? -inspectionYaw : inspectionYaw,
@@ -272,27 +299,40 @@ class _ShellMeshPainter extends CustomPainter {
               shiftY: i == 0 ? -9 : -13,
             )
           : null;
-      final exterior = pose?.transformAll(panel.outer) ?? panel.outer;
-      final interior = pose?.transformAll(panel.inner) ?? panel.inner;
+      final hinge = mode == 2
+          ? EggPanelHingePose.fromGraph(
+              panel: panel,
+              region: regions.regions[i],
+              neighbor: regions.regions[1 - i],
+              network: regions.network,
+              openingDegrees: hingeDegrees,
+            )
+          : null;
+      final exterior = hinge?.transformAll(panel.outer) ??
+          pose?.transformAll(panel.outer) ?? panel.outer;
+      final interior = hinge?.transformAll(panel.inner) ??
+          pose?.transformAll(panel.inner) ?? panel.inner;
       result.add(_Surface(
         exterior, panel.outerTriangles,
         i == 0 ? const Color(0xffffe0b4) : const Color(0xfffbd09a),
-        rim: panel.rim, originalPoints: panel.outer, pose: pose,
+        rim: panel.rim, originalPoints: panel.outer,
+        pose: pose, hingePose: hinge,
       ));
       result.add(_Surface(
         [...exterior, ...interior],
         panel.sideTriangles, const Color(0xffa67857),
         inside: true,
         originalPoints: [...panel.outer, ...panel.inner],
-        pose: pose,
+        pose: pose, hingePose: hinge,
       ));
-      if (separated) {
+      if (mode != 0) {
         final offset = panel.outer.length;
         result.add(_Surface(interior, [
           for (final t in panel.innerTriangles)
             EggShellTriangle(t.a - offset, t.b - offset, t.c - offset),
         ], const Color(0xffd9b18e),
-          inside: true, originalPoints: panel.inner, pose: pose,
+          inside: true, originalPoints: panel.inner,
+          pose: pose, hingePose: hinge,
         ));
       }
     }
@@ -300,9 +340,11 @@ class _ShellMeshPainter extends CustomPainter {
   }
 
   Color _shade(EggShellPoint3 point, Color base, bool inside,
-      {EggShellPoint3? original, EggPanelInspectionPose? pose}) {
+      {EggShellPoint3? original, EggPanelInspectionPose? pose,
+      EggPanelHingePose? hingePose}) {
     final localNormal = model.normalAt(original ?? point);
-    final n = pose?.rotateNormal(localNormal) ?? localNormal;
+    final n = hingePose?.rotateNormal(localNormal) ??
+        pose?.rotateNormal(localNormal) ?? localNormal;
     final directional = (n.x * -.43 + n.y * -.39 + n.z * .78) *
         (inside ? -1 : 1);
     final weight = (.71 + .22 * directional).clamp(.30, 1.0).toDouble();
@@ -408,7 +450,8 @@ class _ShellMeshPainter extends CustomPainter {
           colors: [
             for (var j = 0; j < mesh.points.length; j++)
               _shade(mesh.points[j], mesh.color, mesh.inside,
-                original: mesh.originalPoints?[j], pose: mesh.pose),
+                original: mesh.originalPoints?[j], pose: mesh.pose,
+                hingePose: mesh.hingePose),
           ],
           indices: mesh.indices,
         ),
@@ -439,7 +482,8 @@ class _ShellMeshPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ShellMeshPainter old) =>
       old.model != model || old.front != front || old.rear != rear ||
-      old.separated != separated || old.leftPanel != leftPanel ||
+      old.mode != mode || old.regions != regions ||
+      old.hingeDegrees != hingeDegrees || old.leftPanel != leftPanel ||
       old.rightPanel != rightPanel || old.showInside != showInside ||
       old.outlines != outlines || old.inspectionYaw != inspectionYaw;
 }
