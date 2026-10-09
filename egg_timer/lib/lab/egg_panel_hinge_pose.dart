@@ -50,12 +50,88 @@ class EggPanelHingePose {
         axis * (_dot(axis, vector) * (1 - c));
   }
 
+  // Cache the chosen physical crack edge for each immutable panel. Its
+  // selection is geometry-dependent, never based on animation progress.
+  static final Expando<EggCrackEdge> _materialHinge =
+      Expando<EggCrackEdge>('material lower hinge');
+
+  static EggCrackEdge _chooseMaterialHinge(
+    List<EggCrackEdge> candidates,
+    EggShellPanelMesh panel,
+    EggShellModel model,
+  ) {
+    // Candidates arrive ordered by their projected horizontality.
+    // Keep the previous hinge unless a different REAL crack segment
+    // substantially reduces the worst inward normal displacement.
+    EggCrackEdge selected = candidates.first;
+    var best = double.infinity;
+    for (final edge in candidates) {
+      if (edge.samples.length < 4) {
+        throw StateError('Hinge must use an internal graph subsegment');
+      }
+      final j = edge.samples.length ~/ 2 - 1;
+      final a = edge.samples[j], b = edge.samples[j + 1];
+      if (!panel.outer.any((p) => identical(p, a)) ||
+          !panel.outer.any((p) => identical(p, b))) {
+        throw StateError('Hinge endpoints were lost from the panel rim');
+      }
+      final span = b - a;
+      if (span.length < 1e-8) {
+        throw StateError('Degenerate physical material hinge');
+      }
+      final axis = span.normalized;
+      var probeIndex = -1;
+      var largestLever = -1.0;
+      for (var i = 0; i < panel.outer.length; i++) {
+        final v = panel.outer[i] - a;
+        final radial = v - axis * _dot(v, axis);
+        if (radial.length > largestLever) {
+          largestLever = radial.length;
+          probeIndex = i;
+        }
+      }
+      if (probeIndex < 0 || largestLever < 1e-6) {
+        throw StateError('Panel has no valid lever around hinge');
+      }
+      final probe = panel.outer[probeIndex];
+      final trial = a + _rotate(probe - a, axis, math.pi / 180);
+      final probeNormal = model.normalAt(probe);
+      final outward = _dot(trial - probe, probeNormal);
+      if (outward.abs() < 1e-8) {
+        throw StateError('Cannot determine outward hinge direction');
+      }
+      final sign = outward > 0 ? 1.0 : -1.0;
+
+      double worstInwardAt(double degrees) {
+        final radians = sign * degrees * math.pi / 180;
+        final c = math.cos(radians), sn = math.sin(radians);
+        var inward = 0.0;
+        for (final point in panel.outer) {
+          final v = point - a;
+          final turned = a + v * c + _cross(axis, v) * sn +
+              axis * (_dot(axis, v) * (1 - c));
+          final projection = _dot(turned - point, model.normalAt(point));
+          if (projection < -inward) inward = -projection;
+        }
+        return inward;
+      }
+
+      final penalty = worstInwardAt(30) + 2 * worstInwardAt(5);
+      if (best == double.infinity || penalty < best - .02) {
+        selected = edge;
+        best = penalty;
+      }
+    }
+    return selected;
+  }
+
   /// Select a lower CONNECTION edge joining a panel to the stationary bowl,
   /// never an edge shared between the two panels. These connections cross
   /// the lower lip more horizontally than the long, near-vertical primary
   /// cracks, so an attached panel tips outwards instead of swinging sideways.
   ///
-  /// Among the ORIGINAL edges, choose the most horizontal projected chord.
+  /// Evaluate all ORIGINAL lower connection edges for inward material
+  /// movement. Prefer the former horizontal chord on near-equal clearance.
   /// The actual rotation axis remains one short, real 3D graph subsegment.
   /// No crack vertices, face topology, or attachments are redrawn.
   factory EggPanelHingePose.fromGraph({
@@ -96,7 +172,9 @@ class EggPanelHingePose {
           verticalRatio(a).compareTo(verticalRatio(b));
       return byAlignment != 0 ? byAlignment : a.id.compareTo(b.id);
     });
-    final edge = candidates.first;
+    final edge = _materialHinge[panel] ??= _chooseMaterialHinge(
+      candidates, panel, network.model,
+    );
     if (edge.samples.length < 4) {
       throw StateError('Hinge must use an internal graph subsegment');
     }
