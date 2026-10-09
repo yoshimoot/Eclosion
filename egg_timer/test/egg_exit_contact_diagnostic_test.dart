@@ -150,6 +150,65 @@ void main() {
       return complete ? 'échantillon libre' : 'indéterminé (budget)';
     }
 
+    // V11.23: before tuning any release speed, inspect the ACTUAL
+    // connected hinge stage from small openings to the 30-degree release.
+    // The current hinge sign is selected using a SINGLE extreme probe; its
+    // direction cannot certify outward motion of the entire curved panel.
+    // Reports are diagnostics, not pass/fail assertions of clearance.
+    double dot(EggShellPoint3 a, EggShellPoint3 b) =>
+        a.x * b.x + a.y * b.y + a.z * b.z;
+
+    for (final degrees in [1.0, 5.0, 10.0, 20.0, 30.0]) {
+      for (var panelIndex = 0; panelIndex < 2; panelIndex++) {
+        final panel = assembly.panels[panelIndex];
+        final pose = EggPanelHingePose.fromGraph(
+          panel: panel,
+          region: regions.regions[panelIndex],
+          neighbor: regions.regions[1 - panelIndex],
+          network: network,
+          openingDegrees: degrees,
+        );
+        var minNormalShift = double.infinity;
+        var inwardCount = 0;
+        var observedCount = 0;
+        for (var vertex = 0; vertex < panel.outer.length; vertex += 19) {
+          final original = panel.outer[vertex];
+          final displacement = pose.transform(original) - original;
+          final shift = dot(displacement, network.model.normalAt(original));
+          if (shift < minNormalShift) minNormalShift = shift;
+          if (shift < -1e-5) inwardCount++;
+          observedCount++;
+        }
+        final probe = panel.outer[pose.probeIndex];
+        final probeOutward = dot(
+          pose.transform(probe) - probe,
+          network.model.normalAt(probe),
+        );
+        final trial = EggPanelReleaseMotion.fromHinge(
+          panel: panel,
+          model: network.model,
+          hinge: pose,
+          circumferentialAcceleration: 115,
+        );
+        final frame = EggBowlCollisionInspector(
+          bowl: bowl, panel: panel, motion: trial,
+        ).inspect(0, maxPairs: 15000);
+        expect(frame.seconds, 0);
+        debugPrintSynchronously(
+          'V11.23 pivot=${degrees.toStringAsFixed(0)}° '
+          'panneau=${panelIndex == 0 ? "gauche" : "droit"} '
+          'arête=${pose.edgeId} '
+          'sondeSortante=${probeOutward.toStringAsFixed(3)} '
+          'sommetsEntrants=$inwardCount/$observedCount '
+          'minDéplacementNormal=${minNormalShift.toStringAsFixed(3)} '
+          'traversées=${frame.intersectingPairs} '
+          'contacts=${frame.touchingPairs} '
+          'comparaisons=${frame.testedPairs} '
+          'fini=${frame.complete}',
+        );
+      }
+    }
+
     // t = 0 starts at the LAST attached pose, i.e. 55% on the UI.
     // These are physical seconds since separation, not player seconds.
     for (final seconds in [0.0, .12, .3, .55, .8, 1.0, 1.2]) {
