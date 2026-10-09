@@ -1,4 +1,6 @@
 import 'package:egg_timer/lab/egg_exit_motion_config.dart';
+import 'package:egg_timer/lab/egg_bowl_temporal_sweep.dart';
+import 'package:egg_timer/lab/egg_pair_temporal_sweep.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_full_bowl_mesh.dart';
@@ -277,5 +279,72 @@ void main() {
     }
     debugPrintSynchronously('V11.27 : aucun échantillon libre ne certifie '
         "l'absence de collision entre les instants vérifiés.");
+    // Second pass: conservative continuous-time checks over the same
+    // physical motion. A certifiedClear verdict proves its interval,
+    // observedContact is a regression, and inconclusive stays inconclusive.
+    // Keep bounded work on the user's workstation: no renderer involved.
+    for (final (start, duration) in [
+      (0.30, 0.50),
+      (0.80, 0.60),
+      (1.40, 0.60),
+    ]) {
+      for (var i = 0; i < 2; i++) {
+        final sweep = EggBowlTemporalSweep(
+          bowl: bowl,
+          panel: assembly.panels[i],
+          motion: motions[i],
+        ).inspect(
+          start: start,
+          duration: duration,
+          maxDepth: 6,
+          maxFrames: 8,
+          maxPairsPerFrame: 15000,
+        );
+        debugPrintSynchronously(
+          'V11.27 intervalle ${start.toStringAsFixed(2)}–'
+          '${(start + duration).toStringAsFixed(2)} s '
+          '${i == 0 ? "gauche" : "droite"}/bol: '
+          '${sweep.verdict.name}, segmentsCertifies='
+          '${sweep.provenIntervals}, nonResolus='
+          '${sweep.unresolvedIntervals}, images='
+          '${sweep.sampledFrames}',
+        );
+        expect(sweep.verdict,
+            isNot(EggBowlSweepVerdict.observedContact),
+            reason: 'Observed bowl contact in continuous-time '
+                'diagnostic of panel $i, interval $start–'
+                '${start + duration} seconds');
+      }
+      final pairSweep = EggPairTemporalSweep(
+        first: assembly.panels[0],
+        second: assembly.panels[1],
+        firstMotion: motions[0],
+        secondMotion: motions[1],
+      ).inspect(
+        firstStart: start,
+        secondStart: start,
+        duration: duration,
+        maxDepth: 6,
+        maxFrames: 8,
+        maxPairsPerFrame: 15000,
+      );
+      debugPrintSynchronously(
+        'V11.27 intervalle ${start.toStringAsFixed(2)}–'
+        '${(start + duration).toStringAsFixed(2)} s '
+        'panneaux: ${pairSweep.verdict.name}, '
+        'segmentsCertifies=${pairSweep.provenIntervals}, '
+        'nonResolus=${pairSweep.unresolvedIntervals}, '
+        'images=${pairSweep.sampledFrames}',
+      );
+      expect(pairSweep.verdict,
+          isNot(EggPairSweepVerdict.observedContact),
+          reason: 'Observed inter-panel contact in interval '
+              '$start–${start + duration} seconds');
+    }
+    debugPrintSynchronously(
+      'V11.27 : les intervalles inconclusifs ne sont pas certifies; '
+      'seul certifiedClear exclut tout contact sur son intervalle.',
+    );
+
   });
 }
