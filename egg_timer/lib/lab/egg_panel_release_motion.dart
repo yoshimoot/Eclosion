@@ -374,7 +374,7 @@ class EggPanelReleaseMotion {
     // continuously instead of freezing the shell's XY screen coordinates.
     const slideDamping = 8.0;
     final elapsed = seconds - impact;
-    final weight = -math.expm1(-slideDamping * elapsed) / slideDamping;
+    final weight = (1 - math.exp(-slideDamping * elapsed)) / slideDamping;
     final radialSpeed = initialSpeed + outwardAcceleration * impact;
     final lateralTime = math.max(0.0, impact - clearanceStartSeconds);
     final lateralSpeed = circumferentialAcceleration * lateralTime;
