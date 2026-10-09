@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'egg_fragment_regions.dart';
 import 'egg_panel_inspection_pose.dart';
 import 'egg_panel_hinge_pose.dart';
+import 'egg_panel_release_motion.dart';
 import 'egg_fracture_network.dart';
 import 'egg_rear_bowl_boundary.dart';
 import 'egg_rear_bowl_mesh.dart';
@@ -14,6 +15,38 @@ import 'egg_shell_fragment_mesh.dart';
 import 'egg_shell_front_assembly.dart';
 import 'egg_shell_model.dart';
 import 'egg_stationary_bowl_shell.dart';
+
+/// Diagnostic display phases only; the product timer is separate.
+class EggExitTimeline {
+  const EggExitTimeline._();
+  static const releaseThreshold = .55;
+  static const finalHingeDegrees = 30.0;
+  static const freeDuration = 1.2;
+
+  static void _check(double p) {
+    if (!p.isFinite || p < 0 || p > 1) {
+      throw ArgumentError.value(p, 'progress');
+    }
+  }
+
+  static double hingeAngle(double p) {
+    _check(p);
+    final u = (p / releaseThreshold).clamp(0.0, 1.0);
+    return finalHingeDegrees * u * u * (3 - 2 * u);
+  }
+
+  static double freeSeconds(double p) {
+    _check(p);
+    return p <= releaseThreshold
+        ? 0.0
+        : (p - releaseThreshold) / (1 - releaseThreshold) * freeDuration;
+  }
+
+  static bool released(double p) {
+    _check(p);
+    return p > releaseThreshold;
+  }
+}
 
 /// Separate, read-only Chrome diagnostic of the actual V11.8 shell meshes.
 /// The validated F1 painter and all motion mechanics remain untouched.
@@ -24,12 +57,15 @@ class EggGeometryPreview extends StatefulWidget {
   State<EggGeometryPreview> createState() => _EggGeometryPreviewState();
 }
 
-class _EggGeometryPreviewState extends State<EggGeometryPreview> {
+class _EggGeometryPreviewState extends State<EggGeometryPreview>
+    with SingleTickerProviderStateMixin {
   late final EggShellFrontAssembly _assembly;
   late final EggFragmentRegionPlan _regions;
   late final EggStationaryBowlShell _front;
   late final EggRearBowlMesh _rear;
   late final EggShellModel _model;
+  late final AnimationController _exitPlayback;
+  late final List<EggPanelReleaseMotion> _exitMotion;
   int _mode = 0; // 0: assembled, 1: free inspection, 2: attached hinge
   double _hingeDegrees = 20;
   bool _left = true;
@@ -41,6 +77,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
   @override
   void initState() {
     super.initState();
+    _exitPlayback = AnimationController(
+      vsync: this, duration: const Duration(seconds: 4),
+    );
     final network = EggFractureNetwork.fixed();
     _model = network.model;
     _regions = EggFragmentRegionPlan.fromNetwork(network);
@@ -49,6 +88,37 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
     _rear = EggRearBowlMeshBuilder.build(
       EggRearBowlBoundaryBuilder.build(_front),
     );
+    // Build physical full-release trajectories once, never per paint frame.
+    _exitMotion = List<EggPanelReleaseMotion>.unmodifiable([
+      for (var i = 0; i < _assembly.panels.length; i++)
+        EggPanelReleaseMotion.fromHinge(
+          panel: _assembly.panels[i],
+          model: _model,
+          hinge: EggPanelHingePose.fromGraph(
+            panel: _assembly.panels[i],
+            region: _regions.regions[i],
+            neighbor: _regions.regions[1 - i],
+            network: network,
+            openingDegrees: EggExitTimeline.finalHingeDegrees,
+          ),
+        ),
+    ]);
+  }
+
+  @override
+  void dispose() {
+    _exitPlayback.dispose();
+    super.dispose();
+  }
+
+  void _playOrPause() {
+    if (_exitPlayback.isAnimating) {
+      _exitPlayback.stop();
+    } else {
+      if (_exitPlayback.value >= 1) _exitPlayback.value = 0;
+      _exitPlayback.forward();
+    }
+    setState(() {});
   }
 
   Widget _viewer(double height) => SizedBox(
@@ -72,6 +142,8 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
               showInside: _inside,
               outlines: _outlines,
               inspectionYaw: _inspectionYaw,
+              exitPlayback: _exitPlayback,
+              exitMotion: _exitMotion,
             ),
             child: const SizedBox.expand(),
           ),
@@ -95,13 +167,19 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
           ButtonSegment(value: 0, label: Text('Assemblé')),
           ButtonSegment(value: 1, label: Text('Écarté')),
           ButtonSegment(value: 2, label: Text('Pivot')),
+          ButtonSegment(value: 3, label: Text('Sortie')),
         ],
         selected: {_mode},
-        onSelectionChanged: (values) =>
-            setState(() => _mode = values.first),
+        onSelectionChanged: (values) {
+          _exitPlayback.stop();
+          setState(() => _mode = values.first);
+        },
       ),
       const SizedBox(height: 8),
-      Text(_mode == 2
+      Text(_mode == 3
+          ? 'Sortie : pivot attaché puis expulsion rigide. '
+              'Collisions non résolues automatiquement.'
+          : _mode == 2
           ? 'Pivot : deux points d’une courte arête existante restent '
               'fixes. Aucun mouvement libre ni rupture automatique.'
           : 'Écarté = décalage de présentation, '
@@ -136,6 +214,54 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
           'issue des fissures V10.4. La géométrie tourne d’un seul '
           'bloc ; expulsion et chute non intégrées.',
           style: TextStyle(fontSize: 12)),
+      if (_mode == 3)
+        AnimatedBuilder(
+          animation: _exitPlayback,
+          builder: (context, _) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              Text('Progression pivot et expulsion · '
+                  '${(_exitPlayback.value * 100).round()} %'),
+              Slider(
+                key: const Key('exit-sequence-progress'),
+                value: _exitPlayback.value,
+                onChanged: (p) {
+                  _exitPlayback.stop();
+                  _exitPlayback.value = p;
+                },
+              ),
+              Text(
+                EggExitTimeline.released(_exitPlayback.value)
+                    ? 'Libéré · '
+                        '${EggExitTimeline.freeSeconds(_exitPlayback.value).toStringAsFixed(2)} s'
+                    : 'Attaché · '
+                        '${EggExitTimeline.hingeAngle(_exitPlayback.value).toStringAsFixed(1)}°',
+                style: const TextStyle(fontSize: 12),
+              ),
+              Row(children: [
+                FilledButton.tonalIcon(
+                  onPressed: _playOrPause,
+                  icon: Icon(_exitPlayback.isAnimating
+                      ? Icons.pause : Icons.play_arrow),
+                  label: Text(_exitPlayback.isAnimating ? 'Pause' : 'Lire'),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () {
+                    _exitPlayback.stop();
+                    _exitPlayback.value = 0;
+                  },
+                  icon: const Icon(Icons.replay),
+                  label: const Text('Rejouer'),
+                ),
+              ]),
+              const Text('Pivot 0–55 %, puis expulsion libre de 1,2 s. '
+                  'Diagnostic sans gravité ni réponse aux collisions.',
+                  style: TextStyle(fontSize: 12)),
+            ],
+          ),
+        ),
       const SizedBox(height: 14),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
@@ -208,7 +334,8 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview> {
 class _Surface {
   _Surface(this.points, this.faces, this.color,
       {this.inside = false, this.rim,
-      this.originalPoints, this.pose, this.hingePose});
+      this.originalPoints, this.pose, this.hingePose,
+      this.releaseMotion, this.releaseSeconds = 0});
 
   final List<EggShellPoint3> points;
   final List<EggShellTriangle> faces;
@@ -218,6 +345,8 @@ class _Surface {
   final List<EggShellPoint3>? originalPoints;
   final EggPanelInspectionPose? pose;
   final EggPanelHingePose? hingePose;
+  final EggPanelReleaseMotion? releaseMotion;
+  final double releaseSeconds;
   late final List<Offset> xy = [
     for (final p in points) Offset(p.x, p.y),
   ];
@@ -243,7 +372,9 @@ class _ShellMeshPainter extends CustomPainter {
     required this.showInside,
     required this.outlines,
     required this.inspectionYaw,
-  });
+    required this.exitPlayback,
+    required this.exitMotion,
+  }) : super(repaint: exitPlayback);
 
   final EggShellModel model;
   final EggStationaryBowlShell front;
@@ -257,6 +388,8 @@ class _ShellMeshPainter extends CustomPainter {
   final bool showInside;
   final bool outlines;
   final double inspectionYaw;
+  final Animation<double> exitPlayback;
+  final List<EggPanelReleaseMotion> exitMotion;
 
   List<_Surface> _meshes() {
     final result = <_Surface>[];
@@ -284,6 +417,8 @@ class _ShellMeshPainter extends CustomPainter {
       [...front.exterior, ...front.interior],
       front.upperCutWalls, const Color(0xffae7753), inside: true,
     ));
+    final progress = exitPlayback.value;
+    final seconds = mode == 3 ? EggExitTimeline.freeSeconds(progress) : 0.0;
     for (var i = 0; i < panels.length; i++) {
       if ((i == 0 && !leftPanel) || (i == 1 && !rightPanel)) continue;
       final panel = panels[i];
@@ -298,24 +433,30 @@ class _ShellMeshPainter extends CustomPainter {
               shiftY: i == 0 ? -9 : -13,
             )
           : null;
-      final hinge = mode == 2
+      final release = mode == 3 && EggExitTimeline.released(progress)
+          ? exitMotion[i] : null;
+      final hinge = mode == 2 || (mode == 3 && release == null)
           ? EggPanelHingePose.fromGraph(
               panel: panel,
               region: regions.regions[i],
               neighbor: regions.regions[1 - i],
               network: regions.network,
-              openingDegrees: hingeDegrees,
+              openingDegrees: mode == 2
+                  ? hingeDegrees : EggExitTimeline.hingeAngle(progress),
             )
           : null;
-      final exterior = hinge?.transformAll(panel.outer) ??
+      final exterior = release?.transformAll(panel.outer, seconds) ??
+          hinge?.transformAll(panel.outer) ??
           pose?.transformAll(panel.outer) ?? panel.outer;
-      final interior = hinge?.transformAll(panel.inner) ??
+      final interior = release?.transformAll(panel.inner, seconds) ??
+          hinge?.transformAll(panel.inner) ??
           pose?.transformAll(panel.inner) ?? panel.inner;
       result.add(_Surface(
         exterior, panel.outerTriangles,
         i == 0 ? const Color(0xffffe0b4) : const Color(0xfffbd09a),
         rim: panel.rim, originalPoints: panel.outer,
         pose: pose, hingePose: hinge,
+        releaseMotion: release, releaseSeconds: seconds,
       ));
       result.add(_Surface(
         [...exterior, ...interior],
@@ -323,6 +464,7 @@ class _ShellMeshPainter extends CustomPainter {
         inside: true,
         originalPoints: [...panel.outer, ...panel.inner],
         pose: pose, hingePose: hinge,
+        releaseMotion: release, releaseSeconds: seconds,
       ));
       if (mode != 0) {
         final offset = panel.outer.length;
@@ -332,6 +474,7 @@ class _ShellMeshPainter extends CustomPainter {
         ], const Color(0xffd9b18e),
           inside: true, originalPoints: panel.inner,
           pose: pose, hingePose: hinge,
+          releaseMotion: release, releaseSeconds: seconds,
         ));
       }
     }
@@ -340,9 +483,11 @@ class _ShellMeshPainter extends CustomPainter {
 
   Color _shade(EggShellPoint3 point, Color base, bool inside,
       {EggShellPoint3? original, EggPanelInspectionPose? pose,
-      EggPanelHingePose? hingePose}) {
+      EggPanelHingePose? hingePose,
+      EggPanelReleaseMotion? releaseMotion, double releaseSeconds = 0}) {
     final localNormal = model.normalAt(original ?? point);
-    final n = hingePose?.rotateNormal(localNormal) ??
+    final n = releaseMotion?.rotateNormal(localNormal, releaseSeconds) ??
+        hingePose?.rotateNormal(localNormal) ??
         pose?.rotateNormal(localNormal) ?? localNormal;
     final directional = (n.x * -.43 + n.y * -.39 + n.z * .78) *
         (inside ? -1 : 1);
@@ -452,7 +597,9 @@ class _ShellMeshPainter extends CustomPainter {
             for (var j = 0; j < mesh.points.length; j++)
               _shade(mesh.points[j], mesh.color, mesh.inside,
                 original: mesh.originalPoints?[j], pose: mesh.pose,
-                hingePose: mesh.hingePose),
+                hingePose: mesh.hingePose,
+                releaseMotion: mesh.releaseMotion,
+                releaseSeconds: mesh.releaseSeconds),
           ],
           indices: mesh.indices,
         ),
@@ -486,5 +633,6 @@ class _ShellMeshPainter extends CustomPainter {
       old.mode != mode || old.regions != regions ||
       old.hingeDegrees != hingeDegrees || old.leftPanel != leftPanel ||
       old.rightPanel != rightPanel || old.showInside != showInside ||
-      old.outlines != outlines || old.inspectionYaw != inspectionYaw;
+      old.outlines != outlines || old.inspectionYaw != inspectionYaw ||
+       old.exitPlayback != exitPlayback || old.exitMotion != exitMotion;
 }
