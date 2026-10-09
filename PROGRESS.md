@@ -1,5 +1,15 @@
 ﻿# Eclosion — état courant
 
+## Validation groupée V11.12–V11.17 — Diagnostic des 16 échecs historiques (9 octobre 2026)
+
+**Résultat local réellement exécuté par l'utilisateur sur `4b4585b` :** `flutter analyze --no-pub` : **No issues found!**. `flutter test --no-pub` : **113 réussites / 16 échecs**. Les 16 échecs affichés dans le journal proviennent de `test/widget_test.dart` et de ses deux modules de tests importés `fragment_lab_continuity.dart` et `fragment_occlusion.dart`. Les six suites V11.12–V11.17 n'ont aucun échec signalé dans cette sortie, mais le résultat global est **rouge** ; ne pas annoncer « tous les tests réussis ».
+
+**Cause architecturale vérifiée en lecture GitHub :** `lib/main.dart` charge `FragmentLab`, qui affiche `EggShellF1PreviewPainter` / `EggGeometryPreview`, tandis que `fragment_scene.dart` (prototype 2D historique) n'est plus accessible depuis cette interface. Pourtant les anciens tests attendent des pixels `FragmentScene`, une case « Afficher les ombres » absente, des points de texture et des anciens fragments F2/F3. Comparaison des blobs Git avant les nouveaux moteurs V11.13–V11.17 (commit `627d9f2`) et maintenant (`4b4585b`) : `main.dart`, `fragment_lab.dart`, `fragment_scene.dart`, `fragment_playback.dart`, `fragment_lab_continuity.dart` et `fragment_occlusion.dart` **identiques**. `widget_test.dart` n'a eu qu'un ajout d'accolades à un ancien prédicat V10.4 lors du correctif des warnings. La sortie ne démontre donc pas une régression des nouveaux maillages ou diagnostics de collision, mais **n'exonère pas l'ancien moteur de ses défauts**, qui restent visibles.
+
+**Décision :** conserver les 16 échecs en place, sans modifier les valeurs attendues, sans `skip`, sans supprimer les tests et sans déclarer faussement la suite complète verte. Ajouter `test/egg_active_lab_smoke_test.dart` (2 tests) pour vérifier réellement l'atelier `MyApp → FragmentLab → EggGeometryPreview` et l'absence de `FragmentScene` dans son arbre de rendu. Ce test n'est pas une validation visuelle de F1 ni de l'éclosion.
+
+**Prochain contrôle groupé local :** `flutter analyze --no-pub` puis `flutter test --no-pub` sur les fichiers `*_test.dart` **à l'exception de `widget_test.dart`**, avec mention explicite qu'il s'agit d'un **sous-ensemble actif**, non de toute la suite. Aucun besoin de demander de capture Chrome. Le traitement séparé du moteur 2D legacy ne doit pas prendre priorité sur les éléments 3D validés.
+
 ## Validation groupée V11.12–V11.17 — Correction des avertissements d'analyse (9 octobre 2026 ; tests en attente)
 
 **Retour local exact reçu :** `git pull --ff-only origin prototype/fragment-lab-v1` a réussi, jusqu'au commit `e2473f2`. `flutter analyze --no-pub` a signalé **7 diagnostics** (5 warnings et 2 infos), puis le script PowerShell s'est arrêté sur le code retour non nul : **aucune suite `flutter test --no-pub` n'a été exécutée**. Il n'y a pas de compilation Flutter ou de test réussi à déclarer à cette étape.
