@@ -572,8 +572,26 @@ class EggPanelReleaseMotion {
     List<EggShellPoint3> points, double seconds,
   ) {
     _checkTime(seconds);
+    // Compute the rigid support pose once for the whole mesh rather than
+    // repeating the floor-hull query separately for each material vertex.
+    final center = centerAt(seconds);
+    final spin = spinRadiansAt(seconds);
+    final roll = groundRollRadiansAt(seconds);
     return List<EggShellPoint3>.unmodifiable([
-      for (final point in points) transform(point, seconds),
+      for (final point in points)
+        center +
+            (roll == 0
+                ? _rotate(
+                    hinge.transform(point) - releaseCenter,
+                    hinge.axis, spin,
+                  )
+                : _rotate(
+                    _rotate(
+                      hinge.transform(point) - releaseCenter,
+                      hinge.axis, spin,
+                    ),
+                    groundRollAxis, roll,
+                  )),
     ]);
   }
 }
