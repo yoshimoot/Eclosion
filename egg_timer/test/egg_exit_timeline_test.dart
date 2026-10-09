@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:egg_timer/lab/egg_exit_motion_config.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
@@ -228,17 +230,15 @@ void main() {
       expect(motion.groundRollRadiansAt(2),
           lessThanOrEqualTo(motion.settlingRadians));
       expect((last - atImpact).length, greaterThan(.1));
-      final topTime = (impact + motion.settlingDuration)
-          .clamp(0.0, EggExitTimeline.freeDuration);
+      final topTime = math.min(
+          impact + motion.settlingDuration, EggExitTimeline.freeDuration);
+      final topFraction =
+          ((topTime - impact) / motion.settlingDuration)
+              .clamp(0.0, 1.0).toDouble();
+      final expectedTopple = motion.settlingRadians *
+          topFraction * topFraction * (3 - 2 * topFraction);
       expect(motion.groundRollRadiansAt(topTime),
-          closeTo(motion.settlingRadians *
-              (topTime >= impact + motion.settlingDuration
-                  ? 1.0
-                  : () {
-                      final u = (topTime - impact) /
-                          motion.settlingDuration;
-                      return u * u * (3 - 2 * u);
-                    }()), 1e-9));
+          closeTo(expectedTopple, 1e-9));
       final contactAxis = motion.groundRollAxis;
       expect(contactAxis.y, 0);
       expect(contactAxis.length, closeTo(1, 1e-9));
