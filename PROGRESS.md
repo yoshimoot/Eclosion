@@ -1,3 +1,15 @@
+## V11.46 — Correctif du ralentissement de test V11.44 (10 octobre 2026 ; revalidation ciblée en attente)
+
+**Évidence locale :** après V11.45, `flutter analyze --no-pub` a réussi (`No issues found!`). Le fichier `egg_organic_aabb_preflight_test.dart` a terminé avec **11 tests réussis en 29 secondes**, les six étapes du prédiagnostic chronométrées entre ~1,35 s (0 %) et ~14,67 s (100 %). Le groupe suivant a confirmé **18 tests réussis** puis a semblé s'arrêter au test `V11.44: organic front shell has real interior and cut thickness` sans résultat final. Ces 18 tests ne suffisent pas à conclure que tout le groupe est passé.
+
+**Cause exacte identifiée en revue de code :** dans `egg_organic_front_bowl_shell_test.dart`, la boucle parcourait `shell.combinedFaces` et appelait **trois fois par triangle** le getter `shell.combinedVertices`, lequel reconstruisait une nouvelle grande liste `[...extérieur,...intérieur]` à chaque appel. Au maillage raffiné, cette vérification prenait un coût `O(nombre de triangles × nombre de sommets)` et allouait aussi quatre matchers et un set par triangle. Ce défaut appartient au **test**, pas aux surfaces de la coquille.
+
+**Correction ciblée sans modifier la physique :** récupérer `combinedVertices` et `combinedFaces` **une seule fois** avant les assertions, calculer l'indice maximal une fois et parcourir **tous** les triangles avec des comparaisons entières directes. Signaler `fail` avec le numéro du triangle et ses indices exacts au premier défaut. La validation reste **exhaustive** et devient linéaire en nombre de triangles ; les autres tests de F1, d'épaisseur, de raccord et d'indices restent intacts. Aucune modification de géométrie, de visuel V11.32, de renderer ou de référence.
+
+**Statut :** commit publié sur `prototype/fragment-lab-v1`, vérification statique et recherche d'autres usages du getter réalisées ; **nouveaux tests non exécutés par l'assistant**, Flutter/Dart indisponibles. Pour économiser les cycles utilisateur, revalider uniquement les **quatre fichiers à partir du point d'arrêt** : `egg_organic_front_bowl_shell_test.dart`, `egg_organic_release_seed_test.dart`, `egg_organic_rigid_free_flight_test.dart` et `egg_organic_staged_assembly_test.dart`. Conserver l'acquis des 11 + 18 tests précédents. Pas de demande Chrome tant que les organiques ne sont pas visibles.
+
+---
+
 ## V11.45 — Déblocage des tests organiques et index spatial performant (10 octobre 2026 ; tests utilisateur en attente)
 
 **Retour local reçu :** `git pull --ff-only` a récupéré `b99bfaf`. `flutter analyze --no-pub` affiche exactement `No issues found! (ran in 1.2s)`. Puis `flutter test --no-pub -r expanded` sur les `egg_organic*_test.dart` (suite exécutée parallèlement par Flutter) affiche `+25` depuis longtemps, avec pour test courant/affiché `V11.40: broad phase reports possible contacts without certifying safety`. Il s'agit d'un **ralentissement/blocage rapporté**, et NON d'un test qui aurait réussi : **aucune fin de suite ni résultat global confirmé**. Conseillé à l'utilisateur d'interrompre l'exécution avec `Ctrl+C`. Pas de lancement de Chrome : animation organique toujours invisible.
