@@ -25,7 +25,11 @@ class EggOrganicUpperFrontBand {
 
   static EggOrganicUpperFrontBand build({
     EggOrganicFullShellDraft? draft,
-    int silhouetteSamples = 16,
+    // At the F1 silhouette, the first crown samples are nearly tangent.
+    // Sixteen projected side chords cut across that curved shell boundary
+    // and leave a reversed final triangle. Finer REAL surface samples
+    // preserve the shared front/rear seam without changing the cracks.
+    int silhouetteSamples = 32,
     double thickness = 2.5,
   }) {
     if (silhouetteSamples < 4 || silhouetteSamples > 128) {
