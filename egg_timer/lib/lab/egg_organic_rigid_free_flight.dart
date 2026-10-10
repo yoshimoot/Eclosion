@@ -159,6 +159,14 @@ class EggOrganicRigidFreeFlight {
     );
   }
 
+  /// Preserve original 3D surface lighting while the whole shell
+  /// rotates as one rigid body after release and during ground settling.
+  EggShellPoint3 rotateNormalAt(
+    EggShellPoint3 originalAtRelease, double seconds,
+  ) => _rotate(
+    originalAtRelease, seed.hingeAxis, spinRadiansAt(seconds),
+  ).normalized;
+
   EggShellPoint3 transform(
     EggShellPoint3 originalAtRelease, double seconds,
   ) {
