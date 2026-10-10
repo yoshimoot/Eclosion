@@ -292,9 +292,13 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
           : 'Géométrie V11.32',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
-      const Text('Maillages 3D du bol avant, de la coquille arrière et '
-          'des deux panneaux. Mode Sortie animé uniquement en diagnostic. '
-          'Le chapeau F1 est visualisé séparément dans l’atelier principal.'),
+      Text(_mode == 4
+          ? 'Essai 3D : véritable découpe du bol, raccord arrière et '
+              'trois petits fragments. La pose est continue mais les '
+              'contacts physiques sont encore à vérifier visuellement.'
+          : 'Maillages 3D du bol avant, de la coquille arrière et '
+              'des deux panneaux. Mode Sortie animé uniquement en diagnostic. '
+              'Le chapeau F1 est visualisé séparément dans l’atelier principal.'),
       const SizedBox(height: 20),
       // Five modes do not fit in a 340px inspector column. Keep the
       // validated modes and the opt-in experiment reachable without
