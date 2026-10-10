@@ -54,6 +54,46 @@ class EggFractureNetwork {
   final List<EggCrackNode> nodes;
   final List<EggCrackEdge> edges;
 
+  /// V11.33 — isolated, STATIC organic-fragment topology candidate.
+  ///
+  /// The existing fixed graph, its immutable points, the two current
+  /// released panels and their tested motions are untouched. Three free
+  /// crack tips are connected to nearby existing mother-branch nodes,
+  /// introducing three additional REAL closed paths on EggShellModel.
+  ///
+  /// This is deliberately NOT yet used by the renderer or tessellator:
+  /// each closed path still needs independent non-overlapping triangle
+  /// ownership, real thickness, attachments and impact checks before it
+  /// can become a detached piece. The exact node IDs belong to fixedSeed
+  /// and are regression-checked separately.
+  factory EggFractureNetwork.organicStaticDraft({
+    EggShellModel model = EggShellModel.reference,
+  }) {
+    final base = EggFractureNetwork.fixed(model: model);
+    final builder = _CrackGraphBuilder(model);
+    builder.nodes.addAll(base.nodes);
+    builder.edges.addAll(base.edges);
+
+    // Each connection closes a pre-existing secondary exit into the graph.
+    // Left high, left low, right low: asymmetric paths, not 3 copied wings.
+    for (final (tip, mother) in <(int, int)>[
+      (41, 26),
+      (43, 36),
+      (45, 38),
+    ]) {
+      if (tip >= builder.nodes.length || mother >= builder.nodes.length) {
+        throw StateError('Organic closure requires fixed V10.4 nodes');
+      }
+      builder.edge(tip, mother, EggCrackKind.connection);
+    }
+    return EggFractureNetwork._(
+      model,
+      base.seed,
+      List<EggCrackNode>.unmodifiable(builder.nodes),
+      List<EggCrackEdge>.unmodifiable(builder.edges),
+    );
+  }
+
   factory EggFractureNetwork.fixed({
     EggShellModel model = EggShellModel.reference,
   }) {
