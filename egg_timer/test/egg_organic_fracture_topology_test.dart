@@ -1,6 +1,7 @@
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_organic_fracture_plan.dart';
+import 'package:egg_timer/lab/egg_shell_fragment_mesh.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Graph connectivity, NOT count of free-flying shell pieces. The crown is
@@ -145,6 +146,34 @@ void main() {
         final first = segment.forward ? original.first : original.last;
         expect(identical(oriented.first, first), isTrue);
       }
+    }
+  });
+
+  test('V11.33: candidates build real 2.5-thick three-surface solids', () {
+    final plan = EggOrganicFracturePlan.fixed();
+    for (final region in plan.candidates) {
+      final shell = EggShellPanelMeshBuilder.fromClosedPerimeter(
+        model: plan.draft.model,
+        regionId: region.id,
+        closedPerimeter: region.sampledPerimeter(plan.draft),
+      );
+      expect(shell.regionId, region.id);
+      expect(shell.thickness, 2.5);
+      expect(shell.outer.length, shell.inner.length);
+      expect(shell.outerTriangles, isNotEmpty);
+      expect(shell.innerTriangles.length, shell.outerTriangles.length);
+      expect(shell.sideTriangles.length, shell.rim.length * 2);
+      for (var j = 0; j < shell.outer.length; j += 7) {
+        final outer = shell.outer[j];
+        final inner = shell.inner[j];
+        expect((outer - inner).length, closeTo(2.5, 1e-7));
+        expect(
+          (outer - plan.draft.model.surfaceAt(outer.x, outer.y)).length,
+          lessThan(1e-7),
+        );
+      }
+      // This is a static candidate solid only, not an independent flying
+      // fragment. It still overlaps the present parent-panel shell.
     }
   });
 
