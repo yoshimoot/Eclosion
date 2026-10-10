@@ -1,4 +1,5 @@
 import 'package:egg_timer/lab/egg_geometry_preview.dart';
+import 'package:egg_timer/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,9 +11,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const MaterialApp(
-      home: EggGeometryPreview(),
-    ));
+    // This is the app's ACTUAL entry point, not a hand-selected route.
+    await tester.pumpWidget(const MyApp());
+    expect(find.byType(EggGeometryPreview), findsOneWidget);
+    expect(find.text('Atelier Éclosion'), findsNothing);
 
     final selectorFinder = find.byKey(const Key('egg-preview-mode'));
     expect(selectorFinder, findsOneWidget);
