@@ -1,3 +1,17 @@
+## V11.55 — Rendu 3D diagnostic du berceau 00:00 et correction de silhouette (10 octobre 2026)
+
+**Rendu effectué dans l'environnement assistant :** le maillage OBJ de `visual_prototype/scene_00.py` a été rendu hors écran par **VTK 3D**, pas Blender/Cycles. Le premier rendu révélait une cassure en V trop profonde et arrondie. Une seconde variante dressait un grand arc arrière symétrique qui aurait caché la tête : écartée. La variante retenue conserve une ouverture basse centrale plus large, des lèvres latérales légèrement plus basses et un contour matériel anguleux asymétrique, contrôlé par une suite fixe de stations (`RIM_KNOTS`). **Aucune animation et aucune géométrie Flutter modifiées.**
+
+**Comparaison à la référence fournie :** l'enveloppe avant du bol est désormais plus proche. Les bords ne sont pas encore ceux de plusieurs fragments indépendants : les panneaux réellement superposés sur le devant, la grande coque brisée en arrière-gauche du poussin, les tranches crayeuses et les fragments tombés restent à modéliser. Le poussin exact du visuel validé n'est pas un asset 3D du dépôt ; aucune géométrie temporaire n'a été présentée comme sa version finale. Le décor et le matériau du rendu VTK sont provisoires. Ne pas déclarer atteinte la qualité cible sur cette comparaison.
+
+**Vérification indépendante de la candidate retenue :** 15 362 sommets ; 30 720 triangles ; volume signé positif ; maillage étanche `trimesh.is_watertight = true` ; orientations cohérentes `is_winding_consistent = true` ; aucune face dégénérée dans ce maillage. Quatre tests Python de construction, orientation des arêtes, dimensions et contour ont réussi. Ces contrôles sont reproductibles dans `visual_prototype/test_scene_00.py` via `python -m unittest discover -s visual_prototype -p "test_*.py"`. Ils portent sur **la géométrie**, pas sur Blender/Flutter.
+
+**Livraison :** `visual_prototype/scene_00.py` corrigé, tests ajoutés et image de comparaison produite dans la conversation. Aucun binaire/image supplémentaire committé pour éviter l'alourdissement du dépôt. **Blender non disponible dans cet environnement :** pas de rendu Blender, pas de fichier `.blend` réellement généré, pas de validation artistique.
+
+**Porte suivante :** concevoir les bords avant comme de vraies pièces courbes indépendantes (pas une frise dentelée unique), puis la pièce arrière-gauche séparée sans obstruer le futur poussin. Leur géométrie doit conserver la même matière, la même épaisseur `2.5` et des arêtes communes avec le berceau ; ensuite seulement intégrer l'asset validé du poussin et rendre réellement dans Blender. Ne pas réécrire ni remplacer les animations de `egg_timer/` à ce stade.
+
+---
+
 ## Premier jalon hybride — étude géométrique 3D à 00:00 (10 octobre 2026 ; NOT rendered)
 
 **Priorité validée en conversation :** démontrer d'abord la qualité du rendu cible à 00:00 (berceau irrégulier, lèvres latérales relevées, poussin validé, matière), puis seulement reprendre la cinématique 00:03 → 00:00. Ne pas prolonger indéfiniment le laboratoire de fragmentation.
