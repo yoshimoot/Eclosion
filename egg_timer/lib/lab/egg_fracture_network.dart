@@ -113,9 +113,12 @@ class EggFractureNetwork {
     const start = -math.pi;
     const angularStep = 2 * math.pi / segments;
 
+    // The retained cradle occupies roughly the bottom third of the egg;
+    // the lowest position of this 3D cut remains below all existing
+    // front-branch tips (their maximum Y is 78).
     double fractureY(double angle) =>
-        106 + 8 * math.sin(3 * angle + .25) +
-        5 * math.sin(7 * angle + .7);
+        92 + 5 * math.sin(3 * angle + .25) +
+        3 * math.sin(7 * angle + .7);
 
     final first = graph.nodes.length;
     for (var i = 0; i < segments; i++) {
