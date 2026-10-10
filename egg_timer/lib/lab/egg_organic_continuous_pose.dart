@@ -50,6 +50,34 @@ class EggOrganicContinuousPoseCoordinator {
     );
   }
 
+  /// Shading counterpart to poseAt: attached normal rotation, then
+  /// the identical release hinge pose plus actual post-release spin.
+  /// The source normal is always computed on the ORIGINAL material mesh.
+  EggShellPoint3 materialNormalAt(
+    int childIndex,
+    EggShellPoint3 sourceNormal,
+    double progress, {
+    double afterZeroSeconds = 0,
+  }) {
+    if (childIndex < 0 || childIndex >= flights.length) {
+      throw RangeError.index(childIndex, flights);
+    }
+    if (!progress.isFinite || progress < 0 || progress > 1 ||
+        !afterZeroSeconds.isFinite || afterZeroSeconds < 0 ||
+        (progress != 1 && afterZeroSeconds != 0)) {
+      throw ArgumentError('Invalid normal lighting timeline');
+    }
+    final hinge = staged.hinges[childIndex];
+    if (progress < seeds[childIndex].releaseProgress) {
+      return hinge.normalAttachedAt(sourceNormal, progress);
+    }
+    final t = flights[childIndex].elapsedAtProgress(progress) +
+        afterZeroSeconds;
+    return flights[childIndex].rotateNormalAt(
+      hinge.releaseNormalOf(sourceNormal), t,
+    );
+  }
+
   EggOrganicMaterialSnapshot poseAt(
     int childIndex,
     double progress, {
