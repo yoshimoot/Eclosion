@@ -240,10 +240,10 @@ class EggOrganicExactFrame {
 /// Exact triangle intersection and full parent/rear-bowl swept collision
 /// detection are required before displaying the new flying children.
 class EggOrganicAabbPreflight {
-  EggOrganicAabbPreflight._(this.scene, this.bowl);
+  EggOrganicAabbPreflight._(this.scene, this._bowl);
 
   final EggOrganicContinuousPoseCoordinator scene;
-  final _TriangleIndex bowl;
+  final _TriangleIndex _bowl;
 
   factory EggOrganicAabbPreflight.build() {
     final scene = EggOrganicContinuousPoseCoordinator.fixed();
@@ -292,7 +292,7 @@ class EggOrganicAabbPreflight {
     var complete = true;
     final bowlHits = <int>[];
     for (final index in moving) {
-      final (count, checked) = bowl.compare(
+      final (count, checked) = _bowl.compare(
         index, maxCandidates: maxCandidatesPerPair,
       );
       complete = complete && checked;
@@ -338,7 +338,7 @@ class EggOrganicAabbPreflight {
     var complete = true, tested = 0;
     for (final current in moving) {
       final (pairs, touching, intersecting, allPairs) =
-          bowl.inspectExact(current, maxPairs: maxPairsPerPair);
+          _bowl.inspectExact(current, maxPairs: maxPairsPerPair);
       tested += pairs;
       complete = complete && allPairs;
       bowlTouching.add(touching);
@@ -430,11 +430,11 @@ class EggOrganicIntervalReport {
 
 class EggOrganicEnvironmentPreflight {
   const EggOrganicEnvironmentPreflight._(
-    this.organic, this.rear, this.parents, this.parentMeshes,
+    this.organic, this._rear, this.parents, this.parentMeshes,
   );
 
   final EggOrganicAabbPreflight organic;
-  final _TriangleIndex rear;
+  final _TriangleIndex _rear;
   final List<EggPanelReleaseMotion> parents;
   final List<EggShellPanelMesh> parentMeshes;
 
@@ -541,7 +541,7 @@ class EggOrganicEnvironmentPreflight {
     var inspected = base.testedPairs;
     for (var i = 0; i < movingChildren.length; i++) {
       final (pairs, touching, crossing, all) =
-          rear.inspectExact(
+          _rear.inspectExact(
             movingChildren[i], maxPairs: maxPairsPerPair,
           );
       inspected += pairs;
@@ -664,8 +664,8 @@ class EggOrganicEnvironmentPreflight {
     }
 
     for (var i = 0; i < childIndices.length; i++) {
-      check(organic.bowl, childIndices[i], childMaximumSpeeds[i]);
-      check(rear, childIndices[i], childMaximumSpeeds[i]);
+      check(organic._bowl, childIndices[i], childMaximumSpeeds[i]);
+      check(_rear, childIndices[i], childMaximumSpeeds[i]);
       for (var j = 0; j < parentIndices.length; j++) {
         check(
           parentIndices[j],
