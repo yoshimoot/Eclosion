@@ -103,8 +103,8 @@ class EggOrganicBowlPartition {
       List<EggRegionBoundaryEdge> source,
     ) => List<EggRegionBoundaryEdge>.unmodifiable([
       for (final segment in source)
-        ...?replacements[segment.edgeId] ??
-            <EggRegionBoundaryEdge>[segment],
+        ...(replacements[segment.edgeId] ??
+            <EggRegionBoundaryEdge>[segment]),
     ]);
 
     final cuts = reroute(bowl.cutEdges);
