@@ -1,0 +1,120 @@
+import 'package:egg_timer/lab/egg_fracture_network.dart';
+import 'package:egg_timer/lab/egg_fragment_regions.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// Graph connectivity, NOT count of free-flying shell pieces. The crown is
+/// one cycle and every additional connection on this connected graph creates
+/// another closed candidate path. The geometric split is a later stage.
+int cycleRank(EggFractureNetwork graph) {
+  final incident = List.generate(graph.nodes.length, (_) => <int>[]);
+  for (final e in graph.edges) {
+    incident[e.startNode].add(e.endNode);
+    incident[e.endNode].add(e.startNode);
+  }
+  final visited = <int>{};
+  var components = 0;
+  for (var first = 0; first < graph.nodes.length; first++) {
+    if (!visited.add(first)) continue;
+    components++;
+    final pending = [first];
+    for (var head = 0; head < pending.length; head++) {
+      for (final next in incident[pending[head]]) {
+        if (visited.add(next)) pending.add(next);
+      }
+    }
+  }
+  return graph.edges.length - graph.nodes.length + components;
+}
+
+List<int> shortestExistingPath(
+  EggFractureNetwork graph, int startNode, int endNode,
+) {
+  final pending = [startNode];
+  final parents = <int, (int, int)>{};
+  final visited = <int>{startNode};
+  for (var head = 0; head < pending.length; head++) {
+    final node = pending[head];
+    if (node == endNode) break;
+    for (final e in graph.edges) {
+      if (e.startNode != node && e.endNode != node) continue;
+      final next = e.startNode == node ? e.endNode : e.startNode;
+      if (visited.add(next)) {
+        parents[next] = (node, e.id);
+        pending.add(next);
+      }
+    }
+  }
+  if (!visited.contains(endNode)) return [];
+  final path = <int>[];
+  var node = endNode;
+  while (node != startNode) {
+    final previous = parents[node]!;
+    path.add(previous.$2);
+    node = previous.$1;
+  }
+  return path.reversed.toList();
+}
+
+void main() {
+  test('V11.33: organic draft preserves the validated original network', () {
+    final source = EggFractureNetwork.fixed();
+    final draft = EggFractureNetwork.organicStaticDraft();
+    expect(source.seed, EggFractureNetwork.fixedSeed);
+    expect(draft.seed, source.seed);
+    expect(draft.nodes.length, source.nodes.length);
+    expect(draft.edges.length, source.edges.length + 3);
+    expect(cycleRank(source), 3); // Crown + the existing two regions.
+    expect(cycleRank(draft), 6); // Three additional *candidate* cycles.
+    expect(EggFragmentRegionPlan.fromNetwork(source).regions.length, 2);
+    for (var i = 0; i < source.edges.length; i++) {
+      // A separately built seed may not share object identity, but must
+      // retain the very same edge IDs, node links, material samples, kinds.
+      final old = source.edges[i], same = draft.edges[i];
+      expect(same.id, old.id);
+      expect(same.startNode, old.startNode);
+      expect(same.endNode, old.endNode);
+      expect(same.kind, old.kind);
+      expect(same.samples.length, old.samples.length);
+      for (var j = 0; j < old.samples.length; j++) {
+        expect((same.samples[j] - old.samples[j]).length, lessThan(1e-12));
+      }
+    }
+  });
+
+  test('V11.33: three organic closures are local shared 3D boundaries', () {
+    final source = EggFractureNetwork.fixed();
+    final draft = EggFractureNetwork.organicStaticDraft();
+    const closures = <(int, int)>[(41, 26), (43, 36), (45, 38)];
+    for (var i = 0; i < closures.length; i++) {
+      final (tip, mother) = closures[i];
+      final edge = draft.edges[source.edges.length + i];
+      expect(edge.id, source.edges.length + i);
+      expect(edge.kind, EggCrackKind.connection);
+      expect((edge.startNode, edge.endNode), (tip, mother));
+      expect(shortestExistingPath(source, tip, mother).length, 3);
+      expect(edge.samples.length, greaterThanOrEqualTo(4));
+      expect((edge.samples.first - draft.nodes[tip].onShell(draft.model)).length,
+          lessThan(1e-12));
+      expect((edge.samples.last - draft.nodes[mother].onShell(draft.model)).length,
+          lessThan(1e-12));
+      for (final p in edge.samples) {
+        final expected = draft.model.surfaceAt(p.x, p.y);
+        expect((p - expected).length, lessThan(1e-8));
+        expect(p.z, greaterThanOrEqualTo(0));
+      }
+    }
+  });
+
+  test('V11.33: candidate links are reproducible without animation state', () {
+    final a = EggFractureNetwork.organicStaticDraft();
+    final b = EggFractureNetwork.organicStaticDraft();
+    expect(a.edges.length, b.edges.length);
+    for (var i = 0; i < a.edges.length; i++) {
+      expect(a.edges[i].id, b.edges[i].id);
+      for (var j = 0; j < a.edges[i].samples.length; j++) {
+        expect((a.edges[i].samples[j] - b.edges[i].samples[j]).length,
+            lessThan(1e-12));
+      }
+    }
+  });
+}
