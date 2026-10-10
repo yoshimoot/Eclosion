@@ -479,7 +479,8 @@ class _Surface {
   _Surface(this.points, this.faces, this.color,
       {this.inside = false, this.rim,
       this.originalPoints, this.pose, this.hingePose,
-      this.releaseMotion, this.releaseSeconds = 0});
+      this.releaseMotion, this.releaseSeconds = 0,
+      this.organicNormalRotation});
 
   final List<EggShellPoint3> points;
   final List<EggShellTriangle> faces;
@@ -491,6 +492,7 @@ class _Surface {
   final EggPanelHingePose? hingePose;
   final EggPanelReleaseMotion? releaseMotion;
   final double releaseSeconds;
+  final EggShellPoint3 Function(EggShellPoint3)? organicNormalRotation;
   late final List<Offset> xy = [
     for (final p in points) Offset(p.x, p.y),
   ];
@@ -520,6 +522,9 @@ class _ShellMeshPainter extends CustomPainter {
     required this.exitMotion,
     required this.exitHorizontalExtent,
     required this.exitVerticalExtent,
+    this.organic,
+    this.organicFront,
+    this.organicRear,
   }) : super(repaint: exitPlayback);
 
   final EggShellModel model;
@@ -538,6 +543,9 @@ class _ShellMeshPainter extends CustomPainter {
   final List<EggPanelReleaseMotion> exitMotion;
   final double exitHorizontalExtent;
   final double exitVerticalExtent;
+  final EggOrganicContinuousPoseCoordinator? organic;
+  final EggOrganicFrontBowlShell? organicFront;
+  final EggOrganicRearBowlShell? organicRear;
 
   List<_Surface> _meshes() {
     final result = <_Surface>[];
@@ -632,9 +640,11 @@ class _ShellMeshPainter extends CustomPainter {
   Color _shade(EggShellPoint3 point, Color base, bool inside,
       {EggShellPoint3? original, EggPanelInspectionPose? pose,
       EggPanelHingePose? hingePose,
-      EggPanelReleaseMotion? releaseMotion, double releaseSeconds = 0}) {
+      EggPanelReleaseMotion? releaseMotion, double releaseSeconds = 0,
+      EggShellPoint3 Function(EggShellPoint3)? organicNormalRotation}) {
     final localNormal = model.normalAt(original ?? point);
-    final n = releaseMotion?.rotateNormal(localNormal, releaseSeconds) ??
+    final n = organicNormalRotation?.call(localNormal) ??
+        releaseMotion?.rotateNormal(localNormal, releaseSeconds) ??
         hingePose?.rotateNormal(localNormal) ??
         pose?.rotateNormal(localNormal) ?? localNormal;
     final directional = (n.x * -.43 + n.y * -.39 + n.z * .78) *
@@ -763,7 +773,8 @@ class _ShellMeshPainter extends CustomPainter {
                 original: mesh.originalPoints?[j], pose: mesh.pose,
                 hingePose: mesh.hingePose,
                 releaseMotion: mesh.releaseMotion,
-                releaseSeconds: mesh.releaseSeconds),
+                releaseSeconds: mesh.releaseSeconds,
+                organicNormalRotation: mesh.organicNormalRotation),
           ],
           indices: mesh.indices,
         ),
@@ -800,5 +811,7 @@ class _ShellMeshPainter extends CustomPainter {
       old.outlines != outlines || old.inspectionYaw != inspectionYaw ||
        old.exitPlayback != exitPlayback || old.exitMotion != exitMotion ||
        old.exitHorizontalExtent != exitHorizontalExtent ||
-       old.exitVerticalExtent != exitVerticalExtent;
+       old.exitVerticalExtent != exitVerticalExtent ||
+        old.organic != organic || old.organicFront != organicFront ||
+        old.organicRear != organicRear;
 }
