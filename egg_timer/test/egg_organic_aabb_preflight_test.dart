@@ -41,6 +41,59 @@ void main() {
         throwsArgumentError);
   });
 
+  test('V11.41: exact sampled contacts use shared 3D triangle kernel',
+      () {
+    final preflight = EggOrganicAabbPreflight.build();
+    for (final progress in [0.0, .55, .84, 1.0]) {
+      final report = preflight.inspectExact(
+        progress, maxPairsPerPair: 1200,
+      );
+      final repeated = preflight.inspectExact(
+        progress, maxPairsPerPair: 1200,
+      );
+      expect(report.progress, progress);
+      expect(report.bowlTouching.length, 3);
+      expect(report.bowlIntersections.length, 3);
+      expect(report.siblingTouching.length, 3);
+      expect(report.siblingIntersections.length, 3);
+      expect(report.bowlTouching, repeated.bowlTouching);
+      expect(report.bowlIntersections, repeated.bowlIntersections);
+      expect(report.siblingTouching, repeated.siblingTouching);
+      expect(report.siblingIntersections, repeated.siblingIntersections);
+      expect(report.complete, repeated.complete);
+      expect(report.testedPairs, repeated.testedPairs);
+      expect(report.testedPairs, inInclusiveRange(0, 7200));
+      for (final pair in [
+        ...report.bowlTouching,
+        ...report.bowlIntersections,
+        ...report.siblingTouching.values,
+        ...report.siblingIntersections.values,
+      ]) {
+        expect(pair, greaterThanOrEqualTo(0));
+      }
+      // Do NOT assert collision-free without inspecting all generated
+      // surfaces. Existing connected source seams may legitimately touch.
+    }
+  });
+
+  test('V11.41: partial narrow phase cannot certify a collision-free frame',
+      () {
+    final preflight = EggOrganicAabbPreflight.build();
+    final incomplete = preflight.inspectExact(
+      0.0, maxPairsPerPair: 1,
+    );
+    expect(incomplete.complete, isFalse);
+    expect(incomplete.sampledFrameClear, isFalse);
+    expect(incomplete.testedPairs, greaterThan(0));
+    expect(() => preflight.inspectExact(
+      .5, maxPairsPerPair: 0,
+    ), throwsArgumentError);
+    final future = preflight.inspectExact(
+      1.0, afterZeroSeconds: .2, maxPairsPerPair: 1000,
+    );
+    expect(future.testedPairs, greaterThanOrEqualTo(0));
+  });
+
   test('V11.40: post-zero broad phase stays deterministic', () {
     final preflight = EggOrganicAabbPreflight.build();
     final now = preflight.inspect(1.0, afterZeroSeconds: .4);
