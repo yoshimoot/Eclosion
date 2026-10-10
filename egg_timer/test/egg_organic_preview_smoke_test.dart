@@ -23,13 +23,14 @@ void main() {
     expect(selector.segments.map((segment) => segment.value), [4, 3]);
     expect(find.text('Organique'), findsOneWidget);
     expect(find.text('V11.32'), findsOneWidget);
-    expect(find.text('Organique · V11.49'),
+    expect(find.text('Organique · aperçu actuel'),
         findsOneWidget);
     expect(find.text('Fragments encore attachés : 3 / 3'), findsOneWidget);
     expect(find.byKey(const Key('exit-sequence-progress')), findsOneWidget);
     expect(find.text('Lire'), findsOneWidget);
     expect(find.text('Rejouer'), findsOneWidget);
     expect(find.text('Contours des fragments'), findsNothing);
+    expect(find.textContaining('berceau inférieur'), findsOneWidget);
 
     // These old laboratory controls must not clutter or overflow Chrome.
     for (final name in [
@@ -57,7 +58,7 @@ void main() {
     selector = tester.widget<SegmentedButton<int>>(selectorFinder);
     selector.onSelectionChanged!({4});
     await tester.pump();
-    expect(find.text('Organique · V11.49'),
+    expect(find.text('Organique · aperçu actuel'),
         findsOneWidget);
     expect(tester.takeException(), isNull);
   });
