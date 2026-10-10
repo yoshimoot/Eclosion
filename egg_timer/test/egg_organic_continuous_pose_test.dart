@@ -39,6 +39,38 @@ void main() {
     }
   });
 
+  test('V11.48: organic surface normal follows actual solid rotation',
+      () {
+    final scene = EggOrganicContinuousPoseCoordinator.fixed();
+    final model = scene.staged.meshes.partition.organic.draft.model;
+    for (var i = 0; i < scene.seeds.length; i++) {
+      final mesh = scene.staged.meshes.children[i];
+      final source = model.normalAt(mesh.outer.first);
+      final hinge = scene.staged.hinges[i];
+      final release = scene.seeds[i].releaseProgress;
+      expect((scene.materialNormalAt(i, source, 0) - source).length,
+          lessThan(1e-10));
+      expect((scene.materialNormalAt(i, source, release) -
+              hinge.releaseNormalOf(source)).length,
+          lessThan(1e-10));
+      expect((scene.materialNormalAt(i, source, release - 1e-7) -
+              scene.materialNormalAt(i, source, release)).length,
+          lessThan(1e-5));
+      for (final p in [release, .97, 1.0]) {
+        final expected = scene.flights[i].rotateNormalAt(
+          hinge.releaseNormalOf(source),
+          scene.flights[i].elapsedAtProgress(p),
+        );
+        expect((scene.materialNormalAt(i, source, p) - expected).length,
+            lessThan(1e-10));
+      }
+      final postZero = scene.materialNormalAt(
+        i, source, 1, afterZeroSeconds: .2,
+      );
+      expect(postZero.length, closeTo(1, 1e-9));
+    }
+  });
+
   test('V11.39: playback order and post-zero time cannot corrupt pose',
       () {
     final coordinator = EggOrganicContinuousPoseCoordinator.fixed();
