@@ -4,11 +4,9 @@ import 'egg_exit_motion_config.dart';
 import 'egg_geometry_preview.dart';
 import 'egg_panel_hinge_pose.dart';
 import 'egg_panel_release_motion.dart';
-import 'egg_rear_bowl_boundary.dart';
-import 'egg_rear_bowl_mesh.dart';
 import 'egg_shell_front_assembly.dart';
-import 'egg_stationary_bowl_shell.dart';
 import 'egg_organic_front_bowl_shell.dart';
+import 'egg_organic_rear_bowl_shell.dart';
 import 'egg_organic_continuous_pose.dart';
 import 'egg_shell_collision_diagnostic.dart';
 import 'egg_shell_fragment_mesh.dart';
@@ -294,9 +292,10 @@ class EggOrganicExactFrame {
 /// Exact triangle intersection and full parent/rear-bowl swept collision
 /// detection are required before displaying the new flying children.
 class EggOrganicAabbPreflight {
-  EggOrganicAabbPreflight._(this.scene, this._bowl);
+  EggOrganicAabbPreflight._(this.scene, this._front, this._bowl);
 
   final EggOrganicContinuousPoseCoordinator scene;
+  final EggOrganicFrontBowlShell _front;
   final _TriangleIndex _bowl;
 
   // Diagnostic sources are immutable for the fixed-seed reference.
@@ -318,7 +317,7 @@ class EggOrganicAabbPreflight {
     final bowl = _TriangleIndex.build(
       shell.combinedVertices, shell.combinedFaces,
     );
-    return EggOrganicAabbPreflight._(scene, bowl);
+    return EggOrganicAabbPreflight._(scene, shell, bowl);
   }
 
   static _TriangleIndex _moving(EggOrganicMaterialSnapshot snap) {
@@ -510,12 +509,10 @@ class EggOrganicEnvironmentPreflight {
     final staged = scene.staged.meshes;
     final regions = staged.partition.originalRegions;
     final originalAssembly = EggShellFrontAssemblyBuilder.build(regions);
-    final originalFront = EggStationaryBowlShellBuilder.build(
-      originalAssembly,
-    );
-    final rearMesh = EggRearBowlMeshBuilder.build(
-      EggRearBowlBoundaryBuilder.build(originalFront),
-    );
+    // Reuse the EXACT organic front seam samples, including any
+    // additional subdivision forced by the three daughter fragments.
+    // Original V11.32 rear sampling could introduce material T-junctions.
+    final rearMesh = EggOrganicRearBowlShellBuilder.build(organic._front);
     final rear = _TriangleIndex.build(
       <EggShellPoint3>[
         ...rearMesh.exterior, ...rearMesh.interior,
