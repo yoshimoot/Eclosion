@@ -453,14 +453,18 @@ class EggOrganicEnvironmentPreflight {
         ...rearMesh.rearCrownWalls,
       ],
     );
-    // Use the EXACT V11.32 panel motion, not a new animation approximation.
+    // The ORGANIC static partition may refine the two parent meshes
+    // further to agree with its new small pieces. For collision with the
+    // live V11.32 animation, use the original Chrome constructor and
+    // its exact original material mesh, not that candidate subdivision.
+    final actualParents = originalAssembly.panels;
     final parentMotions = <EggPanelReleaseMotion>[
-      for (var i = 0; i < staged.parents.length; i++)
+      for (var i = 0; i < actualParents.length; i++)
         EggExitMotionConfig.build(
-          panel: staged.parents[i],
+          panel: actualParents[i],
           model: regions.network.model,
           hinge: EggPanelHingePose.fromGraph(
-            panel: staged.parents[i],
+            panel: actualParents[i],
             region: regions.regions[i],
             neighbor: regions.regions[1 - i],
             network: regions.network,
@@ -472,7 +476,7 @@ class EggOrganicEnvironmentPreflight {
       organic,
       rear,
       List<EggPanelReleaseMotion>.unmodifiable(parentMotions),
-      staged.parents,
+      actualParents,
     );
   }
 
