@@ -296,19 +296,25 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
           'des deux panneaux. Mode Sortie animé uniquement en diagnostic. '
           'Le chapeau F1 est visualisé séparément dans l’atelier principal.'),
       const SizedBox(height: 20),
-      SegmentedButton<int>(
-        segments: const [
-          ButtonSegment(value: 0, label: Text('Assemblé')),
-          ButtonSegment(value: 1, label: Text('Écarté')),
-          ButtonSegment(value: 2, label: Text('Pivot')),
-          ButtonSegment(value: 3, label: Text('Sortie')),
-          ButtonSegment(value: 4, label: Text('Organique')),
-        ],
-        selected: {_mode},
-        onSelectionChanged: (values) {
-          _exitPlayback.stop();
-          setState(() => _mode = values.first);
-        },
+      // Five modes do not fit in a 340px inspector column. Keep the
+      // validated modes and the opt-in experiment reachable without
+      // clipping either the controls or the portrait canvas.
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(value: 0, label: Text('Assemblé')),
+            ButtonSegment(value: 1, label: Text('Écarté')),
+            ButtonSegment(value: 2, label: Text('Pivot')),
+            ButtonSegment(value: 3, label: Text('Sortie')),
+            ButtonSegment(value: 4, label: Text('Organique')),
+          ],
+          selected: {_mode},
+          onSelectionChanged: (values) {
+            _exitPlayback.stop();
+            setState(() => _mode = values.first);
+          },
+        ),
       ),
       const SizedBox(height: 8),
       Text(_mode == 4
@@ -371,7 +377,13 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
                 },
               ),
               Text(
-                EggExitTimeline.released(_exitPlayback.value)
+                _mode == 4
+                    ? 'Petits fragments encore attachés : '
+                        '${_organic.staged.attachments.children.where(
+                          (child) => !child.stateAt(_exitPlayback.value)
+                              .fullyReleased,
+                        ).length} / 3'
+                    : EggExitTimeline.released(_exitPlayback.value)
                     ? 'Libéré · '
                         '${EggExitTimeline.freeSeconds(_exitPlayback.value).toStringAsFixed(2)} s'
                     : 'Attaché · '
