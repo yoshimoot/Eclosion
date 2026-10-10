@@ -43,10 +43,32 @@ class EggOrganicPartitionedStaticMeshes {
     return result;
   }
 
+  // Creating a shared-edge 3D partition is relatively expensive:
+  // ear clipping, material refinement, and two-sided wall generation.
+  // The reference meshes are immutable; cache them once per Dart isolate,
+  // without changing their tessellation or the distinct custom builds.
+  static final EggOrganicPartitionedStaticMeshes _reference =
+      _build(thickness: 2.5, maxEdgeXY: 24, sideSegments: 64);
+
   factory EggOrganicPartitionedStaticMeshes.build({
     double thickness = 2.5,
     double maxEdgeXY = 24,
     int sideSegments = 64,
+  }) {
+    if (thickness == 2.5 && maxEdgeXY == 24 && sideSegments == 64) {
+      return _reference;
+    }
+    return _build(
+      thickness: thickness,
+      maxEdgeXY: maxEdgeXY,
+      sideSegments: sideSegments,
+    );
+  }
+
+  static EggOrganicPartitionedStaticMeshes _build({
+    required double thickness,
+    required double maxEdgeXY,
+    required int sideSegments,
   }) {
     if (!thickness.isFinite || thickness <= 0 ||
         !maxEdgeXY.isFinite || maxEdgeXY <= 0 ||
