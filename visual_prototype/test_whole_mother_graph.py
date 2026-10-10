@@ -24,8 +24,7 @@ class WholeMotherFractureTests(unittest.TestCase):
         self.assertNotIn('rim_y',m.mother_shell.__code__.co_names)
         self.assertNotIn('build_shell',m.mother_shell.__code__.co_names)
         mother=self.out.mother
-        self.assertIn(mother.top_pole,mother.outer_faces[0] if False else
-                      [v for tri in mother.outer_faces for v in tri])
+        self.assertIn(mother.top_pole,[v for tri in mother.outer_faces for v in tri])
         self.assertIn(mother.bottom_pole,[v for tri in mother.outer_faces for v in tri])
         self.assertEqual(len(mother.vertices),2*(m.SECTORS*m.RINGS+2))
 
