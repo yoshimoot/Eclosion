@@ -1,3 +1,17 @@
+## V11.57 — Pièce arrière gauche : contour incliné, non rectangulaire (10 octobre 2026 ; rendu de diagnostic)
+
+**Problème unique :** le grand panneau arrière de V11.56 gardait une silhouette de rectangle dressé, étrangère au morceau de coquille incurvé visible derrière le poussin à 00:00 sur la planche. Le V11.57 ne touche ni au berceau ni aux deux petits morceaux avant.
+
+**Correction technique limitée à `visual_prototype/fragments_00.py` :** le grand fragment utilise une série fixe de stations de hauteur `REAR_TOP_STATIONS`, formant un contour supérieur dissymétrique ; un glissement angulaire borné des sommets supérieurs vers l'axe arrière donne un bord intérieur réellement oblique dans le maillage 3D. Les sommets inférieurs conservent strictement **leur identité d'objet** avec la surface externe et interne du berceau V11.55 ; épaisseur normale `2.5`. Les morceaux avant continuent d'utiliser exactement leur formule précédente. Aucune interpolation d'images, disparition alpha ou patch peint. Le maillage reste une préparation statique, sans cinématique ni garantie de reconstitution de l'œuf fermé.
+
+**Vérifications réellement effectuées dans l'environnement assistant :** 11 tests Python réussis, dont 2 tests V11.57 (relief asymétrique/arête oblique et conservation des pièces avant). Contrôle trimesh sur **les quatre objets** : maillages étanches, winding cohérent, volumes signés positifs, triangles non dégénérés. Nombre de triangles inchangé : 30 720 pour le berceau, 2 284 pour l'arrière, 828 et 1 140 pour les petits morceaux. OBJ généré et rendu VTK comparé visuellement à V11.56 et à la planche ; Blender/Flutter/Chrome non exécutés. Le test n'est pas une validation du réalisme.
+
+**Constat visuel :** la paroi arrière cesse d'être un panneau vertical à coupe droite et s'incline mieux vers le centre. Les écarts restent majeurs : panneau encore trop simplifié, couleurs et tranches peu réalistes, aucun poussin/décor, aucune vraie collision vérifiée pendant le détachement. La silhouette finale n'est **pas validée**. Ne pas éditer les acquis Flutter pour masquer ces écarts.
+
+**Suite conseillée :** comparer la pièce arrière dans une scène intégrant exactement le poussin validé (un asset 3D distinct reste nécessaire pour la production), puis concevoir de vraies fissures latérales irrégulières avec arêtes communes et mouvement rigide. Vérifier l'absence d'occlusion du poussin et de collisions avant l'animation 00:03 → 00:00. Ne pas solliciter un test Chrome pour ce prototype hors Flutter.
+
+---
+
 ## V11.56 — Trois fragments 3D réellement distincts sur le berceau statique (10 octobre 2026)
 
 **Objectif unique :** quitter la frise monobloc V11.55 et produire de vrais panneaux de matière au bord du berceau, en conservant la surface de l'œuf et les états Flutter historiques. Ajout de `visual_prototype/fragments_00.py` et `visual_prototype/test_fragments_00.py`. La nouvelle géométrie contient : **une grande pièce arrière gauche** et **deux petites pièces avant asymétriques**, en plus du berceau bas existant. Les pièces ont chacun face externe, face interne et toutes leurs tranches ; les arêtes inférieures empruntent **par identité d'objet** les mêmes sommets extérieurs/intérieurs du berceau mère, épaisseur `2.5`. Le contour supérieur est fixe et irrégulier, jamais régénéré à chaque frame. Les pièces ne recouvrent pas la surface extérieure du berceau, elles prolongent localement sa matière vers le haut.
