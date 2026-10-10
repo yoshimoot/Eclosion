@@ -1,3 +1,17 @@
+## V11.44 — Coquille avant organique à deux faces et tranche réelle (10 octobre 2026 ; code structurel non testé)
+
+**Travail poursuivi sans demande de validation intermédiaire :** ajout de `egg_organic_front_bowl_shell.dart` au-dessus de `EggOrganicPartitionedStaticMeshes`. La nouvelle surface statique du bol restant conserve **la face extérieure déjà partitionnée**, construit la vraie **face intérieure** par `EggShellModel.inset(p,2.5)` et son orientation inverse, et érige les **parois de coupe** exactement le long des arêtes organiques/F1 via les vrais sommets raffinés. Les **côtés de silhouette front/arrière restent ouverts** : ne pas poser de capot plat devant le raccord arrière ni doubler la matière. La structure expose les sommets et triangles réunis `[extérieur,intérieur,parois]` pour un contrôle de collision volumique correct.
+
+**Validation structurelle préparée :** le constructeur identifie l'unique contact F1 gauche et le contact droit, suit les arêtes réellement subdivisées du contour supérieur, puis vérifie les `2^refinementPasses` divisions et les coordonnées de tous les nœuds physiques. Il refuse les contours ambigus, les arêtes manquantes et les épaisseurs incompatibles. `egg_organic_front_bowl_shell_test.dart` contrôle les surfaces, la bonne numérotation des indices combinés, la géométrie des jonctions F1, l'épaisseur `2.5` aux sommets, et deux triangles de paroi par segment supérieur.
+
+**Correction du diagnostic V11.44 :** `EggOrganicAabbPreflight.build` utilisait jusqu'ici **seulement** l'extérieur du bol avant ; `bowl` pointe désormais sur les triangles extérieurs, intérieurs et les vraies parois de coupe du bol organique. Les modes d'observation instantanée V11.41 et d'intervalles conservateurs V11.43 inspectent donc ces trois surfaces avant de prononcer leur verdict. Le bol arrière conserve le mesh original V11.32, sans changement de la scène Chrome.
+
+**Limite de préparation importante :** lorsque la partition organique force un nombre de raffinements plus élevé que le bol V11.32 original, le **raccord du côté avant avec l'arrière original peut contenir des subdivisions différentes**. Il faut reconstituer/vérifier les interfaces arrière depuis le nouveau contour plutôt que de fusionner silencieusement deux grilles incompatibles. Il n'existe toujours ni rendu organique activé ni certification collision en continu dans Flutter exécutée.
+
+**Statut sans ambiguïté :** fichiers/tests V11.44 committés sur GitHub, lecture/statique vérifiée ; Flutter et Dart toujours indisponibles dans l'environnement assistant. `dart format`, `flutter analyze` et `flutter test` V11.33–V11.44 **non exécutés**. Pas de sollicitation utilisateur à cette étape invisible. Une seule passe de validation locale sera nécessaire **avant** l'activation visuelle de ces nouveaux fragments. La prochaine priorité est le raccord avant/arrière matériel partagé et l'exécution des tests, pas la modification du poussin ni de la mécanique V11.32.
+
+---
+
 ## V11.43 — Inspection temporelle conservative de la fragmentation organique (10 octobre 2026 ; code publié, tests non exécutés)
 
 **Objectif et priorité :** suite autonome de V11.42, sans nouvelle sollicitation à chaque passe. Défaut technique ciblé : les résultats exacts de triangles aux seuls instants `.55`, `.82`, `1.0` **ne prouvent aucune absence de collision ENTRE les instants**. Le renderer Flutter `Géométrie V11.32` et la référence PNG restent intégralement gelés.
