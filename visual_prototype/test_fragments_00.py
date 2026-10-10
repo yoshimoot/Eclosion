@@ -3,7 +3,7 @@ import math
 import unittest
 
 from fragments_00 import (build_piece_set, validate_shared_material,
-                          FRAGMENT_SPECS, THICKNESS, SECTORS)
+                          FRAGMENT_SPECS, REAR_TOP_STATIONS, THICKNESS, SECTORS)
 from scene_00 import rim_y
 
 
@@ -45,6 +45,45 @@ class SharedFragmentsTest(unittest.TestCase):
                 for column, sector in enumerate(piece.rim_sector_indices):
                     z = piece.vertices[row*count + column][2]
                     self.assertGreater(z, -rim_y(2*math.pi*sector/SECTORS))
+
+    def test_rear_chip_is_an_asymmetric_arch_not_a_rectangle(self):
+        rear = self.pieces[0]
+        span = rear.lower_count
+        # Index of top exterior row is one row before the inner-face offset.
+        outer_count = len(rear.vertices) // 2
+        vertical_heights = [
+            rear.vertices[outer_count-span+i][2] - rear.vertices[i][2]
+            for i in range(span)
+        ]
+        self.assertGreater(max(vertical_heights), 125)
+        self.assertGreater(vertical_heights[0], 135)
+        self.assertLess(vertical_heights[-1], 30)
+        self.assertGreater(vertical_heights[span//2], vertical_heights[-1] * 4)
+        self.assertNotAlmostEqual(vertical_heights[0], vertical_heights[-1])
+        # The upper near-center edge is inclined in real 3D, not a
+        # vertical planar side of a rectangular panel.
+        top = rear.vertices[len(rear.vertices)//2 - span]
+        base = rear.vertices[0]
+        self.assertGreater(top[0] - base[0], 25)
+        self.assertEqual(REAR_TOP_STATIONS[0][0], 0)
+        self.assertEqual(REAR_TOP_STATIONS[-1][0], 1)
+
+    def test_front_chip_geometry_is_unchanged(self):
+        # Baseline V11.56 front-chip heights are deterministic and untouched.
+        for piece, spec in zip(self.pieces[1:], FRAGMENT_SPECS[1:]):
+            _, first, last, rise, irregularity, phase = spec
+            mid = (first + last) // 2
+            theta = 2 * math.pi * mid / SECTORS
+            u = (mid - first) / (last - first)
+            expected = rise + irregularity * (
+                math.sin(5 * math.pi * u + phase)
+                + .35 * math.sin(11 * math.pi * u - .2))
+            j = mid - first
+            top_index = len(piece.vertices) // 2 - piece.lower_count + j
+            bottom_index = j
+            self.assertAlmostEqual(
+                piece.vertices[top_index][2] - piece.vertices[bottom_index][2],
+                expected, places=7)
 
     def test_reproducible_and_asymmetric(self):
         _, again = build_piece_set()
