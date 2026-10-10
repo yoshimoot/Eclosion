@@ -286,13 +286,15 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Éclosion · aperçu 3D',
-          style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 8),
+      Text(
+        _mode == 4 ? 'Organique · V11.49' : 'Référence V11.32',
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+      const SizedBox(height: 6),
       Text(
         _mode == 4
-            ? 'Fragments organiques · V11.48 (expérimental)'
-            : 'Sortie des deux panneaux · référence V11.32',
+            ? 'Trois fragments 3D · expérimental'
+            : 'Deux panneaux 3D · comparaison',
         style: Theme.of(context).textTheme.bodyMedium,
       ),
       const SizedBox(height: 18),
