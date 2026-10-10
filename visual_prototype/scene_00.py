@@ -48,18 +48,40 @@ def radius_at(y):
     return MAX_RADIUS * max(0, min(1.01, p))
 
 
-def rim_y(theta):
-    """Raised side lips, deep central front notch, asymmetric broken edge.
+# Shared cut positions use one fixed, asymmetric series of angular
+# fracture stations. The different lengths keep the edge irregular without
+# independent frame-by-frame noise or sinusoidal decorative teeth.
+RIM_KNOTS = (
+    (-math.pi, -6), (-2.93, 1), (-2.70, -4), (-2.48, 7),
+    (-2.33, -7), (-2.08, 4), (-1.92, -6), (-1.68, 8),
+    (-1.47, 0), (-1.31, 8), (-1.06, -4), (-.83, 7),
+    (-.66, -9), (-.40, -3), (-.19, 9), (.03, -4),
+    (.27, 9), (.49, -10), (.73, 8), (.86, -4),
+    (1.11, 4), (1.30, -7), (1.56, 1), (1.78, 10),
+    (2.02, -7), (2.18, 4), (2.43, -6), (2.61, 7),
+    (2.85, -1), (math.pi, -6),
+)
 
-    Front theta=0, sides theta=+/-pi/2, back theta=pi.
-    Lower y in the inherited Flutter model means higher on screen.
+
+def rim_y(theta):
+    """Asymmetric cradle: lower front opening and raised side lips.
+
+    Returns a *physical* 360-degree shell rim, not a 2D clipping mask.
+    The tall broken rear shell visible behind the reference chick will be
+    modeled as a separate material fragment, never faked as a high arch.
     """
-    c = math.cos(theta)
-    foundation = -18 + (125 * c**4 if c > 0 else 44 * c**4)
-    crack = (5.6 * math.sin(7 * theta + .4)
-             + 4.0 * math.sin(13 * theta - .6)
-             + 2.3 * math.sin(23 * theta + .3))
-    return max(-72.0, min(136.0, foundation + crack))
+    angle = (theta + math.pi) % (2 * math.pi) - math.pi
+    c = math.cos(angle)
+    front = 32 + 58 * c**1.35 if c >= 0 else 32
+    foundation = front + 32 * max(0.0, -c)**2.2
+    for (a, delta_a), (b, delta_b) in zip(RIM_KNOTS, RIM_KNOTS[1:]):
+        if a <= angle <= b:
+            fract = (angle - a) / (b - a)
+            noise = delta_a + (delta_b - delta_a) * fract
+            break
+    else:
+        noise = RIM_KNOTS[-1][1]
+    return max(-130, min(125, foundation + noise))
 
 
 def surface(y, theta):
