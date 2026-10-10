@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_organic_bowl_partition.dart';
 import 'package:egg_timer/lab/egg_organic_partitioned_meshes.dart';
+import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -140,7 +141,7 @@ void main() {
   test('V11.34: every two-owner cut has identical refined 3D rims', () {
     final assembled = EggOrganicPartitionedStaticMeshes.build();
     final partition = assembled.partition;
-    final vertices = <String, List<dynamic>>{
+    final vertices = <String, List<EggShellPoint3>>{
       'left': assembled.parents[0].outer,
       'right': assembled.parents[1].outer,
       for (final child in assembled.children) child.regionId: child.outer,
@@ -156,12 +157,12 @@ void main() {
     // The shell tessellator subdivides every original graph sample chord
     // identically. Check ALL edge subdivisions in THREE coordinates; a
     // screen-space overlap does not suffice to exclude 3D T-junctions.
-    List<(double, dynamic)> along(
-        String id, dynamic a, dynamic b) {
+    List<(double, EggShellPoint3)> along(
+        String id, EggShellPoint3 a, EggShellPoint3 b) {
       final dx = b.x - a.x, dy = b.y - a.y;
       final lenSquared = dx * dx + dy * dy;
       expect(lenSquared, greaterThan(1e-12));
-      final matched = <(double, dynamic)>[];
+      final matched = <(double, EggShellPoint3)>[];
       final points = vertices[id]!;
       for (final index in rimIndices[id]!) {
         final p = points[index];
