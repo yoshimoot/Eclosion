@@ -246,11 +246,36 @@ class EggShellPanelMeshBuilder {
     double thickness,
     double maxEdgeXY,
     int? refinementPasses,
-  ) {
-    final model = plan.network.model;
+  ) => fromClosedPerimeter(
+    model: plan.network.model,
+    regionId: region.id,
+    closedPerimeter: region.sampledPerimeter(plan.network),
+    thickness: thickness,
+    maxEdgeXY: maxEdgeXY,
+    refinementPasses: refinementPasses,
+  );
+
+  /// Build a real two-sided, rim-walled 3D shell from ANY verified closed
+  /// perimeter on EggShellModel. The original two-panel builder calls this
+  /// same path, so organic candidates cannot silently receive flat shards.
+  ///
+  /// This constructs an ISOLATED static solid. It does not remove its
+  /// footprint from the current bowl, establish hinge ownership, or add an
+  /// animated fragment to Chrome. Those steps require separate validation.
+  static EggShellPanelMesh fromClosedPerimeter({
+    required EggShellModel model,
+    required String regionId,
+    required List<EggShellPoint3> closedPerimeter,
+    double thickness = 2.5,
+    double maxEdgeXY = 24,
+    int? refinementPasses,
+  }) {
+    if (regionId.isEmpty || !thickness.isFinite || thickness <= 0) {
+      throw ArgumentError('Organic panel needs a name and real thickness');
+    }
     final patch = tessellateExterior(
       model: model,
-      closedPerimeter: region.sampledPerimeter(plan.network),
+      closedPerimeter: closedPerimeter,
       maxEdgeXY: maxEdgeXY,
       refinementPasses: refinementPasses,
     );
@@ -272,7 +297,7 @@ class EggShellPanelMeshBuilder {
       walls.add(EggShellTriangle(b, a + shift, b + shift));
     }
     return EggShellPanelMesh._(
-      region.id, thickness,
+      regionId, thickness,
       List<EggShellPoint3>.unmodifiable(points),
       List<EggShellPoint3>.unmodifiable(inside),
       List<int>.unmodifiable(rim),
