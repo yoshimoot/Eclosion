@@ -8,6 +8,7 @@ import 'package:egg_timer/lab/egg_organic_rear_bowl_shell.dart';
 import 'package:egg_timer/lab/egg_rear_bowl_boundary.dart';
 import 'package:egg_timer/lab/egg_rear_bowl_mesh.dart';
 import 'package:egg_timer/lab/egg_shell_front_assembly.dart';
+import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:egg_timer/lab/egg_stationary_bowl_shell.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -30,9 +31,12 @@ void main() {
     expect(rear.rightSeam.last, rear.leftSeam.last);
     expect(rear.sideSeamEdgeCount,
         front.meshes.bowl.rim.length - front.upperCutRim.length + 1);
+    // Identity-based lookup is linear over the refined mesh and does
+    // not repeatedly scan all vertices for each side-seam sample.
+    final rearVertices = HashSet<EggShellPoint3>.identity()
+      ..addAll(rear.exterior);
     for (final id in [...rear.rightSeam, ...rear.leftSeam]) {
-      final vertex = exterior[id];
-      expect(rear.exterior.any((p) => identical(vertex, p)), isTrue,
+      expect(rearVertices.contains(exterior[id]), isTrue,
           reason: 'The rear MUST reuse the organic front 3D sample');
     }
     expect(identical(rear.closedPerimeter.first,
