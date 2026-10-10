@@ -1,3 +1,20 @@
+## V11.54 — Audit de faisabilité visuelle des états 00:03 et 00:00 (10 octobre 2026 ; diagnostic, pas une animation)
+
+**Source de comparaison :** la planche immuable `reference/Planche Eclosion.png`, notamment les vues « 00:03 » et « 0 % », et la capture agrandie transmise par l'utilisateur. Revue de `egg_geometry_preview.dart`, `egg_organic_full_shell_draft.dart`, `egg_organic_lower_cradle_material.dart`, `egg_organic_upper_front_band.dart` et `egg_organic_upper_rear_band.dart`. **Aucun test Flutter ni rendu Chrome exécuté pour cet audit.** Le dernier correctif V11.53 (32 segments de silhouette) est committé mais son test Flutter reste non confirmé.
+
+**Diagnostic principal et changement de priorité :** le berceau statique V11.50 retient ~27–31 % de la hauteur de l'œuf avec une coupe périphérique basse peu variable (`fractureY(angle) = 92 + 5 sin(3a+.25) + 3 sin(7a+.7)`). Or le berceau à 0 % de la référence conserve des **lèvres latérales sensiblement plus hautes**, encadrant une **ouverture centrale profonde et irrégulière**. Détacher intégralement les bandes supérieures V11.51 produirait un bol trop uniforme, même avec des triangles corrects. **Ne pas brancher ces bandes telles quelles comme animation définitive.** Préparer une partition non chevauchante où certaines parties latérales restent structurellement rattachées au berceau, et les autres deviennent de vrais fragments libérables. Adapter les frontières partagées du réseau fixe au besoin, sans toucher aux deux panneaux V11.32 ni modifier artificiellement le contour dans le painter.
+
+**Critères de franchissement avant nouvelle scène Chrome :**
+- Position fermée : conserver l'œuf complet et la géométrie 3D, sans trous, doubles parois ou fragments rapportés.
+- À 00:03 : capuchon et morceaux déjà soulevés, ouverture irrégulière révélant partiellement le poussin, transitions physiques continues.
+- À 00:00 : poussin dégagé ; berceau bas au **centre mais relevé sur les côtés**, bord réellement fracturé et courbe ; pièces détachées au sol ; aucun bord masqué par une image.
+- Pour chaque arête de rupture : deux propriétaires de matière, mêmes échantillons 3D, tranche réelle `2.5`. Aucune zone dupliquée/absente, pas de collision non résolue au moment de la rupture.
+- Préserver `EggShellModel`, le z-buffer et la cinématique validée du moteur de fragments. Le visuel final de poussin duveteux, de matière et de grange nécessite encore des couches graphiques/actifs dédiés ; le renderer actuel est un **diagnostic** à aplats et ne suffit pas pour atteindre à lui seul la qualité du photogramme de référence.
+
+**Suite technique :** valider localement les quatre tests front/rear V11.51 après V11.53, puis préparer **une seule** partition statique démontrant les lèvres latérales conservées et les pièces supérieures réellement soustraites. Vérifier topologie/surface/collisions avant d'intégrer des animations et de demander une capture Chrome. Éviter de prolonger le laboratoire ou de rechercher des raffinements de texture avant cette étape structurante.
+
+---
+
 ## V11.52 — Chrome utilisable sans bloquer sur les travaux du berceau (10 octobre 2026 ; retour utilisateur)
 
 **Retour Flutter concret du développeur :** après récupération du commit `5ef41b6`, `flutter analyze --no-pub` = `No issues found!`. Le groupe V11.50 a terminé ses six premiers tests sur F1, le bas et le graphe commun. **Quatre tests V11.51 échouent** : les deux de `egg_organic_upper_front_band_test.dart` et les deux de `egg_organic_upper_rear_band_test.dart` ; origine exacte de l'exception dans `EggShellPanelMeshBuilder._ears` : `Bad state: Degenerate final shell triangle`. Le `egg_organic_preview_smoke_test.dart` V11.50 a ensuite **réussi** (résultat `+7 -4` à la fin), prouvant qu'une interface Chrome peut être montée et que les futurs morceaux V11.51 défaillants **ne sont pas instanciés dans le painter actif**.
