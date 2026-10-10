@@ -6,6 +6,7 @@ import 'package:egg_timer/lab/egg_panel_hinge_pose.dart';
 import 'package:egg_timer/lab/egg_shell_front_assembly.dart';
 import 'package:egg_timer/lab/egg_organic_aabb_preflight.dart';
 import 'package:egg_timer/lab/egg_organic_partitioned_meshes.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -27,7 +28,7 @@ void main() {
     final preflight = EggOrganicAabbPreflight.build();
     // Diagnostic-only timings: if the geometry stalls again, distinguish
     // the once-per-isolate scene build from its six motion samples.
-    print('V11.45 organic collision scene ready in ${clock.elapsedMilliseconds} ms');
+    debugPrintSynchronously('V11.45 organic collision scene ready in ${clock.elapsedMilliseconds} ms');
     for (final progress in [0.0, .55, .72, .84, .93, 1.0]) {
       final report = preflight.inspect(progress);
       final repeated = preflight.inspect(progress);
@@ -44,7 +45,7 @@ void main() {
       ]) {
         expect(count, inInclusiveRange(0, 20000));
       }
-      print('V11.45 organic broad phase ${(progress * 100).round()}% '
+      debugPrintSynchronously('V11.45 organic broad phase ${(progress * 100).round()}% '
           'done at ${clock.elapsedMilliseconds} ms');
       // A nonzero candidate count is NOT proven triangle penetration;
       // even a zero count applies only to this sampled visible front shell.
