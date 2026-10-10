@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'egg_organic_attached_hinge_pose.dart';
 import 'egg_organic_staged_assembly.dart';
 import 'egg_shell_model.dart';
 
