@@ -184,7 +184,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
       EggOrganicFrontBowlShellBuilder.build(_organic.staged.meshes);
   late final EggOrganicRearBowlShell _organicRear =
       EggOrganicRearBowlShellBuilder.build(_organicFront);
-  int _mode = 0; // 0 assembled, 1 separated, 2 hinge, 3 exit, 4 organic
+  int _mode = 4; // Organic first; V11.32 remains available as reference.
   double _hingeDegrees = 20;
   bool _left = true;
   bool _right = true;
@@ -285,183 +285,109 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
     ),
   );
 
+  /// The Chrome inspector deliberately exposes only the two useful
+  /// comparisons and the playback controls. Legacy research modes and
+  /// diagnostic sliders remain in the 3D engine, NOT in the visible UI.
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(_mode == 4 ? 'Géométrie V11.48 · organique expérimental'
-          : 'Géométrie V11.32',
+      Text('Éclosion · aperçu 3D',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
-      Text(_mode == 4
-          ? 'Essai 3D : véritable découpe du bol, raccord arrière et '
-              'trois petits fragments. La pose est continue mais les '
-              'contacts physiques sont encore à vérifier visuellement.'
-          : 'Maillages 3D du bol avant, de la coquille arrière et '
-              'des deux panneaux. Mode Sortie animé uniquement en diagnostic. '
-              'Le chapeau F1 est visualisé séparément dans l’atelier principal.'),
-      const SizedBox(height: 20),
-      // Five modes do not fit in a 340px inspector column. Keep the
-      // validated modes and the opt-in experiment reachable without
-      // clipping either the controls or the portrait canvas.
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(value: 0, label: Text('Assemblé')),
-            ButtonSegment(value: 1, label: Text('Écarté')),
-            ButtonSegment(value: 2, label: Text('Pivot')),
-            ButtonSegment(value: 3, label: Text('Sortie')),
-            ButtonSegment(value: 4, label: Text('Organique')),
-          ],
-          selected: {_mode},
-          onSelectionChanged: (values) {
-            _exitPlayback.stop();
-            setState(() => _mode = values.first);
-          },
-        ),
+      Text(
+        _mode == 4
+            ? 'Fragments organiques · V11.48 (expérimental)'
+            : 'Sortie des deux panneaux · référence V11.32',
+        style: Theme.of(context).textTheme.bodyMedium,
       ),
-      const SizedBox(height: 8),
-      Text(_mode == 4
-          ? 'Organique · essai non validé : trois nouveaux morceaux de '
-              'coquille 3D. Contacts diagnostiqués, pas corrigés.'
-          : _mode == 3
-          ? 'Sortie : pivot attaché puis expulsion rigide. '
-              'Collisions non résolues automatiquement.'
-          : _mode == 2
-          ? 'Pivot : deux points d’une courte arête existante restent '
-              'fixes. Aucun mouvement libre ni rupture automatique.'
-          : 'Écarté = décalage de présentation, '
-              'pas une animation physique validée.',
-          style: const TextStyle(fontSize: 12)),
-      const SizedBox(height: 14),
-      Text('Inclinaison 3D des panneaux · ${_inspectionYaw.round()}°'),
-      Slider(
-        value: _inspectionYaw,
-        min: 0,
-        max: 70,
-        divisions: 14,
-        onChanged: _mode == 1
-            ? (value) => setState(() => _inspectionYaw = value)
-            : null,
+      const SizedBox(height: 18),
+      SegmentedButton<int>(
+        key: const Key('egg-preview-mode'),
+        segments: const [
+          ButtonSegment(value: 4, label: Text('Organique')),
+          ButtonSegment(value: 3, label: Text('V11.32')),
+        ],
+        selected: {_mode},
+        onSelectionChanged: (values) {
+          _exitPlayback.stop();
+          setState(() => _mode = values.first);
+        },
       ),
-      const Text('Inspection uniquement en mode Écarté : rotation rigide '
-          'des faces et des tranches autour d’un axe vertical.',
-          style: TextStyle(fontSize: 12)),
-      const SizedBox(height: 12),
-      Text('Ouverture autour de l’attache · ${_hingeDegrees.round()}°'),
-      Slider(
-        value: _hingeDegrees,
-        min: 0,
-        max: 55,
-        divisions: 11,
-        onChanged: _mode == 2
-            ? (value) => setState(() => _hingeDegrees = value)
-            : null,
-      ),
-      if (_mode == 2)
-        const Text('V11.12 : charnière sur une connexion inférieure '
-            'issue des fissures V10.4. La géométrie tourne d’un seul '
-            'bloc ; expulsion et chute non intégrées.',
-            style: TextStyle(fontSize: 12)),
-      if (_mode == 3 || _mode == 4)
-        AnimatedBuilder(
-          animation: _exitPlayback,
-          builder: (context, _) => Column(
+      const SizedBox(height: 24),
+      AnimatedBuilder(
+        animation: _exitPlayback,
+        builder: (context, _) {
+          final progress = _exitPlayback.value;
+          final attached = _mode == 4
+              ? _organic.staged.attachments.children.where(
+                  (child) => !child.stateAt(progress).fullyReleased,
+                ).length
+              : null;
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 12),
-              Text('Progression pivot et expulsion · '
-                  '${(_exitPlayback.value * 100).round()} %'),
+              Text('Progression · ${(progress * 100).round()} %'),
               Slider(
                 key: const Key('exit-sequence-progress'),
-                value: _exitPlayback.value,
-                onChanged: (p) {
+                value: progress,
+                onChanged: (value) {
                   _exitPlayback.stop();
-                  _exitPlayback.value = p;
+                  _exitPlayback.value = value;
                 },
               ),
               Text(
                 _mode == 4
-                    ? 'Petits fragments encore attachés : '
-                        '${_organic.staged.attachments.children.where(
-                          (child) => !child.stateAt(_exitPlayback.value)
-                              .fullyReleased,
-                        ).length} / 3'
-                    : EggExitTimeline.released(_exitPlayback.value)
-                    ? 'Libéré · '
-                        '${EggExitTimeline.freeSeconds(_exitPlayback.value).toStringAsFixed(2)} s'
-                    : 'Attaché · '
-                        '${EggExitTimeline.hingeAngle(_exitPlayback.value).toStringAsFixed(1)}°',
-                style: const TextStyle(fontSize: 12),
+                    ? 'Fragments encore attachés : $attached / 3'
+                    : EggExitTimeline.released(progress)
+                        ? 'Panneaux libérés'
+                        : 'Panneaux attachés',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              Row(children: [
-                FilledButton.tonalIcon(
-                  onPressed: _playOrPause,
-                  icon: Icon(_exitPlayback.isAnimating
-                      ? Icons.pause : Icons.play_arrow),
-                  label: Text(_exitPlayback.isAnimating ? 'Pause' : 'Lire'),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () {
-                    _exitPlayback.stop();
-                    _exitPlayback.value = 0;
-                  },
-                  icon: const Icon(Icons.replay),
-                  label: const Text('Rejouer'),
-                ),
-              ]),
-              const Text('Pivot 0–55 %, puis poussée 3D extérieure et '
-                  'latérale, chute et contact 3D avec le sol. '
-                  'Après impact : basculement rigide vers l’extérieur '
-                  'et glissement amorti ; collisions diagnostiquées.',
-                  style: TextStyle(fontSize: 12)),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: _playOrPause,
+                    icon: Icon(_exitPlayback.isAnimating
+                        ? Icons.pause : Icons.play_arrow),
+                    label: Text(_exitPlayback.isAnimating ? 'Pause' : 'Lire'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () {
+                      _exitPlayback.stop();
+                      _exitPlayback.value = 0;
+                    },
+                    icon: const Icon(Icons.replay),
+                    label: const Text('Rejouer'),
+                  ),
+                ],
+              ),
             ],
-          ),
-        ),
-      const SizedBox(height: 14),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Panneau gauche'),
-        value: _left,
-        onChanged: (value) => setState(() => _left = value),
+          );
+        },
       ),
+      const SizedBox(height: 20),
       SwitchListTile(
+        dense: true,
         contentPadding: EdgeInsets.zero,
-        title: const Text('Panneau droit'),
-        value: _right,
-        onChanged: (value) => setState(() => _right = value),
-      ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Face intérieure arrière'),
-        value: _inside,
-        onChanged: (value) => setState(() => _inside = value),
-      ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Contours matériels'),
+        title: const Text('Contours des fragments'),
         value: _outlines,
         onChanged: (value) => setState(() => _outlines = value),
       ),
       const SizedBox(height: 8),
-      Text(_mode == 4
-          ? 'Épaisseur 2,5 · raffinement organique '
-              '${_organic.staged.meshes.refinementPasses}'
-          : 'Épaisseur 2,5 · raffinement commun '
-              '${_assembly.refinementPasses}',
-          style: Theme.of(context).textTheme.bodySmall),
-      const SizedBox(height: 12),
-      const Text('Vue orthographique à occultation 3D. '
-          'Couleurs et déplacements uniquement diagnostiques ; '
-          'sans poussin, chapeau mobile ni minuteur.',
-          style: TextStyle(fontSize: 12)),
+      Text(
+        _mode == 4
+            ? 'Diagnostic : collisions non résolues automatiquement.'
+            : 'Référence conservée pour comparaison.',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
     ],
   );
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Éclosion · maillages 3D')),
+    appBar: AppBar(title: const Text('Éclosion · aperçu 3D')),
     body: SafeArea(
       child: LayoutBuilder(
         builder: (context, box) {
