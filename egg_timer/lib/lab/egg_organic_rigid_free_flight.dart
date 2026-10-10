@@ -59,12 +59,6 @@ class EggOrganicRigidFreeFlight {
       seed.outward * (launchSpeed * t) +
       EggShellPoint3(0, gravityAcceleration * t * t / 2, 0);
 
-  EggShellPoint3 _ballisticPoint(EggShellPoint3 original, double t) =>
-      _ballisticCenter(t) +
-          _rotate(
-            original - seed.center, seed.hingeAxis, angularSpeed * t,
-          );
-
   factory EggOrganicRigidFreeFlight.fromSeed(
     EggOrganicReleaseSeed seed, {
     double launchSpeed = 32,
