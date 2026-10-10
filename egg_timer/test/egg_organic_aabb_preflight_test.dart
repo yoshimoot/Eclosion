@@ -94,6 +94,52 @@ void main() {
     expect(future.testedPairs, greaterThanOrEqualTo(0));
   });
 
+  test('V11.42: exact sampled 3D contacts include parents and rear bowl',
+      () {
+    final preflight = EggOrganicEnvironmentPreflight.build();
+    expect(preflight.parents.length, 2);
+    expect(preflight.parentMeshes.length, 2);
+    for (final time in [.55, .82, 1.0]) {
+      final frame = preflight.inspectExact(
+        time, maxPairsPerPair: 180,
+      );
+      final repeated = preflight.inspectExact(
+        time, maxPairsPerPair: 180,
+      );
+      expect(frame.rearTouching.length, 3);
+      expect(frame.rearIntersections.length, 3);
+      expect(frame.parentTouching.length, 6);
+      expect(frame.parentIntersections.length, 6);
+      expect(frame.testedPairs,
+          greaterThanOrEqualTo(frame.frontAndSiblings.testedPairs));
+      expect(frame.testedPairs, repeated.testedPairs);
+      expect(frame.complete, repeated.complete);
+      expect(frame.parentTouching, repeated.parentTouching);
+      expect(frame.parentIntersections, repeated.parentIntersections);
+      expect(frame.rearTouching, repeated.rearTouching);
+      expect(frame.rearIntersections, repeated.rearIntersections);
+      expect(frame.testedPairs, inInclusiveRange(0, 2700));
+    }
+    final after = preflight.inspectExact(
+      1.0, afterZeroSeconds: .2, maxPairsPerPair: 90,
+    );
+    expect(after.testedPairs, greaterThanOrEqualTo(0));
+    // The per-frame exact results are diagnostic, not a continuous
+    // proof or a collision response.
+  });
+
+  test('V11.42: limited parent/rear checks cannot imply full clearance',
+      () {
+    final preflight = EggOrganicEnvironmentPreflight.build();
+    final frame = preflight.inspectExact(.55, maxPairsPerPair: 1);
+    expect(frame.complete, isFalse);
+    expect(frame.sampledFrameClear, isFalse);
+    expect(() => preflight.inspectExact(.4), throwsArgumentError);
+    expect(() => preflight.inspectExact(double.nan), throwsArgumentError);
+    expect(() => preflight.inspectExact(.7, maxPairsPerPair: 0),
+        throwsArgumentError);
+  });
+
   test('V11.40: post-zero broad phase stays deterministic', () {
     final preflight = EggOrganicAabbPreflight.build();
     final now = preflight.inspect(1.0, afterZeroSeconds: .4);
