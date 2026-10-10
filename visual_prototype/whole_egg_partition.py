@@ -31,14 +31,28 @@ def crown_y(angle):
     return max(-132., min(-94., -114 + wave))
 
 
+# First bounded material-seam study. Stations lie on the *shared* 3D
+# network; their offsets change direction at unequal intervals to avoid the
+# straight vertical wedge boundaries of V11.59. Both ends remain unchanged.
+FRACTURE_STATIONS = (
+    (0.00, 0.00), (.14, -.35), (.30, .83), (.43, -.17),
+    (.56, .70), (.71, -.59), (.85, .38), (1.00, 0.00),
+)
+
+
 def displaced_angle(j, sector):
-    """Same deterministic 3D crack seam on both sides of every boundary."""
+    """One non-crossing zigzag seam; opposite pieces reuse exact points."""
     t = j / UPPER_ROWS
     a = (sector % SECTORS) * 2 * math.pi / SECTORS
-    # Shared shallow non-vertical zig: initial and crown borders unchanged.
-    shift = .018 * math.sin(5 * a + .28) * math.sin(math.pi * t)
-    return a + shift
-
+    for (lo, alo), (hi, ahi) in zip(FRACTURE_STATIONS,FRACTURE_STATIONS[1:]):
+        if t <= hi:
+            k=(t-lo)/(hi-lo)
+            bend=alo+(ahi-alo)*k
+            break
+    else:
+        bend=0
+    shift=bend*(.055+.014*math.sin(5*a+.28)+.010*math.sin(9*a+.8))
+    return a+shift
 
 def _faces_for_strip(row_count, count):
     faces=[]
