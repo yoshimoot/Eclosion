@@ -185,12 +185,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   late final EggOrganicRearBowlShell _organicRear =
       EggOrganicRearBowlShellBuilder.build(_organicFront);
   int _mode = 4; // Organic first; V11.32 remains available as reference.
-  double _hingeDegrees = 20;
-  bool _left = true;
-  bool _right = true;
-  bool _inside = true;
   bool _outlines = true;
-  double _inspectionYaw = 42;
 
   @override
   void initState() {
@@ -264,12 +259,12 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
               panels: _assembly.panels,
               mode: _mode,
               regions: _regions,
-              hingeDegrees: _hingeDegrees,
-              leftPanel: _left,
-              rightPanel: _right,
-              showInside: _inside,
+              hingeDegrees: 20,
+              leftPanel: true,
+              rightPanel: true,
+              showInside: true,
               outlines: _outlines,
-              inspectionYaw: _inspectionYaw,
+              inspectionYaw: 42,
               exitPlayback: _exitPlayback,
               exitMotion: _exitMotion,
               exitHorizontalExtent: _exitHorizontalExtent,
