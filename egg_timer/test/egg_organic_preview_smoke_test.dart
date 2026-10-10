@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('V11.48: organic preview is opt-in and V11.32 stays intact',
+  testWidgets('V11.49: organic appears immediately in compact Chrome UI',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1;
@@ -13,29 +13,50 @@ void main() {
     await tester.pumpWidget(const MaterialApp(
       home: EggGeometryPreview(),
     ));
-    expect(find.text('Géométrie V11.32'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    var selector = tester.widget<SegmentedButton<int>>(
-        find.byType(SegmentedButton<int>));
-    expect(selector.selected, {0});
-    expect(selector.segments.map((s) => s.value), [0, 1, 2, 3, 4]);
 
-    // Selecting the experimental mode requires explicit action. The
-    // preserved historical V11.32 default does not build organic meshes.
-    selector.onSelectionChanged!({4});
-    await tester.pump();
-    expect(find.text('Géométrie V11.48 · organique expérimental'),
+    final selectorFinder = find.byKey(const Key('egg-preview-mode'));
+    expect(selectorFinder, findsOneWidget);
+    var selector = tester.widget<SegmentedButton<int>>(selectorFinder);
+    expect(selector.selected, {4});
+    expect(selector.segments.map((segment) => segment.value), [4, 3]);
+    expect(find.text('Organique'), findsOneWidget);
+    expect(find.text('V11.32'), findsOneWidget);
+    expect(find.text('Fragments organiques · V11.48 (expérimental)'),
         findsOneWidget);
-    expect(find.textContaining('Petits fragments encore attachés :'),
-        findsOneWidget);
+    expect(find.text('Fragments encore attachés : 3 / 3'), findsOneWidget);
+    expect(find.byKey(const Key('exit-sequence-progress')), findsOneWidget);
+    expect(find.text('Lire'), findsOneWidget);
+    expect(find.text('Rejouer'), findsOneWidget);
+    expect(find.text('Contours des fragments'), findsOneWidget);
+
+    // These old laboratory controls must not clutter or overflow Chrome.
+    for (final name in [
+      'Assemblé',
+      'Écarté',
+      'Pivot',
+      'Inclinaison 3D des panneaux',
+      'Panneau gauche',
+      'Panneau droit',
+      'Face intérieure arrière',
+    ]) {
+      expect(find.textContaining(name), findsNothing);
+    }
     expect(tester.takeException(), isNull);
 
-    // The same diagnostic can return to the unchanged historic exit mode.
-    selector = tester.widget<SegmentedButton<int>>(
-        find.byType(SegmentedButton<int>));
+    // A single touch restores V11.32 for comparison; the original
+    // geometry/motion implementation is not modified or re-authored.
     selector.onSelectionChanged!({3});
     await tester.pump();
-    expect(find.text('Géométrie V11.32'), findsOneWidget);
+    expect(find.text('Sortie des deux panneaux · référence V11.32'),
+        findsOneWidget);
+    expect(find.text('Panneaux attachés'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    selector = tester.widget<SegmentedButton<int>>(selectorFinder);
+    selector.onSelectionChanged!({4});
+    await tester.pump();
+    expect(find.text('Fragments organiques · V11.48 (expérimental)'),
+        findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
