@@ -286,13 +286,13 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        _mode == 4 ? 'Organique · V11.49' : 'Référence V11.32',
+        _mode == 4 ? 'Organique · aperçu actuel' : 'Référence V11.32',
         style: Theme.of(context).textTheme.headlineSmall,
       ),
       const SizedBox(height: 6),
       Text(
         _mode == 4
-            ? 'Trois fragments 3D · expérimental'
+            ? '2 grands panneaux + 3 petits fragments 3D'
             : 'Deux panneaux 3D · comparaison',
         style: Theme.of(context).textTheme.bodyMedium,
       ),
@@ -366,8 +366,10 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
       const SizedBox(height: 20),
       Text(
         _mode == 4
-            ? 'Diagnostic : collisions non résolues automatiquement.'
-            : 'Référence conservée pour comparaison.',
+            ? 'Encore en préparation : chapeau F1, morceaux latéraux, '
+                'berceau inférieur et poussin. Les hautes parois visibles '
+                'à la fin sont provisoires.'
+            : 'Ancienne mécanique conservée pour comparaison.',
         style: Theme.of(context).textTheme.bodySmall,
       ),
     ],
