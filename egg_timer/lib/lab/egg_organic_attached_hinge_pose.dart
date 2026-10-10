@@ -170,10 +170,17 @@ class EggOrganicAttachedHingePose {
     ]);
   }
 
+  /// The displayed surface shading MUST follow the same 3D hinge
+  /// rotation as each material vertex. Using normalAt(worldPosition)
+  /// after bending would incorrectly repaint the shell's lighting.
+  EggShellPoint3 normalAttachedAt(
+    EggShellPoint3 materialNormal, double progress,
+  ) => _rotate(materialNormal, axis, angleAt(progress)).normalized;
+
   /// Rotate an exterior material normal with the SAME rigid hinge matrix
   /// as the real two-sided shell, without translating or scaling normals.
   EggShellPoint3 releaseNormalOf(EggShellPoint3 normal) =>
-      _rotate(normal, axis, signedMaxRadians).normalized;
+      normalAttachedAt(normal, releaseProgress);
 
   /// Frozen last-attached coordinates, suitable as a continuous INPUT to a
   /// future collision-tested free-flight motor. Not a flight trajectory.
