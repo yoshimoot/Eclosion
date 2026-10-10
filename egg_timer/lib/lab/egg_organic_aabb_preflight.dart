@@ -65,45 +65,74 @@ class _Box3 {
       z0 <= b.z1 + margin && z1 >= b.z0 - margin;
 }
 
+/// 2D material-space uniform grid (X,Y), with exact Z rejection in
+/// _Box3. The original X-only grid made each query scan nearly the full
+/// height of a shell: for 3D refined meshes this was effectively quadratic
+/// and left the first collision test apparently stuck.
+///
+/// Using the two orthographic coordinates here does NOT flatten the
+/// collision: *all three XYZ axes* still participate in every AABB check
+/// and the narrow phase remains EggTriangleCollision.classify.
 class _TriangleIndex {
-  _TriangleIndex._(this.vertices, this.triangles, this.boxes, this.buckets);
+  _TriangleIndex._(
+    this.vertices, this.triangles, this.boxes, this.enclosing, this.buckets,
+  );
 
   static const double cellWidth = 24;
   final List<EggShellPoint3> vertices;
   final List<EggShellTriangle> triangles;
   final List<_Box3> boxes;
-  final Map<int, List<int>> buckets;
+  final _Box3 enclosing;
+  final Map<(int, int), List<int>> buckets;
 
   factory _TriangleIndex.build(
     List<EggShellPoint3> vertices, List<EggShellTriangle> triangles,
   ) {
-    final bounds = [
+    if (triangles.isEmpty) {
+      throw StateError('An organic collision surface cannot be empty');
+    }
+    final bounds = <_Box3>[
       for (final t in triangles)
         _Box3.triangle(
           vertices[t.a], vertices[t.b], vertices[t.c],
         ),
     ];
-    final cells = <int, List<int>>{};
+    var minX = double.infinity, minY = double.infinity, minZ = double.infinity;
+    var maxX = double.negativeInfinity;
+    var maxY = double.negativeInfinity;
+    var maxZ = double.negativeInfinity;
+    final cells = <(int, int), List<int>>{};
     for (var i = 0; i < bounds.length; i++) {
       final box = bounds[i];
-      final lo = (box.x0 / cellWidth).floor();
-      final hi = (box.x1 / cellWidth).floor();
-      if (hi - lo > 128) {
+      minX = math.min(minX, box.x0);
+      minY = math.min(minY, box.y0);
+      minZ = math.min(minZ, box.z0);
+      maxX = math.max(maxX, box.x1);
+      maxY = math.max(maxY, box.y1);
+      maxZ = math.max(maxZ, box.z1);
+
+      final loX = (box.x0 / cellWidth).floor();
+      final hiX = (box.x1 / cellWidth).floor();
+      final loY = (box.y0 / cellWidth).floor();
+      final hiY = (box.y1 / cellWidth).floor();
+      if (hiX - loX > 128 || hiY - loY > 128) {
         throw StateError('Unbounded organic triangle grid extent');
       }
-      for (var x = lo; x <= hi; x++) {
-        cells.putIfAbsent(x, () => <int>[]).add(i);
+      for (var x = loX; x <= hiX; x++) {
+        for (var y = loY; y <= hiY; y++) {
+          cells.putIfAbsent((x, y), () => <int>[]).add(i);
+        }
       }
     }
-    return _TriangleIndex._(vertices, triangles, bounds, cells);
+    return _TriangleIndex._(
+      vertices, triangles, bounds,
+      _Box3(minX, maxX, minY, maxY, minZ, maxZ), cells,
+    );
   }
 
-  /// Conservative interval broad phase. A returning (false, true)
-  /// means EVERY pair of triangle world AABBs is separated throughout
-  /// the interval if [maximumRelativeDisplacement] bounds both objects'
-  /// material vertex movements from the sampled midpoint.
-  ///
-  /// A budget stop returns (true, false), NEVER a false clearance.
+  /// A provably disjoint global XYZ bound avoids scanning ANY triangles.
+  /// For the interval query the global bound is expanded by precisely the
+  /// same conservative relative world-space motion padding.
   (bool, bool) possibleDuringInterval(
     _TriangleIndex moving, {
     required double maximumRelativeDisplacement,
@@ -114,18 +143,30 @@ class _TriangleIndex {
       throw ArgumentError('Invalid conservative collision envelope');
     }
     final margin = maximumRelativeDisplacement + 1e-7;
+    if (!enclosing.overlapsWithMargin(moving.enclosing, margin)) {
+      return (false, true);
+    }
     var inspected = 0;
+    final visited = <int>{};
     for (final box in moving.boxes) {
-      final seen = <int>{};
-      final lo = ((box.x0 - margin) / cellWidth).floor();
-      final hi = ((box.x1 + margin) / cellWidth).floor();
-      for (var cell = lo; cell <= hi; cell++) {
-        for (final id in buckets[cell] ?? const <int>[]) {
-          if (!seen.add(id)) continue;
-          inspected++;
-          if (inspected > maxBoxChecks) return (true, false);
-          if (box.overlapsWithMargin(boxes[id], margin)) {
-            return (true, true);
+      visited.clear();
+      if (!box.overlapsWithMargin(enclosing, margin)) continue;
+      final loX = ((box.x0 - margin) / cellWidth).floor();
+      final hiX = ((box.x1 + margin) / cellWidth).floor();
+      final loY = ((box.y0 - margin) / cellWidth).floor();
+      final hiY = ((box.y1 + margin) / cellWidth).floor();
+      if (hiX - loX > 128 || hiY - loY > 128) {
+        return (true, false);
+      }
+      for (var x = loX; x <= hiX; x++) {
+        for (var y = loY; y <= hiY; y++) {
+          for (final id in buckets[(x, y)] ?? const <int>[]) {
+            if (!visited.add(id)) continue;
+            inspected++;
+            if (inspected > maxBoxChecks) return (true, false);
+            if (box.overlapsWithMargin(boxes[id], margin)) {
+              return (true, true);
+            }
           }
         }
       }
@@ -133,9 +174,8 @@ class _TriangleIndex {
     return (false, true);
   }
 
-  /// Classify each potential triangle pair using the existing single
-  /// source-of-truth 3D SAT / plane-crossing kernel. The report describes
-  /// only one sampled instant of the faces supplied to this index.
+  /// Classify only candidates with overlapping XYZ boxes. An exhausted
+  /// narrow-phase budget is explicitly incomplete, never a clearance.
   (int, int, int, bool) inspectExact(
     _TriangleIndex moving, {
     int maxPairs = 20000,
@@ -143,33 +183,40 @@ class _TriangleIndex {
     if (maxPairs <= 0) {
       throw ArgumentError.value(maxPairs, 'maxPairs');
     }
+    if (!enclosing.overlaps(moving.enclosing)) return (0, 0, 0, true);
     var tested = 0, touching = 0, penetrating = 0;
+    final visited = <int>{};
     for (var j = 0; j < moving.boxes.length; j++) {
       final movingBox = moving.boxes[j];
-      final visited = <int>{};
-      final lo = (movingBox.x0 / cellWidth).floor();
-      final hi = (movingBox.x1 / cellWidth).floor();
+      if (!movingBox.overlaps(enclosing)) continue;
+      visited.clear();
+      final loX = (movingBox.x0 / cellWidth).floor();
+      final hiX = (movingBox.x1 / cellWidth).floor();
+      final loY = (movingBox.y0 / cellWidth).floor();
+      final hiY = (movingBox.y1 / cellWidth).floor();
       final movingFace = moving.triangles[j];
-      for (var x = lo; x <= hi; x++) {
-        for (final i in buckets[x] ?? const <int>[]) {
-          if (!visited.add(i) || !movingBox.overlaps(boxes[i])) {
-            continue;
-          }
-          final fixedFace = triangles[i];
-          final classification = EggTriangleCollision.classify(
-            vertices[fixedFace.a], vertices[fixedFace.b],
-            vertices[fixedFace.c],
-            moving.vertices[movingFace.a],
-            moving.vertices[movingFace.b],
-            moving.vertices[movingFace.c],
-          );
-          tested++;
-          if (classification == EggTriangleContact.touching) touching++;
-          if (classification == EggTriangleContact.intersecting) {
-            penetrating++;
-          }
-          if (tested >= maxPairs) {
-            return (tested, touching, penetrating, false);
+      for (var x = loX; x <= hiX; x++) {
+        for (var y = loY; y <= hiY; y++) {
+          for (final i in buckets[(x, y)] ?? const <int>[]) {
+            if (!visited.add(i) || !movingBox.overlaps(boxes[i])) {
+              continue;
+            }
+            final fixedFace = triangles[i];
+            final classification = EggTriangleCollision.classify(
+              vertices[fixedFace.a], vertices[fixedFace.b],
+              vertices[fixedFace.c],
+              moving.vertices[movingFace.a],
+              moving.vertices[movingFace.b],
+              moving.vertices[movingFace.c],
+            );
+            tested++;
+            if (classification == EggTriangleContact.touching) touching++;
+            if (classification == EggTriangleContact.intersecting) {
+              penetrating++;
+            }
+            if (tested >= maxPairs) {
+              return (tested, touching, penetrating, false);
+            }
           }
         }
       }
@@ -177,8 +224,9 @@ class _TriangleIndex {
     return (tested, touching, penetrating, true);
   }
 
-  /// Deterministic bounded candidate inspection, no false-clear result
-  /// when budget is exhausted. Only whole AABB overlaps are counted.
+  /// Number of possible colliding pairs (3D AABBs only), bounded by a
+  /// caller-supplied budget. The ordered list may differ from X-only
+  /// indexing but the FULL set and conservative semantics are identical.
   (int, bool) compare(
     _TriangleIndex moving, {
     int maxCandidates = 20000,
@@ -186,18 +234,24 @@ class _TriangleIndex {
     if (maxCandidates <= 0) {
       throw ArgumentError.value(maxCandidates, 'maxCandidates');
     }
+    if (!enclosing.overlaps(moving.enclosing)) return (0, true);
     var candidates = 0;
+    final visited = <int>{};
     for (final box in moving.boxes) {
-      final visited = <int>{};
-      final lo = (box.x0 / cellWidth).floor();
-      final hi = (box.x1 / cellWidth).floor();
-      for (var x = lo; x <= hi; x++) {
-        for (final id in buckets[x] ?? const <int>[]) {
-          if (!visited.add(id)) continue;
-          if (!box.overlaps(boxes[id])) continue;
-          candidates++;
-          if (candidates >= maxCandidates) {
-            return (candidates, false);
+      if (!box.overlaps(enclosing)) continue;
+      visited.clear();
+      final loX = (box.x0 / cellWidth).floor();
+      final hiX = (box.x1 / cellWidth).floor();
+      final loY = (box.y0 / cellWidth).floor();
+      final hiY = (box.y1 / cellWidth).floor();
+      for (var x = loX; x <= hiX; x++) {
+        for (var y = loY; y <= hiY; y++) {
+          for (final id in buckets[(x, y)] ?? const <int>[]) {
+            if (!visited.add(id) || !box.overlaps(boxes[id])) continue;
+            candidates++;
+            if (candidates >= maxCandidates) {
+              return (candidates, false);
+            }
           }
         }
       }
