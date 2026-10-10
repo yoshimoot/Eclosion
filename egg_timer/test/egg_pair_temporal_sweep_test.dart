@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:egg_timer/lab/egg_exit_motion_config.dart';
-import 'package:egg_timer/lab/egg_exit_motion_config.dart';
 import 'package:egg_timer/lab/egg_panel_pair_collision.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
