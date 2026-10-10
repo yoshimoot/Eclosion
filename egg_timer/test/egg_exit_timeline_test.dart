@@ -170,7 +170,7 @@ void main() {
       final impact = motion.floorImpactSeconds!;
       expect(impact, inExclusiveRange(motion.clearanceStartSeconds, 2.0));
       expect(motion.floorY, network.model.halfHeight + 8);
-      expect(EggExitMotionConfig.groundSettlingRadians, 1.0);
+      expect(EggExitMotionConfig.groundSettlingRadians, .58);
       expect(EggExitMotionConfig.groundSettlingDuration, .45);
       expect(motion.settlingRadians,
           EggExitMotionConfig.groundSettlingRadians);
@@ -299,6 +299,79 @@ void main() {
     expect(() => EggExitFraming.horizontalExtent(
       stationaryRadius: -1, panels: assembly.panels, motions: motions,
     ), throwsArgumentError);
+  });
+
+  test('V11.32: ending roll keeps curved material visible in portrait', () {
+    final assembly = EggShellFrontAssemblyBuilder.build(regions);
+
+    // 2D projected material area is diagnostic-only. It is computed from
+    // the ACTUAL 3D mesh, so a near-edge-on shell has a small projected
+    // exterior area; no added billboard or screen-space replacement.
+    double exteriorProjection(
+      EggPanelReleaseMotion motion,
+      int panelIndex,
+    ) {
+      final panel = assembly.panels[panelIndex];
+      final positions = motion.transformAll(panel.outer, 2.0);
+      var area = 0.0;
+      for (final triangle in panel.outerTriangles) {
+        final a = positions[triangle.a];
+        final b = positions[triangle.b];
+        final c = positions[triangle.c];
+        area += ((b.x - a.x) * (c.y - a.y) -
+                (b.y - a.y) * (c.x - a.x)).abs() / 2;
+      }
+      return area;
+    }
+
+    for (var i = 0; i < 2; i++) {
+      final panel = assembly.panels[i];
+      final hinge = EggPanelHingePose.fromGraph(
+        panel: panel,
+        region: regions.regions[i],
+        neighbor: regions.regions[1 - i],
+        network: network,
+        openingDegrees: EggExitTimeline.finalHingeDegrees,
+      );
+      final actual = EggExitMotionConfig.build(
+        panel: panel, hinge: hinge, model: network.model,
+      );
+      final previousEdgeOn = EggPanelReleaseMotion.fromHinge(
+        panel: panel,
+        model: network.model,
+        hinge: hinge,
+        circumferentialAcceleration:
+            EggExitMotionConfig.circumferentialAcceleration,
+        minimumOutwardClearance:
+            EggExitMotionConfig.clearanceThicknesses * panel.thickness,
+        gravityAcceleration: EggExitMotionConfig.gravityAcceleration,
+        floorY: network.model.halfHeight + 8,
+        settlingRadians: 1.0,
+        settlingDuration: EggExitMotionConfig.groundSettlingDuration,
+      );
+      expect(actual.floorImpactSeconds,
+          closeTo(previousEdgeOn.floorImpactSeconds!, 1e-9));
+      final withVisibleFace = exteriorProjection(actual, i);
+      final edgeOnFace = exteriorProjection(previousEdgeOn, i);
+      expect(withVisibleFace.isFinite, isTrue);
+      expect(edgeOnFace.isFinite, isTrue);
+      expect(withVisibleFace, greaterThan(edgeOnFace * 1.02),
+          reason: 'Panel $i must not return to the edge-on V11.31 '
+              'final pose; projected areas are $withVisibleFace '
+              'versus $edgeOnFace');
+      // Altering ONLY the post-impact tilt does not move any vertex
+      // before the physical first-contact instant.
+      for (final vertex in [
+        panel.outer[0], panel.outer[panel.outer.length ~/ 2],
+        panel.inner[panel.inner.length ~/ 2],
+      ]) {
+        for (final t in [0.0, .3, actual.floorImpactSeconds!]) {
+          expect((actual.transform(vertex, t) -
+                  previousEdgeOn.transform(vertex, t)).length,
+              lessThan(1e-7));
+        }
+      }
+    }
   });
 
   test('V11.18: malformed progress is refused', () {
