@@ -549,32 +549,83 @@ class _ShellMeshPainter extends CustomPainter {
 
   List<_Surface> _meshes() {
     final result = <_Surface>[];
-    if (showInside) {
-      final offset = rear.exterior.length;
+    if (mode == 4) {
+      final frontShell = organicFront;
+      final rearShell = organicRear;
+      if (organic == null || frontShell == null || rearShell == null) {
+        throw StateError('Organic material must be explicit opt-in');
+      }
+      if (showInside) {
+        final offset = rearShell.exterior.length;
+        result.add(_Surface(
+          rearShell.interior,
+          [for (final t in rearShell.innerFaces)
+            EggShellTriangle(t.a - offset, t.b - offset, t.c - offset)],
+          const Color(0xffd1a887),
+          inside: true,
+        ));
+      } else {
+        result.add(_Surface(
+          rearShell.exterior, rearShell.outerFaces,
+          const Color(0xffc1987b),
+        ));
+      }
       result.add(_Surface(
-        rear.interior,
-        [for (final t in rear.innerFaces)
-          EggShellTriangle(t.a - offset, t.b - offset, t.c - offset)],
-        const Color(0xffd1a887),
+        [...rearShell.exterior, ...rearShell.interior],
+        rearShell.rearCrownWalls, const Color(0xffa87351),
+        inside: true,
+      ));
+      result.add(_Surface(
+        frontShell.exterior, frontShell.outerFaces,
+        const Color(0xfff3d4a6),
+        rim: frontShell.meshes.bowl.rim,
+      ));
+      // A real back-facing organic interior, not a duplicated flat
+      // overlay. The z-buffer hides it where exterior material is closer.
+      if (showInside) {
+        final offset = frontShell.exterior.length;
+        result.add(_Surface(
+          frontShell.interior,
+          [for (final t in frontShell.innerFaces)
+            EggShellTriangle(t.a - offset, t.b - offset, t.c - offset)],
+          const Color(0xffd9b18e),
+          inside: true,
+        ));
+      }
+      result.add(_Surface(
+        [...frontShell.exterior, ...frontShell.interior],
+        frontShell.upperCutWalls, const Color(0xffae7753),
         inside: true,
       ));
     } else {
-      result.add(_Surface(rear.exterior, rear.outerFaces,
-          const Color(0xffc1987b)));
-    }
-    result.add(_Surface(
-      [...rear.exterior, ...rear.interior],
-      rear.rearCrownWalls, const Color(0xffa87351), inside: true,
-    ));
-    result.add(_Surface(front.exterior, front.outerFaces,
-        const Color(0xfff3d4a6),
-        rim: front.assembly.bowl.surface.rim));
-    result.add(_Surface(
-      [...front.exterior, ...front.interior],
-      front.upperCutWalls, const Color(0xffae7753), inside: true,
-    ));
+      if (showInside) {
+        final offset = rear.exterior.length;
+        result.add(_Surface(
+          rear.interior,
+          [for (final t in rear.innerFaces)
+            EggShellTriangle(t.a - offset, t.b - offset, t.c - offset)],
+          const Color(0xffd1a887),
+          inside: true,
+        ));
+      } else {
+        result.add(_Surface(rear.exterior, rear.outerFaces,
+            const Color(0xffc1987b)));
+      }
+      result.add(_Surface(
+        [...rear.exterior, ...rear.interior],
+        rear.rearCrownWalls, const Color(0xffa87351), inside: true,
+      ));
+      result.add(_Surface(front.exterior, front.outerFaces,
+          const Color(0xfff3d4a6),
+          rim: front.assembly.bowl.surface.rim));
+      result.add(_Surface(
+        [...front.exterior, ...front.interior],
+        front.upperCutWalls, const Color(0xffae7753), inside: true,
+      ));
+      }
     final progress = exitPlayback.value;
-    final seconds = mode == 3 ? EggExitTimeline.freeSeconds(progress) : 0.0;
+    final seconds = (mode == 3 || mode == 4)
+        ? EggExitTimeline.freeSeconds(progress) : 0.0;
     for (var i = 0; i < panels.length; i++) {
       if ((i == 0 && !leftPanel) || (i == 1 && !rightPanel)) continue;
       final panel = panels[i];
@@ -589,9 +640,11 @@ class _ShellMeshPainter extends CustomPainter {
               shiftY: i == 0 ? -9 : -13,
             )
           : null;
-      final release = mode == 3 && EggExitTimeline.released(progress)
+      final release = (mode == 3 || mode == 4) &&
+          EggExitTimeline.released(progress)
           ? exitMotion[i] : null;
-      final hinge = mode == 2 || (mode == 3 && release == null)
+      final hinge = mode == 2 ||
+          ((mode == 3 || mode == 4) && release == null)
           ? EggPanelHingePose.fromGraph(
               panel: panel,
               region: regions.regions[i],
@@ -631,6 +684,43 @@ class _ShellMeshPainter extends CustomPainter {
           inside: true, originalPoints: panel.inner,
           pose: pose, hingePose: hinge,
           releaseMotion: release, releaseSeconds: seconds,
+        ));
+      }
+    }
+    if (mode == 4) {
+      final sequence = organic!;
+      for (var i = 0; i < sequence.staged.meshes.children.length; i++) {
+        final snapshot = sequence.poseAt(i, progress);
+        final shell = snapshot.mesh;
+        final materialRotation = (EggShellPoint3 n) =>
+            sequence.materialNormalAt(i, n, progress);
+        result.add(_Surface(
+          snapshot.outer,
+          shell.outerTriangles,
+          i == 0 ? const Color(0xffffe8c5)
+              : i == 1 ? const Color(0xfff9d9aa)
+              : const Color(0xffffdfae),
+          rim: shell.rim,
+          originalPoints: shell.outer,
+          organicNormalRotation: materialRotation,
+        ));
+        result.add(_Surface(
+          [...snapshot.outer, ...snapshot.inner],
+          shell.sideTriangles,
+          const Color(0xffac7a55),
+          inside: true,
+          originalPoints: [...shell.outer, ...shell.inner],
+          organicNormalRotation: materialRotation,
+        ));
+        final offset = shell.outer.length;
+        result.add(_Surface(
+          snapshot.inner,
+          [for (final t in shell.innerTriangles)
+            EggShellTriangle(t.a - offset, t.b - offset, t.c - offset)],
+          const Color(0xffd9b18e),
+          inside: true,
+          originalPoints: shell.inner,
+          organicNormalRotation: materialRotation,
         ));
       }
     }
