@@ -124,6 +124,25 @@ class FullMotherPartitionTest(unittest.TestCase):
                 len(egg.cradle.vertices)//2+(UPPER_ROWS-1)*SECTORS+i])
         self.assertEqual(len(egg.crown),CAP_ROWS)
 
+    def test_material_crack_paths_are_irregular_and_reproducible(self):
+        from whole_egg_partition import FRACTURE_STATIONS
+        self.assertGreater(len(FRACTURE_STATIONS),5)
+        varied=0
+        for cut in SIDE_CUTS[1:-1]:
+            base=2*math.pi*cut/SECTORS
+            deviations=[displaced_angle(j,cut)-base for j in range(UPPER_ROWS+1)]
+            self.assertAlmostEqual(deviations[0],0,places=12)
+            self.assertAlmostEqual(deviations[-1],0,places=12)
+            if max(deviations)-min(deviations)>.03:
+                varied+=1
+        self.assertGreaterEqual(varied,4)
+
+    def test_irregular_cracks_do_not_cross_each_other(self):
+        for j in range(UPPER_ROWS+1):
+            ring=[displaced_angle(j,i) for i in range(SECTORS)]
+            self.assertTrue(all(a<b for a,b in zip(ring,ring[1:])))
+            self.assertLess(ring[-1],ring[0]+2*math.pi)
+
     def test_volume_conserved_by_partition(self):
         egg=self.egg
         mother=signed_volume(egg.mother_vertices,egg.mother_faces)
