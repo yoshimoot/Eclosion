@@ -1,3 +1,9 @@
+import 'package:egg_timer/lab/egg_exit_motion_config.dart';
+import 'package:egg_timer/lab/egg_fragment_regions.dart';
+import 'package:egg_timer/lab/egg_fracture_network.dart';
+import 'package:egg_timer/lab/egg_geometry_preview.dart';
+import 'package:egg_timer/lab/egg_panel_hinge_pose.dart';
+import 'package:egg_timer/lab/egg_shell_front_assembly.dart';
 import 'package:egg_timer/lab/egg_organic_aabb_preflight.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -126,6 +132,42 @@ void main() {
     expect(after.testedPairs, greaterThanOrEqualTo(0));
     // The per-frame exact results are diagnostic, not a continuous
     // proof or a collision response.
+  });
+
+  test('V11.43: parent collision motion matches original Chrome V11.32',
+      () {
+    final preflight = EggOrganicEnvironmentPreflight.build();
+    final graph = EggFractureNetwork.fixed();
+    final regions = EggFragmentRegionPlan.fromNetwork(graph);
+    final expected = EggShellFrontAssemblyBuilder.build(regions);
+    expect(preflight.parentMeshes.length, expected.panels.length);
+    for (var i = 0; i < expected.panels.length; i++) {
+      final actual = preflight.parentMeshes[i];
+      final chrome = expected.panels[i];
+      expect(actual.regionId, chrome.regionId);
+      expect(actual.outer.length, chrome.outer.length);
+      expect(actual.inner.length, chrome.inner.length);
+      expect(actual.outerTriangles.length, chrome.outerTriangles.length);
+      final hinge = EggPanelHingePose.fromGraph(
+        panel: chrome,
+        region: regions.regions[i],
+        neighbor: regions.regions[1 - i],
+        network: graph,
+        openingDegrees: EggExitTimeline.finalHingeDegrees,
+      );
+      final expectedMotion = EggExitMotionConfig.build(
+        panel: chrome, hinge: hinge, model: graph.model,
+      );
+      for (final t in [0.0, .3, .8, 1.4, 2.0]) {
+        for (var j = 0; j < chrome.outer.length; j += 37) {
+          final source = chrome.outer[j];
+          expect((actual.outer[j] - source).length, lessThan(1e-10));
+          expect((preflight.parents[i].transform(actual.outer[j], t) -
+                  expectedMotion.transform(source, t)).length,
+              lessThan(1e-6));
+        }
+      }
+    }
   });
 
   test('V11.42: limited parent/rear checks cannot imply full clearance',
