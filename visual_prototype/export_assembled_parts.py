@@ -16,6 +16,7 @@ def save_assembled_parts(path, egg=None):
         offset=0
         for region in egg.regions:
             out.write(f'o {region.name}\n')
+            out.write(f'g {region.name}\n')
             for x,y,z in region.vertices:
                 out.write(f'v {x:.8f} {y:.8f} {z:.8f}\n')
             for a,b,c in region.faces:
