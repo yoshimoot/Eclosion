@@ -8,6 +8,7 @@ import 'egg_rear_bowl_boundary.dart';
 import 'egg_rear_bowl_mesh.dart';
 import 'egg_shell_front_assembly.dart';
 import 'egg_stationary_bowl_shell.dart';
+import 'egg_organic_front_bowl_shell.dart';
 import 'egg_organic_continuous_pose.dart';
 import 'egg_shell_collision_diagnostic.dart';
 import 'egg_shell_fragment_mesh.dart';
@@ -246,9 +247,15 @@ class EggOrganicAabbPreflight {
 
   factory EggOrganicAabbPreflight.build() {
     final scene = EggOrganicContinuousPoseCoordinator.fixed();
-    final surface = scene.staged.meshes.bowl;
+    // The cut organic front bowl has REAL internal material and thickness
+    // along each re-routed 3D crack. Counting exterior alone could produce
+    // a misleading "clear" interval while a flying child crosses the
+    // actual inner bowl face or an exposed cut wall.
+    final shell = EggOrganicFrontBowlShellBuilder.build(
+      scene.staged.meshes,
+    );
     final bowl = _TriangleIndex.build(
-      surface.vertices, surface.triangles,
+      shell.combinedVertices, shell.combinedFaces,
     );
     return EggOrganicAabbPreflight._(scene, bowl);
   }
