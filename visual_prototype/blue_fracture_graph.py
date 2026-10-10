@@ -17,14 +17,13 @@ from pathlib import Path
 # Adjoining long edges define the blue branching skeleton; the mesh only
 # provides a shared, physical 3D snapping surface.
 NODES = {
-    # Two upper and two lower anchors are physically ON the shell rings.
-    'A':(.14,1.0), 'B':(.82,1.0),
-    'E':(.18,0.), 'F':(.83,0.),
-    # One irregular upper arch, centre of fracture, lower diagonal arch.
-    'P':(.30,.69), 'Q':(.68,.86), 'O':(.51,.53),
-    'R':(.33,.22), 'S':(.75,.38),
-    # Left and right branch intersections: no parallel columns.
-    'C':(.17,.48), 'D':(.85,.61),
+    # Four anchors ON the crown/lower rim; slanted branches converge.
+    'A':(.320,1.0), 'B':(.695,1.0),
+    'E':(.350,0.), 'F':(.705,0.),
+    # The network belongs to the visible front, not the hidden flanks.
+    'P':(.398,.690), 'Q':(.634,.835), 'O':(.512,.502),
+    'R':(.415,.215), 'S':(.617,.382),
+    'C':(.336,.485), 'D':(.684,.622),
 }
 LINKS = (
     ('A','P'), ('B','Q'),
