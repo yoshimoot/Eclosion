@@ -170,6 +170,11 @@ class EggOrganicAttachedHingePose {
     ]);
   }
 
+  /// Rotate an exterior material normal with the SAME rigid hinge matrix
+  /// as the real two-sided shell, without translating or scaling normals.
+  EggShellPoint3 releaseNormalOf(EggShellPoint3 normal) =>
+      _rotate(normal, axis, signedMaxRadians).normalized;
+
   /// Frozen last-attached coordinates, suitable as a continuous INPUT to a
   /// future collision-tested free-flight motor. Not a flight trajectory.
   EggShellPoint3 releasePositionOf(EggShellPoint3 materialVertex) =>
