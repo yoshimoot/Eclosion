@@ -185,7 +185,6 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   late final EggOrganicRearBowlShell _organicRear =
       EggOrganicRearBowlShellBuilder.build(_organicFront);
   int _mode = 4; // Organic first; V11.32 remains available as reference.
-  bool _outlines = true;
 
   @override
   void initState() {
@@ -263,7 +262,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
               leftPanel: true,
               rightPanel: true,
               showInside: true,
-              outlines: _outlines,
+              outlines: true,
               inspectionYaw: 42,
               exitPlayback: _exitPlayback,
               exitMotion: _exitMotion,
@@ -365,14 +364,6 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
         },
       ),
       const SizedBox(height: 20),
-      SwitchListTile(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Contours des fragments'),
-        value: _outlines,
-        onChanged: (value) => setState(() => _outlines = value),
-      ),
-      const SizedBox(height: 8),
       Text(
         _mode == 4
             ? 'Diagnostic : collisions non résolues automatiquement.'
