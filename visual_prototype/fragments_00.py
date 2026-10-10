@@ -1,4 +1,4 @@
-"""V11.56 standalone three-fragment material study of the 00:00 cradle.
+"""V11.57 standalone three-fragment material study of the 00:00 cradle.
 
 Each piece is a physically closed curved shell solid on the SAME surface as
 scene_00.build_shell(). Its lower cut reuses the exact source cradle rim vertex
@@ -24,6 +24,32 @@ FRAGMENT_SPECS = (
 )
 LAYERS = 12
 
+# V11.57: the rear-left chip must not look like a rectangular standing panel.
+# These *fixed material stations* shape a sloping, non-symmetric, arched
+# break. Heights are multiples of the rear panel rise in FRAGMENT_SPECS.
+# The first and last stations taper close to the mother shell cut; the
+# higher interior stations form the large bent piece behind the chick.
+# No per-frame randomness, alpha blending, or edited mother rim.
+REAR_TOP_STATIONS = (
+    (0.00, 1.55), (.12, 1.67), (.29, 1.48), (.43, 1.55),
+    (.54, 1.40), (.65, 1.27), (.73, 1.10), (.82, .79),
+    (.92, .48), (1.00, .28),
+)
+
+
+def _rise_at(name, sector, start, end, rise, irregularity, phase):
+    u = (sector - start) / (end - start)
+    if name == 'rear_left_high':
+        for (u0, factor0), (u1, factor1) in zip(
+                REAR_TOP_STATIONS, REAR_TOP_STATIONS[1:]):
+            if u <= u1:
+                t = (u - u0) / (u1 - u0)
+                return rise * (factor0 + (factor1 - factor0) * t)
+        return rise * REAR_TOP_STATIONS[-1][1]
+    # The two small front chips are frozen in V11.57.
+    return rise + irregularity * (math.sin(5 * math.pi * u + phase)
+                                  + .35 * math.sin(11 * math.pi * u - .2))
+
 
 @dataclass(frozen=True)
 class ShellPiece:
@@ -42,6 +68,14 @@ class ShellPiece:
     def source_rim_inner(self):
         shift = len(self.vertices) // 2
         return self.vertices[shift:shift + self.lower_count]
+
+
+def _material_angle(name, theta, u, t):
+    # The large rear wall inclines inward toward the centre as it rises.
+    # Its base stays on the original crack samples; no patch or projection.
+    if name == 'rear_left_high':
+        return theta - .37 * (1 - u) ** 2 * t
+    return theta
 
 
 def build_fragment(name, start_sector, end_sector, rise, irregularity, phase,
@@ -65,14 +99,15 @@ def build_fragment(name, start_sector, end_sector, rise, irregularity, phase,
         t = row / layers
         for sector in sectors:
             theta = 2 * math.pi * sector / SECTORS
-            # A fixed crown break with short/long facets, no per-frame noise.
-            u = (sector - start_sector) / (end_sector - start_sector)
-            local_rise = rise + irregularity * (math.sin(5 * math.pi * u + phase)
-                                                 + .35 * math.sin(11 * math.pi * u - .2))
+            # This row and its inner face follow the SAME source surface.
+            local_rise = _rise_at(name, sector, start_sector, end_sector,
+                                  rise, irregularity, phase)
             y = rim_y(theta) - local_rise * t
+            surface_angle = _material_angle(
+                name, theta, (sector-start_sector)/(end_sector-start_sector), t)
             if not -HALF_HEIGHT < y < HALF_HEIGHT:
                 raise ValueError('Fragment moves above the existing egg pole')
-            outer.append(cradle_vertices[sector] if row == 0 else surface(y, theta))
+            outer.append(cradle_vertices[sector] if row == 0 else surface(y, surface_angle))
     inner = []
     for row in range(num_rows):
         for col, sector in enumerate(sectors):
@@ -82,12 +117,12 @@ def build_fragment(name, start_sector, end_sector, rise, irregularity, phase,
             else:
                 point = outer[i]
                 theta = 2 * math.pi * sector / SECTORS
-                y = rim_y(theta) - (rise + irregularity * (
-                    math.sin(5 * math.pi * (sector - start_sector) /
-                             (end_sector - start_sector) + phase)
-                    + .35 * math.sin(11 * math.pi * (sector - start_sector) /
-                                     (end_sector - start_sector) - .2))) * row / layers
-                inward = inward_normal(y, theta)
+                y = rim_y(theta) - _rise_at(
+                    name, sector, start_sector, end_sector,
+                    rise, irregularity, phase) * row / layers
+                surface_angle = _material_angle(
+                    name, theta, (sector-start_sector)/(end_sector-start_sector), row/layers)
+                inward = inward_normal(y, surface_angle)
                 inner.append(tuple(point[k] + THICKNESS * inward[k] for k in range(3)))
     outer_faces = []
     for j in range(layers):
