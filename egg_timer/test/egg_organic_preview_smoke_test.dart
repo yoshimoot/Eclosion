@@ -21,7 +21,7 @@ void main() {
     expect(selector.segments.map((segment) => segment.value), [4, 3]);
     expect(find.text('Organique'), findsOneWidget);
     expect(find.text('V11.32'), findsOneWidget);
-    expect(find.text('Fragments organiques · V11.48 (expérimental)'),
+    expect(find.text('Organique · V11.49'),
         findsOneWidget);
     expect(find.text('Fragments encore attachés : 3 / 3'), findsOneWidget);
     expect(find.byKey(const Key('exit-sequence-progress')), findsOneWidget);
@@ -47,7 +47,7 @@ void main() {
     // geometry/motion implementation is not modified or re-authored.
     selector.onSelectionChanged!({3});
     await tester.pump();
-    expect(find.text('Sortie des deux panneaux · référence V11.32'),
+    expect(find.text('Référence V11.32'),
         findsOneWidget);
     expect(find.text('Panneaux attachés'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -55,7 +55,7 @@ void main() {
     selector = tester.widget<SegmentedButton<int>>(selectorFinder);
     selector.onSelectionChanged!({4});
     await tester.pump();
-    expect(find.text('Fragments organiques · V11.48 (expérimental)'),
+    expect(find.text('Organique · V11.49'),
         findsOneWidget);
     expect(tester.takeException(), isNull);
   });
