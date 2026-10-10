@@ -103,8 +103,13 @@ class EggFractureNetwork {
   /// nor a release trajectory is authorized yet.
   factory EggFractureNetwork.lowerCradleStaticDraft({
     EggShellModel model = EggShellModel.reference,
+    EggFractureNetwork? organicSource,
   }) {
-    final source = EggFractureNetwork.organicStaticDraft(model: model);
+    final source = organicSource ??
+        EggFractureNetwork.organicStaticDraft(model: model);
+    if (!identical(source.model, model) || source.edges.length != 55) {
+      throw ArgumentError('Expected original V11.33 organic network');
+    }
     final graph = _CrackGraphBuilder(model)
       ..nodes.addAll(source.nodes)
       ..edges.addAll(source.edges);
