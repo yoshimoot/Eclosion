@@ -99,7 +99,7 @@ void main() {
             'nor destroy projected front-shell material');
   });
 
-  test('V11.34: all five solids share one curved shell meshing rule', () {
+  test('V11.34: parent, child and bowl use one curved meshing rule', () {
     final source = EggOrganicPartitionedStaticMeshes.build();
     final partition = source.partition;
     expect(source.parents.length, 2);
@@ -137,4 +137,65 @@ void main() {
     expect(source.bowl.rim.length,
         (revisedPerimeter.length - 1) * factor);
   });
+  test('V11.34: every two-owner cut has identical refined 3D rims', () {
+    final assembled = EggOrganicPartitionedStaticMeshes.build();
+    final partition = assembled.partition;
+    final vertices = <String, List<dynamic>>{
+      'left': assembled.parents[0].outer,
+      'right': assembled.parents[1].outer,
+      for (final child in assembled.children) child.regionId: child.outer,
+      'remaining-front-bowl': assembled.bowl.vertices,
+    };
+    final rimIndices = <String, List<int>>{
+      'left': assembled.parents[0].rim,
+      'right': assembled.parents[1].rim,
+      for (final child in assembled.children) child.regionId: child.rim,
+      'remaining-front-bowl': assembled.bowl.rim,
+    };
+
+    // The shell tessellator subdivides every original graph sample chord
+    // identically. Check ALL edge subdivisions in THREE coordinates; a
+    // screen-space overlap does not suffice to exclude 3D T-junctions.
+    List<(double, dynamic)> along(
+        String id, dynamic a, dynamic b) {
+      final dx = b.x - a.x, dy = b.y - a.y;
+      final lenSquared = dx * dx + dy * dy;
+      expect(lenSquared, greaterThan(1e-12));
+      final matched = <(double, dynamic)>[];
+      final points = vertices[id]!;
+      for (final index in rimIndices[id]!) {
+        final p = points[index];
+        final vx = p.x - a.x, vy = p.y - a.y;
+        final t = (vx * dx + vy * dy) / lenSquared;
+        final cross = vx * dy - vy * dx;
+        if (t >= -1e-7 && t <= 1 + 1e-7 &&
+            cross.abs() < 1e-7 * math.sqrt(lenSquared)) {
+          matched.add((t, p));
+        }
+      }
+      matched.sort((p, q) => p.$1.compareTo(q.$1));
+      return matched;
+    }
+
+    for (final entry in partition.edgeOwners.entries) {
+      final members = entry.value.toList()..sort();
+      expect(members.length, 2);
+      final edge = partition.organic.draft.edges[entry.key];
+      for (var j = 0; j + 1 < edge.samples.length; j++) {
+        final a = edge.samples[j], b = edge.samples[j + 1];
+        final first = along(members[0], a, b);
+        final second = along(members[1], a, b);
+        expect(first.length, greaterThanOrEqualTo(2),
+            reason: 'Missing cut samples: edge ${entry.key}');
+        expect(second.length, first.length,
+            reason: 'T-junction across material edge ${entry.key}');
+        for (var k = 0; k < first.length; k++) {
+          expect((first[k].$2 - second[k].$2).length, lessThan(1e-5),
+              reason: '3D material seam mismatch edge ${entry.key}');
+        }
+      }
+    }
+  });
+
+
 }
