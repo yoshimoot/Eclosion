@@ -140,6 +140,69 @@ void main() {
         throwsArgumentError);
   });
 
+  test('V11.43: exact collision envelopes distinguish proof from sample',
+      () {
+    final preflight = EggOrganicEnvironmentPreflight.build();
+    for (final (start, end) in [
+      (.55, .57),
+      (.79, .81),
+      (.94, .96),
+    ]) {
+      final first = preflight.inspectInterval(
+        startProgress: start, endProgress: end,
+        maxBoxChecksPerPair: 20000,
+        maxExactPairsPerPair: 300,
+      );
+      final again = preflight.inspectInterval(
+        startProgress: start, endProgress: end,
+        maxBoxChecksPerPair: 20000,
+        maxExactPairsPerPair: 300,
+      );
+      expect(first.verdict, again.verdict);
+      expect(first.envelopeComplete, again.envelopeComplete);
+      expect(first.sampledExactComplete, again.sampledExactComplete);
+      if (first.verdict == EggOrganicIntervalVerdict.certifiedClear) {
+        expect(first.envelopeComplete, isTrue);
+        for (final progress in [start, (start + end) / 2, end]) {
+          final sample = preflight.inspectExact(
+            progress, maxPairsPerPair: 300,
+          );
+          expect(sample.hasObservedIntersection, isFalse);
+        }
+      } else if (first.verdict ==
+          EggOrganicIntervalVerdict.observedIntersection) {
+        final sample = preflight.inspectExact(
+          (start + end) / 2, maxPairsPerPair: 300,
+        );
+        expect(sample.hasObservedIntersection, isTrue);
+      }
+      // An inconclusive verdict MUST NOT be reinterpreted as safety.
+    }
+  });
+
+  test('V11.43: reject unbounded or invalid continuous time windows', () {
+    final preflight = EggOrganicEnvironmentPreflight.build();
+    expect(() => preflight.inspectInterval(
+      startProgress: .5, endProgress: .8,
+    ), throwsArgumentError);
+    expect(() => preflight.inspectInterval(
+      startProgress: .8, endProgress: 1.01,
+    ), throwsArgumentError);
+    expect(() => preflight.inspectInterval(
+      startProgress: .8, endProgress: .8,
+    ), throwsArgumentError);
+    expect(() => preflight.inspectInterval(
+      startProgress: .82, endProgress: .80,
+    ), throwsArgumentError);
+    expect(() => preflight.inspectInterval(
+      startProgress: .8, endProgress: .83,
+      maxBoxChecksPerPair: 0,
+    ), throwsArgumentError);
+    expect(() => preflight.inspectInterval(
+      startProgress: double.nan, endProgress: .9,
+    ), throwsArgumentError);
+  });
+
   test('V11.40: post-zero broad phase stays deterministic', () {
     final preflight = EggOrganicAabbPreflight.build();
     final now = preflight.inspect(1.0, afterZeroSeconds: .4);
