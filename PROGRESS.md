@@ -1,3 +1,19 @@
+## V11.60 — Premières fissures latérales matérielles non rectilignes sur l'œuf COMPLET (10 octobre 2026 ; étape de structure)
+
+**Problème ciblé :** la nouvelle méthode V11.59 réassemble correctement l'œuf, mais ses grandes pièces latérales sont encore séparées par des frontières presque rectilignes, ressemblant à des panneaux. Une variation simple de surface affecterait leur silhouette sans garantir des arêtes communes ; il faut impérativement modifier le **graphe d'échantillonnage partagé**, et non les fragments indépendamment.
+
+**Correction ciblée :** `visual_prototype/whole_egg_partition.py` porte maintenant `FRACTURE_STATIONS`, chemin fixe à 8 stations à intervalles inégaux. `displaced_angle()` calcule un décalage angulaire borné de chaque rangée, avec retour exact aux couronnes supérieure et inférieure d'origine. Chaque morceau partage les **mêmes objets-sommets**, triangles compatibles et diagonales de tranche avec ses voisins. Les fractures prennent une forme anguleuse dans la véritable surface 3D (pas une ligne peinte) sans déplacer ou réduire les morceaux, ni réécrire `EggShellModel`. Les sept zones latérales sont encore volontairement de larges rubans : **démonstration de faisabilité des fissures 3D**, pas découpe organique finale.
+
+**Vérifications réellement effectuées localement** : **31 tests Python réussis**, dont 2 nouveaux (`test_material_crack_paths_are_irregular_and_reproducible`, `test_irregular_cracks_do_not_cross_each_other`). La reconstitution fermée mère + 9 solides reste vraie, les arêtes de contact opposées sont exactement doubles, conservation de volume à l'erreur numérique près. Nouveau rendu VTK hors écran du même œuf complet (gauche) et des mêmes volumes légèrement séparés pour les inspecter (droite), export OBJ vérifié. Le script sur GitHub a été relu statiquement après modification, mais **aucun test n'a été exécuté par GitHub/Blender/Flutter**.
+
+**Exports locaux disponibles dans la conversation :** `oeuf_fragments_assembles_v1160.obj` : les 9 pièces sont des objets OBJ distincts **à leur place exacte dans l'œuf complet** ; `whole_egg.obj` : une seule surface mère extérieure/intérieure ; `fragments_identifiables.obj` : présentation éclatée **à but de diagnostic**, pas animation. `comparaison_v1160.png` : visuel VTK, matériau et éclairage provisoires. Le script `visual_prototype/export_assembled_parts.py` permet de régénérer l'OBJ Blender depuis le dépôt sans copier un fichier binaire volumineux.
+
+**Critère artistique NON atteint** : contrairement à la planche à 00:03/00:00, l'œuf est encore divisé en longs panneaux latéraux, pas en plusieurs morceaux irréguliers de tailles variées ; la texture et le poussin 3D approuvé manquent. **Ne pas soumettre ce jalon comme une éclosion validée.** La prochaine étape est de subdiviser un ou plusieurs panneaux en véritables morceaux 3D à frontières partagées, toujours depuis l'œuf complet, puis de construire une séquence de détachement rigide 00:03 → 00:00. Les versions rejetées V11.57/V11.58 restent accessibles et ne sont pas reprises comme fragments finaux.
+
+Aucune validation utilisateur nécessaire tant qu'il n'existe pas une composition convaincante complète à comparer directement à la planche.
+
+---
+
 ## V11.59 — Reconstitution physique de l'œuf complet AVANT fragmentation (10 octobre 2026 ; jalon structurel)
 
 **Retour déterminant de l'utilisateur :** dans Blender, le capuchon isolé V11.58 ressemblait à une plaque abstraite, pas à un morceau évident d'un œuf. V11.58 **non validée artistiquement**. Décision de reprise : repartir d'une coquille entière, faire de **vraies découpes avec arêtes communes** sur cette même coquille, vérifier que toutes les pièces assemblées restituent l'œuf fermé, puis seulement les séparer/faire bouger. Ne plus demander d'évaluer des morceaux abstraits isolés.
