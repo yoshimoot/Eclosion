@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'lab/fragment_lab.dart';
+import 'lab/egg_geometry_preview.dart';
 
 void main() => runApp(const MyApp());
 
@@ -15,6 +15,6 @@ class MyApp extends StatelessWidget {
       scaffoldBackgroundColor: const Color(0xfff4eee5),
       useMaterial3: true,
     ),
-    home: const FragmentLab(),
+    home: const EggGeometryPreview(),
   );
 }
