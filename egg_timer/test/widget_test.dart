@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:egg_timer/main.dart';
+import 'package:egg_timer/lab/fragment_lab.dart';
 import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/fragment_scene.dart';
@@ -1073,7 +1073,9 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const MyApp());
+    // Legacy F1 controls are tested in their OWN lab route; the main
+    // application now opens directly on the organic 3D preview.
+    await tester.pumpWidget(const MaterialApp(home: FragmentLab()));
 
     EggShellF1PreviewPainter painter() => tester
         .widgetList<CustomPaint>(find.byType(CustomPaint))
