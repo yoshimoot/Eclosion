@@ -1,8 +1,39 @@
 import 'package:egg_timer/lab/egg_organic_full_shell_draft.dart';
 import 'package:egg_timer/lab/egg_organic_upper_front_band.dart';
+import 'package:egg_timer/lab/egg_shell_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('V11.53: F1 crown stays within the sampled curved silhouette', () {
+    final band = EggOrganicUpperFrontBand.build();
+    // The first crown sample grazes the curved LEFT silhouette.
+    // Coarse straight chords used to create a tiny inverted triangle.
+    double turn(EggShellPoint3 a, EggShellPoint3 b, EggShellPoint3 c) =>
+        (b.x - a.x) * (c.y - a.y) -
+        (b.y - a.y) * (c.x - a.x);
+
+    expect(band.leftSeam.length, 33);
+    expect(band.rightSeam.length, 33);
+    expect(
+      turn(
+        band.topPerimeter.first,
+        band.topPerimeter[1],
+        band.leftSeam[band.leftSeam.length - 2],
+      ),
+      greaterThan(1e-5),
+    );
+    expect(
+      turn(
+        band.topPerimeter[band.topPerimeter.length - 2],
+        band.topPerimeter.last,
+        band.rightSeam[1],
+      ),
+      greaterThan(1e-5),
+    );
+    expect(band.shell.outerTriangles, isNotEmpty);
+    expect(band.areaResidual.abs(), lessThan(1e-4));
+  });
+
   test('V11.51: front side material is split by real lower 3D crack', () {
     final full = EggOrganicFullShellDraft.fixed();
     final band = EggOrganicUpperFrontBand.build(draft: full);
