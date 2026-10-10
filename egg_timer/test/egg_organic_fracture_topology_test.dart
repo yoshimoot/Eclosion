@@ -1,5 +1,6 @@
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
+import 'package:egg_timer/lab/egg_organic_fracture_plan.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Graph connectivity, NOT count of free-flying shell pieces. The crown is
@@ -101,6 +102,48 @@ void main() {
         final expected = draft.model.surfaceAt(p.x, p.y);
         expect((p - expected).length, lessThan(1e-8));
         expect(p.z, greaterThanOrEqualTo(0));
+      }
+    }
+  });
+
+  test('V11.33: closed organic region perimeters reuse graph topology', () {
+    final plan = EggOrganicFracturePlan.fixed();
+    expect(plan.candidates.map((candidate) => candidate.id), [
+      'upper-left-small', 'lower-left-small', 'lower-right-small',
+    ]);
+    expect(plan.draft.edges.length, plan.original.edges.length + 3);
+
+    for (var i = 0; i < plan.candidates.length; i++) {
+      final region = plan.candidates[i];
+      final rim = region.sampledPerimeter(plan.draft);
+      expect(region.boundary.length, 4);
+      expect(region.boundary.first.edgeId,
+          plan.original.edges.length + i);
+      expect(region.boundary.map((edge) => edge.edgeId).toSet().length, 4);
+      expect((rim.first - rim.last).length, lessThan(1e-9));
+      expect(rim.length, greaterThan(12));
+      // A nonzero 2D projection permits the existing curved tessellator
+      // to consume this boundary in a future isolated mesh-validation pass.
+      var signedDoubleArea = 0.0;
+      for (var j = 0; j < rim.length - 1; j++) {
+        signedDoubleArea +=
+            rim[j].x * rim[j + 1].y - rim[j + 1].x * rim[j].y;
+      }
+      expect(signedDoubleArea.abs(), greaterThan(1e-5));
+      for (final vertex in rim) {
+        expect(
+          (vertex - plan.draft.model.surfaceAt(vertex.x, vertex.y)).length,
+          lessThan(1e-8),
+        );
+      }
+      // Every piece perimeter is a chain of ORIGINAL oriented
+      // EggCrackEdge samples plus precisely one new material connection.
+      for (final segment in region.boundary) {
+        final original = plan.draft.edges[segment.edgeId].samples;
+        final oriented = segment.samples(plan.draft);
+        expect(oriented.length, original.length);
+        final first = segment.forward ? original.first : original.last;
+        expect(identical(oriented.first, first), isTrue);
       }
     }
   });
