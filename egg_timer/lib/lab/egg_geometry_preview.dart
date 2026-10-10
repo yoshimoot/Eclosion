@@ -9,6 +9,9 @@ import 'egg_exit_motion_config.dart';
 import 'egg_panel_inspection_pose.dart';
 import 'egg_panel_hinge_pose.dart';
 import 'egg_panel_release_motion.dart';
+import 'egg_organic_continuous_pose.dart';
+import 'egg_organic_front_bowl_shell.dart';
+import 'egg_organic_rear_bowl_shell.dart';
 import 'egg_fracture_network.dart';
 import 'egg_rear_bowl_boundary.dart';
 import 'egg_rear_bowl_mesh.dart';
@@ -174,7 +177,14 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   late final List<EggPanelReleaseMotion> _exitMotion;
   late final double _exitHorizontalExtent;
   late final double _exitVerticalExtent;
-  int _mode = 0; // 0: assembled, 1: inspection, 2: hinge, 3: exit
+  // Lazily allocated only when the experimental mode is selected.
+  late final EggOrganicContinuousPoseCoordinator _organic =
+      EggOrganicContinuousPoseCoordinator.fixed();
+  late final EggOrganicFrontBowlShell _organicFront =
+      EggOrganicFrontBowlShellBuilder.build(_organic.staged.meshes);
+  late final EggOrganicRearBowlShell _organicRear =
+      EggOrganicRearBowlShellBuilder.build(_organicFront);
+  int _mode = 0; // 0 assembled, 1 separated, 2 hinge, 3 exit, 4 organic
   double _hingeDegrees = 20;
   bool _left = true;
   bool _right = true;
@@ -264,6 +274,9 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
               exitMotion: _exitMotion,
               exitHorizontalExtent: _exitHorizontalExtent,
               exitVerticalExtent: _exitVerticalExtent,
+              organic: _mode == 4 ? _organic : null,
+              organicFront: _mode == 4 ? _organicFront : null,
+              organicRear: _mode == 4 ? _organicRear : null,
             ),
             child: const SizedBox.expand(),
           ),
@@ -275,7 +288,8 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Géométrie V11.32',
+      Text(_mode == 4 ? 'Géométrie V11.48 · organique expérimental'
+          : 'Géométrie V11.32',
           style: Theme.of(context).textTheme.headlineSmall),
       const SizedBox(height: 8),
       const Text('Maillages 3D du bol avant, de la coquille arrière et '
@@ -288,6 +302,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
           ButtonSegment(value: 1, label: Text('Écarté')),
           ButtonSegment(value: 2, label: Text('Pivot')),
           ButtonSegment(value: 3, label: Text('Sortie')),
+          ButtonSegment(value: 4, label: Text('Organique')),
         ],
         selected: {_mode},
         onSelectionChanged: (values) {
@@ -296,7 +311,10 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
         },
       ),
       const SizedBox(height: 8),
-      Text(_mode == 3
+      Text(_mode == 4
+          ? 'Organique · essai non validé : trois nouveaux morceaux de '
+              'coquille 3D. Contacts diagnostiqués, pas corrigés.'
+          : _mode == 3
           ? 'Sortie : pivot attaché puis expulsion rigide. '
               'Collisions non résolues automatiquement.'
           : _mode == 2
@@ -335,7 +353,7 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
             'issue des fissures V10.4. La géométrie tourne d’un seul '
             'bloc ; expulsion et chute non intégrées.',
             style: TextStyle(fontSize: 12)),
-      if (_mode == 3)
+      if (_mode == 3 || _mode == 4)
         AnimatedBuilder(
           animation: _exitPlayback,
           builder: (context, _) => Column(
@@ -411,8 +429,11 @@ class _EggGeometryPreviewState extends State<EggGeometryPreview>
         onChanged: (value) => setState(() => _outlines = value),
       ),
       const SizedBox(height: 8),
-      Text('Épaisseur 2,5 · raffinement commun '
-          '${_assembly.refinementPasses}',
+      Text(_mode == 4
+          ? 'Épaisseur 2,5 · raffinement organique '
+              '${_organic.staged.meshes.refinementPasses}'
+          : 'Épaisseur 2,5 · raffinement commun '
+              '${_assembly.refinementPasses}',
           style: Theme.of(context).textTheme.bodySmall),
       const SizedBox(height: 12),
       const Text('Vue orthographique à occultation 3D. '
@@ -638,7 +659,7 @@ class _ShellMeshPainter extends CustomPainter {
     // V11.20/V11.26: fixed framing over the full extended 3D exit.
     // The camera never zooms with animation progress or clips the panel
     // just because the release now moves farther along the same trajectory.
-    final scale = mode == 3
+    final scale = (mode == 3 || mode == 4)
         ? math.min(
             baselineScale,
             math.min(
