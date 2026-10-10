@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:egg_timer/lab/egg_fragment_regions.dart';
 import 'package:egg_timer/lab/egg_fracture_network.dart';
 import 'package:egg_timer/lab/egg_organic_front_bowl_shell.dart';
@@ -78,12 +80,18 @@ void main() {
     }
     // The full material seam is the same along the inside also: normal
     // inset is evaluated from the SAME outer point on both halves.
+    // Identity lookup is O(1) per seam point; do not scan the entire
+    // refined rear vertex list once for EACH material contact.
+    final rearIndices = HashMap<EggShellPoint3, int>.identity();
+    for (var i = 0; i < rear.exterior.length; i++) {
+      rearIndices[rear.exterior[i]] = i;
+    }
     for (final id in [...rear.rightSeam, ...rear.leftSeam]) {
       final exterior = front.exterior[id];
       final frontInner = front.interior[id];
-      final rearIndex = rear.exterior.indexWhere((p) => identical(p, exterior));
-      expect(rearIndex, greaterThanOrEqualTo(0));
-      expect((frontInner - rear.interior[rearIndex]).length, lessThan(1e-7));
+      final rearIndex = rearIndices[exterior];
+      expect(rearIndex, isNotNull);
+      expect((frontInner - rear.interior[rearIndex!]).length, lessThan(1e-7));
     }
     final vertexCount = rear.exterior.length * 2;
     for (final group in [
