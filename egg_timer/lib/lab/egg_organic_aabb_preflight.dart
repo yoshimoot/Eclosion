@@ -610,24 +610,26 @@ class EggOrganicEnvironmentPreflight {
     // Max derivative of smoothstep(u)=u*u*(3-2*u) is 1.5.
     // Every original mesh point remains at most this lever arm away from
     // the hinge anchor during the attached phase.
-    final childMaximumSpeeds = <double>[
-      for (var i = 0; i < organic.scene.staged.hinges.length; i++)
-        () {
-          final hinge = organic.scene.staged.hinges[i];
-          final width = hinge.releaseProgress - hinge.openingStartProgress;
-          final attachedLever = [
-            for (final p in [
-              ...hinge.mesh.outer, ...hinge.mesh.inner,
-            ])
-              (p - hinge.anchorA).length,
-          ].reduce(math.max);
-          final attachedSpeed =
-              hinge.signedMaxRadians.abs() * 1.5 / width * attachedLever;
-          final flyingSpeed = organic.scene.flights[i]
-              .materialVertexSpeedUpperBoundAt(3) * secondsPerProgress;
-          return math.max(attachedSpeed, flyingSpeed);
-        }(),
-    ];
+    final childMaximumSpeeds = <double>[];
+    for (var i = 0; i < organic.scene.staged.hinges.length; i++) {
+      final hinge = organic.scene.staged.hinges[i];
+      final width =
+          hinge.releaseProgress - hinge.openingStartProgress;
+      var attachedLever = 0.0;
+      for (final point in [
+        ...hinge.mesh.outer,
+        ...hinge.mesh.inner,
+      ]) {
+        attachedLever = math.max(
+          attachedLever, (point - hinge.anchorA).length,
+        );
+      }
+      final attachedSpeed =
+          hinge.signedMaxRadians.abs() * 1.5 / width * attachedLever;
+      final flyingSpeed = organic.scene.flights[i]
+          .materialVertexSpeedUpperBoundAt(3) * secondsPerProgress;
+      childMaximumSpeeds.add(math.max(attachedSpeed, flyingSpeed));
+    }
     final parentMaximumSpeeds = <double>[
       for (final motion in parents)
         (motion.linearSpeedUpperBoundAt(2) +
@@ -641,7 +643,6 @@ class EggOrganicEnvironmentPreflight {
       _TriangleIndex moving,
       double relativeSpeed,
     ) {
-      if (!allClear) return;
       final (potential, done) = stationary.possibleDuringInterval(
         moving,
         maximumRelativeDisplacement: relativeSpeed * halfWidth,
