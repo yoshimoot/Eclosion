@@ -79,6 +79,39 @@ void main() {
     }
   });
 
+  test('V11.38: material collision envelopes bound sampled 3D velocities',
+      () {
+    final staged = EggOrganicStagedAssembly.fixed();
+    for (var i = 0; i < staged.hinges.length; i++) {
+      final seed = EggOrganicReleaseSeed.fromStaged(staged, i);
+      final flight = EggOrganicRigidFreeFlight.fromSeed(seed);
+      final impact = flight.impactSeconds!;
+      const dt = 1e-5;
+      for (final t in [
+        .03, .22, impact * .72,
+        (impact + 3.0) / 2,
+        2.95,
+      ]) {
+        if ((t - impact).abs() <= 2 * dt) continue;
+        final before = flight.transform(seed.outer[0], t - dt);
+        final after = flight.transform(seed.outer[0], t + dt);
+        final observedMaterialSpeed = (after - before).length / (2 * dt);
+        expect(observedMaterialSpeed,
+            lessThanOrEqualTo(
+              flight.materialVertexSpeedUpperBoundAt(t) + .02,
+            ), reason: 'Nonconservative 3D motion bound at t=$t');
+        expect(flight.linearSpeedUpperBoundAt(t),
+            greaterThanOrEqualTo(0));
+        expect(flight.angularSpeedUpperBoundAt(t),
+            greaterThanOrEqualTo(0));
+      }
+      // A temporal sweep encompassing impact cannot assume damping had
+      // already happened at its start. Bounds remain monotone in t.
+      expect(flight.linearSpeedUpperBoundAt(3),
+          greaterThanOrEqualTo(flight.linearSpeedUpperBoundAt(impact)));
+    }
+  });
+
   test('V11.38: invalid physical controls cannot generate shell motion', () {
     final staged = EggOrganicStagedAssembly.fixed();
     final seed = EggOrganicReleaseSeed.fromStaged(staged, 0);
