@@ -708,7 +708,7 @@ class _ShellMeshPainter extends CustomPainter {
       for (var i = 0; i < sequence.staged.meshes.children.length; i++) {
         final snapshot = sequence.poseAt(i, progress);
         final shell = snapshot.mesh;
-        final materialRotation = (EggShellPoint3 n) =>
+        EggShellPoint3 materialRotation(EggShellPoint3 n) =>
             sequence.materialNormalAt(i, n, progress);
         result.add(_Surface(
           snapshot.outer,
