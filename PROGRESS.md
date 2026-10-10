@@ -1,3 +1,15 @@
+## Diagnostic de conception — le berceau doit résulter des ruptures (10 octobre 2026 ; retour utilisateur)
+
+**Observation / non-validation :** l'utilisateur juge le réseau V11.63 et la représentation du bol inférieur non satisfaisants ; il demande d'expliquer d'où vient ce bol. **Ne pas considérer V11.63 comme une validation artistique.** Le problème est architectural, pas seulement la direction de quelques fissures.
+
+**Source vérifiée sur la branche :** `visual_prototype/scene_00.py` fixe **à l'avance** le contour circulaire `rim_y(theta)` (cosinus + stations `RIM_KNOTS`), et `build_shell()` fabrique un berceau 3D fermé de ce contour jusqu'au pôle inférieur, avec faces externe/interne et tranche 2,5. `visual_prototype/whole_egg_partition.py` appelle d'abord `build_shell()`, utilise ses sommets de bord comme autorité, puis reconstruit les bandes latérales jusqu'à `crown_y()` et enfin le chapeau supérieur. `visual_prototype/blue_fracture_graph.py` exclut expressément `lower_cradle` et `upper_cap` des faces où le graphe peut progresser ; leur frontière prédéfinie est seulement un point d'arrêt des traits. **Le graphe ne peut donc pas produire, modifier ni expliquer le bord final du bol.**
+
+**Décision pour la suite (aucune refonte du moteur Flutter encore réalisée) :** cesser les corrections locales de direction de fissures sur cette architecture. Créer dans `visual_prototype/` une **vraie coquille mère complète**, sans séparation circulaire prédéfinie entre « bol » et « haut » ; concevoir ensuite un graphe commun de rupture englobant le futur berceau, les côtés et le sommet. Après partition de la matière, la partie qui reste solidaire du pôle inférieur définit le berceau final ; certaines lèvres latérales peuvent rester rattachées, d'autres fragments doivent se détacher. Définir la silhouette cible à 00:00 comme critère, pas comme masque ou pré-découpe artificielle. Déduire tous les morceaux de cette seule source ; conserver épaisseur 2,5, arêtes partagées, faces fermées, volume, assemblage intégral à 100 %, continuité de mouvement et poussin validé. **Ne pas prendre les tests topologiques de V11.63 comme preuve du naturel du berceau.**
+
+**Porte technique suivante :** présenter, sur la nouvelle architecture, le même œuf assemblé et le vrai berceau obtenu après rupture, avec des arêtes des deux états strictement cohérentes. Comparer la forme à la planche avant d'investir dans les mouvements, le décor et la matière. Aucun rendu Chrome de l'ancien modèle ne résoudra cette incohérence.
+
+---
+
 ## V11.63 — Graphe de fissures dessiné AVANT les fragments, réponse au tracé bleu (10 octobre 2026 ; prototype structurel)
 
 **Retour utilisateur :** même en V11.62, des fissures quasi parallèles et trop verticales restent visibles. L'utilisateur fournit deux captures avec un réseau bleu foncé **oblique, ramifié, polygonal**, principalement autour d'une jonction centrale. Ce tracé devient la direction visuelle pour la prochaine construction. Les précédentes partitions en bandes et par domaines de germination/Voronoi ne sont PAS le rendu accepté.
