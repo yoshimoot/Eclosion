@@ -142,15 +142,17 @@ class EggOrganicAttachmentPlan {
     });
   }
 
-  factory EggOrganicAttachmentPlan.fixed() {
-    final partition = EggOrganicBowlPartition.fixed();
-    final graph = partition.organic.draft;
+  factory EggOrganicAttachmentPlan.fixed({
+    EggOrganicBowlPartition? partition,
+  }) {
+    final resolvedPartition = partition ?? EggOrganicBowlPartition.fixed();
+    final graph = resolvedPartition.organic.draft;
     final originalCuts = {
-      for (final edge in partition.originalBowl.cutEdges) edge.edgeId,
+      for (final edge in resolvedPartition.originalBowl.cutEdges) edge.edgeId,
     };
     final sources = <(EggOrganicCandidateRegion, int, String, Map<int, double>)>[];
     var longest = 0.0;
-    for (final candidate in partition.organic.candidates) {
+    for (final candidate in resolvedPartition.organic.candidates) {
       final parents = candidate.boundary.where(
         (s) => originalCuts.contains(s.edgeId),
       ).toList();
@@ -158,7 +160,7 @@ class EggOrganicAttachmentPlan {
         throw StateError('A child must have exactly one parent material cut');
       }
       final edgeId = parents.single.edgeId;
-      final owners = partition.edgeOwners[edgeId];
+      final owners = resolvedPartition.edgeOwners[edgeId];
       if (owners == null || !owners.contains(candidate.id)) {
         throw StateError('Missing validated material ownership');
       }
@@ -226,7 +228,7 @@ class EggOrganicAttachmentPlan {
       ));
     }
     return EggOrganicAttachmentPlan._(
-      partition,
+      resolvedPartition,
       List<EggOrganicChildAttachmentPlan>.unmodifiable(children),
       rate,
     );
