@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'egg_organic_continuous_pose.dart';
+import 'egg_shell_collision_diagnostic.dart';
 import 'egg_shell_fragment_mesh.dart';
 import 'egg_shell_model.dart';
 
@@ -52,9 +53,11 @@ class _Box3 {
 }
 
 class _TriangleIndex {
-  _TriangleIndex._(this.boxes, this.buckets);
+  _TriangleIndex._(this.vertices, this.triangles, this.boxes, this.buckets);
 
   static const double cellWidth = 24;
+  final List<EggShellPoint3> vertices;
+  final List<EggShellTriangle> triangles;
   final List<_Box3> boxes;
   final Map<int, List<int>> buckets;
 
@@ -79,7 +82,51 @@ class _TriangleIndex {
         cells.putIfAbsent(x, () => <int>[]).add(i);
       }
     }
-    return _TriangleIndex._(bounds, cells);
+    return _TriangleIndex._(vertices, triangles, bounds, cells);
+  }
+
+  /// Classify each potential triangle pair using the existing single
+  /// source-of-truth 3D SAT / plane-crossing kernel. The report describes
+  /// only one sampled instant of the faces supplied to this index.
+  (int, int, int, bool) inspectExact(
+    _TriangleIndex moving, {
+    int maxPairs = 20000,
+  }) {
+    if (maxPairs <= 0) {
+      throw ArgumentError.value(maxPairs, 'maxPairs');
+    }
+    var tested = 0, touching = 0, penetrating = 0;
+    for (var j = 0; j < moving.boxes.length; j++) {
+      final movingBox = moving.boxes[j];
+      final visited = <int>{};
+      final lo = (movingBox.x0 / cellWidth).floor();
+      final hi = (movingBox.x1 / cellWidth).floor();
+      final movingFace = moving.triangles[j];
+      for (var x = lo; x <= hi; x++) {
+        for (final i in buckets[x] ?? const <int>[]) {
+          if (!visited.add(i) || !movingBox.overlaps(boxes[i])) {
+            continue;
+          }
+          final fixedFace = triangles[i];
+          final classification = EggTriangleCollision.classify(
+            vertices[fixedFace.a], vertices[fixedFace.b],
+            vertices[fixedFace.c],
+            moving.vertices[movingFace.a],
+            moving.vertices[movingFace.b],
+            moving.vertices[movingFace.c],
+          );
+          tested++;
+          if (classification == EggTriangleContact.touching) touching++;
+          if (classification == EggTriangleContact.intersecting) {
+            penetrating++;
+          }
+          if (tested >= maxPairs) {
+            return (tested, touching, penetrating, false);
+          }
+        }
+      }
+    }
+    return (tested, touching, penetrating, true);
   }
 
   /// Deterministic bounded candidate inspection, no false-clear result
@@ -109,6 +156,35 @@ class _TriangleIndex {
     }
     return (candidates, true);
   }
+}
+
+/// Exact 3D triangle classification of ONE sampled position.
+/// An observed intersection is genuine material penetration at that
+/// sample; a complete clear sample does NOT certify the temporal interval.
+class EggOrganicExactFrame {
+  const EggOrganicExactFrame({
+    required this.progress,
+    required this.bowlTouching,
+    required this.bowlIntersections,
+    required this.siblingTouching,
+    required this.siblingIntersections,
+    required this.testedPairs,
+    required this.complete,
+  });
+
+  final double progress;
+  final List<int> bowlTouching, bowlIntersections;
+  final Map<String, int> siblingTouching, siblingIntersections;
+  final int testedPairs;
+  final bool complete;
+
+  bool get hasObservedIntersection =>
+      bowlIntersections.any((value) => value > 0) ||
+      siblingIntersections.values.any((value) => value > 0);
+  bool get sampledFrameClear => complete &&
+      !hasObservedIntersection &&
+      !bowlTouching.any((value) => value > 0) &&
+      !siblingTouching.values.any((value) => value > 0);
 }
 
 /// V11.40 — light diagnostic of the actual organics and their REMAINING
@@ -185,4 +261,56 @@ class EggOrganicAabbPreflight {
       complete: complete,
     );
   }
+  /// Returns exact observed triangle penetrations of the *represented*
+  /// front bowl and organic siblings; parent panels/rear bowl are not yet
+  /// included. This is a bounded sample, NOT continuous collision proof.
+  EggOrganicExactFrame inspectExact(
+    double progress, {
+    double afterZeroSeconds = 0,
+    int maxPairsPerPair = 20000,
+  }) {
+    if (maxPairsPerPair <= 0) {
+      throw ArgumentError.value(maxPairsPerPair, 'maxPairsPerPair');
+    }
+    final moving = <_TriangleIndex>[
+      for (var i = 0; i < scene.staged.meshes.children.length; i++)
+        _moving(scene.poseAt(
+          i, progress, afterZeroSeconds: afterZeroSeconds,
+        )),
+    ];
+    final bowlTouching = <int>[], bowlIntersecting = <int>[];
+    final siblingTouching = <String, int>{};
+    final siblingIntersecting = <String, int>{};
+    var complete = true, tested = 0;
+    for (final current in moving) {
+      final (pairs, touching, intersecting, allPairs) =
+          bowl.inspectExact(current, maxPairs: maxPairsPerPair);
+      tested += pairs;
+      complete = complete && allPairs;
+      bowlTouching.add(touching);
+      bowlIntersecting.add(intersecting);
+    }
+    for (var i = 0; i < moving.length; i++) {
+      for (var j = i + 1; j < moving.length; j++) {
+        final (pairs, touching, intersecting, allPairs) =
+            moving[i].inspectExact(
+              moving[j], maxPairs: maxPairsPerPair,
+            );
+        tested += pairs;
+        complete = complete && allPairs;
+        siblingTouching['$i:$j'] = touching;
+        siblingIntersecting['$i:$j'] = intersecting;
+      }
+    }
+    return EggOrganicExactFrame(
+      progress: progress,
+      bowlTouching: List<int>.unmodifiable(bowlTouching),
+      bowlIntersections: List<int>.unmodifiable(bowlIntersecting),
+      siblingTouching: Map<String, int>.unmodifiable(siblingTouching),
+      siblingIntersections: Map<String, int>.unmodifiable(siblingIntersecting),
+      testedPairs: tested,
+      complete: complete,
+    );
+  }
+
 }
