@@ -396,6 +396,31 @@ class EggOrganicEnvironmentExactFrame {
       !parentIntersections.values.any((count) => count > 0);
 }
 
+/// The verdict is conservative ONLY for the represented triangle
+/// surfaces over [startProgress, endProgress]; it is not a valid renderer
+/// approval if any of the referenced mesh builders failed earlier tests.
+enum EggOrganicIntervalVerdict {
+  certifiedClear,
+  observedIntersection,
+  inconclusive,
+}
+
+class EggOrganicIntervalReport {
+  const EggOrganicIntervalReport({
+    required this.startProgress,
+    required this.endProgress,
+    required this.verdict,
+    required this.envelopeComplete,
+    required this.sampledExactComplete,
+  });
+
+  final double startProgress;
+  final double endProgress;
+  final EggOrganicIntervalVerdict verdict;
+  final bool envelopeComplete;
+  final bool sampledExactComplete;
+}
+
 class EggOrganicEnvironmentPreflight {
   const EggOrganicEnvironmentPreflight._(
     this.organic, this.rear, this.parents, this.parentMeshes,
@@ -533,4 +558,139 @@ class EggOrganicEnvironmentPreflight {
       complete: complete,
     );
   }
+  /// A strict conservative time-interval preflight. Every queried triangle
+  /// is enclosed by its midpoint world AABB plus the maximal material
+  /// travel from midpoint to either endpoint. If ALL such relative
+  /// envelopes are disjoint, the entire interval is proven clear of those
+  /// represented surfaces. Otherwise inspect the exact midpoint; an
+  /// observed transverse intersection is a real sampled failure, while
+  /// all other outcomes remain inconclusive (not an invented clearance).
+  EggOrganicIntervalReport inspectInterval({
+    required double startProgress,
+    required double endProgress,
+    int maxBoxChecksPerPair = 200000,
+    int maxExactPairsPerPair = 20000,
+  }) {
+    if (!startProgress.isFinite || !endProgress.isFinite ||
+        startProgress < .55 || endProgress > 1 ||
+        endProgress <= startProgress ||
+        maxBoxChecksPerPair <= 0 || maxExactPairsPerPair <= 0) {
+      throw ArgumentError('Invalid physical inspection window or budget');
+    }
+    final midpoint = (startProgress + endProgress) / 2;
+    final halfWidth = (endProgress - startProgress) / 2;
+    const secondsPerProgress = 2 / .45;
+    final childIndices = <_TriangleIndex>[
+      for (var i = 0; i < organic.scene.seeds.length; i++)
+        EggOrganicAabbPreflight._moving(
+          organic.scene.poseAt(i, midpoint),
+        ),
+    ];
+    final parentIndices = <_TriangleIndex>[
+      for (var i = 0; i < parentMeshes.length; i++)
+        _TriangleIndex.build(
+          <EggShellPoint3>[
+            ...parents[i].transformAll(
+              parentMeshes[i].outer,
+              (midpoint - .55) * secondsPerProgress,
+            ),
+            ...parents[i].transformAll(
+              parentMeshes[i].inner,
+              (midpoint - .55) * secondsPerProgress,
+            ),
+          ],
+          <EggShellTriangle>[
+            ...parentMeshes[i].outerTriangles,
+            ...parentMeshes[i].innerTriangles,
+            ...parentMeshes[i].sideTriangles,
+          ],
+        ),
+    ];
+
+    // Max derivative of smoothstep(u)=u*u*(3-2*u) is 1.5.
+    // Every original mesh point remains at most this lever arm away from
+    // the hinge anchor during the attached phase.
+    final childMaximumSpeeds = <double>[
+      for (var i = 0; i < organic.scene.staged.hinges.length; i++)
+        () {
+          final hinge = organic.scene.staged.hinges[i];
+          final width = hinge.releaseProgress - hinge.openingStartProgress;
+          final attachedLever = [
+            for (final p in [
+              ...hinge.mesh.outer, ...hinge.mesh.inner,
+            ])
+              (p - hinge.anchorA).length,
+          ].reduce(math.max);
+          final attachedSpeed =
+              hinge.signedMaxRadians.abs() * 1.5 / width * attachedLever;
+          final flyingSpeed = organic.scene.flights[i]
+              .materialVertexSpeedUpperBoundAt(3) * secondsPerProgress;
+          return math.max(attachedSpeed, flyingSpeed);
+        }(),
+    ];
+    final parentMaximumSpeeds = <double>[
+      for (final motion in parents)
+        (motion.linearSpeedUpperBoundAt(2) +
+            motion.angularSpeedUpperBoundAt(2) *
+                motion.materialRadius) * secondsPerProgress,
+    ];
+
+    var allClear = true, complete = true;
+    void check(
+      _TriangleIndex stationary,
+      _TriangleIndex moving,
+      double relativeSpeed,
+    ) {
+      if (!allClear) return;
+      final (potential, done) = stationary.possibleDuringInterval(
+        moving,
+        maximumRelativeDisplacement: relativeSpeed * halfWidth,
+        maxBoxChecks: maxBoxChecksPerPair,
+      );
+      complete = complete && done;
+      if (potential) allClear = false;
+    }
+
+    for (var i = 0; i < childIndices.length; i++) {
+      check(organic.bowl, childIndices[i], childMaximumSpeeds[i]);
+      check(rear, childIndices[i], childMaximumSpeeds[i]);
+      for (var j = 0; j < parentIndices.length; j++) {
+        check(
+          parentIndices[j],
+          childIndices[i],
+          childMaximumSpeeds[i] + parentMaximumSpeeds[j],
+        );
+      }
+      for (var j = i + 1; j < childIndices.length; j++) {
+        check(
+          childIndices[i],
+          childIndices[j],
+          childMaximumSpeeds[i] + childMaximumSpeeds[j],
+        );
+      }
+    }
+    if (allClear && complete) {
+      return EggOrganicIntervalReport(
+        startProgress: startProgress,
+        endProgress: endProgress,
+        verdict: EggOrganicIntervalVerdict.certifiedClear,
+        envelopeComplete: true,
+        sampledExactComplete: false,
+      );
+    }
+    final sample = inspectExact(
+      midpoint, maxPairsPerPair: maxExactPairsPerPair,
+    );
+    return EggOrganicIntervalReport(
+      startProgress: startProgress,
+      endProgress: endProgress,
+      verdict: sample.hasObservedIntersection
+          ? EggOrganicIntervalVerdict.observedIntersection
+          : EggOrganicIntervalVerdict.inconclusive,
+      envelopeComplete: complete,
+      sampledExactComplete: sample.complete,
+    );
+  }
+
+
 }
