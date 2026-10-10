@@ -10,19 +10,22 @@ import 'egg_shell_model.dart';
 /// removed as explicit fragment meshes before the lower bowl is shown.
 class EggOrganicUpperFrontBand {
   const EggOrganicUpperFrontBand._(
-    this.shell, this.topPerimeter, this.lowerFrontPerimeter,
+    this.shell, this.topPerimeter, this.lowerFrontArc,
+    this.rightSeam, this.leftSeam, this.lowerFrontPerimeter,
     this.upperFrontPerimeter, this.originalEquivalentPerimeter,
   );
 
   final EggShellPanelMesh shell;
   final List<EggShellPoint3> topPerimeter;
+  final List<EggShellPoint3> lowerFrontArc;
+  final List<EggShellPoint3> rightSeam, leftSeam;
   final List<EggShellPoint3> lowerFrontPerimeter;
   final List<EggShellPoint3> upperFrontPerimeter;
   final List<EggShellPoint3> originalEquivalentPerimeter;
 
   static EggOrganicUpperFrontBand build({
     EggOrganicFullShellDraft? draft,
-    int silhouetteSamples = 32,
+    int silhouetteSamples = 16,
     double thickness = 2.5,
   }) {
     if (silhouetteSamples < 4 || silhouetteSamples > 128) {
@@ -121,6 +124,9 @@ class EggOrganicUpperFrontBand {
     return EggOrganicUpperFrontBand._(
       mesh,
       List<EggShellPoint3>.unmodifiable(top),
+      List<EggShellPoint3>.unmodifiable(bottomFront),
+      topRightToLow,
+      lowLeftToTop,
       lower,
       upper,
       original,
