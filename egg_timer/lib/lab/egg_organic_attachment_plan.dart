@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'egg_fragment_regions.dart';
 import 'egg_fracture_network.dart';
 import 'egg_organic_bowl_partition.dart';
 import 'egg_organic_fracture_plan.dart';
