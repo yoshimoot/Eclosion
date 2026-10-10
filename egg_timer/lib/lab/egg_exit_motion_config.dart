@@ -19,9 +19,11 @@ final class EggExitMotionConfig {
   static const double gravityAcceleration = 220;
   static const double clearanceThicknesses = 3;
 
-  // V11.31: after first contact, rotate the SAME 3D solid away from the
-  // egg around a world-horizontal axis. No geometry edits or 2D warping.
-  static const double groundSettlingRadians = 1.0;
+  // V11.32: retain the real rigid ground roll, but stop before both
+  // panels become almost edge-on to the fixed portrait camera at 100%.
+  // This preserves visible curved exterior/interior surface without
+  // changing a single vertex, the contact support, or the hinge motion.
+  static const double groundSettlingRadians = .58;
   static const double groundSettlingDuration = .45;
 
   static EggPanelReleaseMotion build({
