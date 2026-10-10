@@ -1,5 +1,13 @@
 import 'dart:math' as math;
 
+import 'egg_exit_motion_config.dart';
+import 'egg_geometry_preview.dart';
+import 'egg_panel_hinge_pose.dart';
+import 'egg_panel_release_motion.dart';
+import 'egg_rear_bowl_boundary.dart';
+import 'egg_rear_bowl_mesh.dart';
+import 'egg_shell_front_assembly.dart';
+import 'egg_stationary_bowl_shell.dart';
 import 'egg_organic_continuous_pose.dart';
 import 'egg_shell_collision_diagnostic.dart';
 import 'egg_shell_fragment_mesh.dart';
@@ -313,4 +321,177 @@ class EggOrganicAabbPreflight {
     );
   }
 
+}
+
+/// V11.42 — exact SINGLE-SAMPLE supplement covering the rear fixed
+/// shell and the two historical V11.32 panels, in addition to the
+/// front-bowl/sibling tests of [EggOrganicAabbPreflight.inspectExact].
+/// It is still not a conservative continuous-time collision sweep.
+class EggOrganicEnvironmentExactFrame {
+  const EggOrganicEnvironmentExactFrame({
+    required this.frontAndSiblings,
+    required this.rearTouching,
+    required this.rearIntersections,
+    required this.parentTouching,
+    required this.parentIntersections,
+    required this.testedPairs,
+    required this.complete,
+  });
+
+  final EggOrganicExactFrame frontAndSiblings;
+  final List<int> rearTouching, rearIntersections;
+  final Map<String, int> parentTouching, parentIntersections;
+  final int testedPairs;
+  final bool complete;
+
+  bool get hasObservedIntersection =>
+      frontAndSiblings.hasObservedIntersection ||
+      rearIntersections.any((count) => count > 0) ||
+      parentIntersections.values.any((count) => count > 0);
+
+  bool get sampledFrameClear => complete &&
+      frontAndSiblings.sampledFrameClear &&
+      !rearTouching.any((count) => count > 0) &&
+      !rearIntersections.any((count) => count > 0) &&
+      !parentTouching.values.any((count) => count > 0) &&
+      !parentIntersections.values.any((count) => count > 0);
+}
+
+class EggOrganicEnvironmentPreflight {
+  const EggOrganicEnvironmentPreflight._(
+    this.organic, this.rear, this.parents, this.parentMeshes,
+  );
+
+  final EggOrganicAabbPreflight organic;
+  final _TriangleIndex rear;
+  final List<EggPanelReleaseMotion> parents;
+  final List<EggShellPanelMesh> parentMeshes;
+
+  factory EggOrganicEnvironmentPreflight.build() {
+    final organic = EggOrganicAabbPreflight.build();
+    final scene = organic.scene;
+    final staged = scene.staged.meshes;
+    final regions = staged.partition.originalRegions;
+    final originalAssembly = EggShellFrontAssemblyBuilder.build(regions);
+    final originalFront = EggStationaryBowlShellBuilder.build(
+      originalAssembly,
+    );
+    final rearMesh = EggRearBowlMeshBuilder.build(
+      EggRearBowlBoundaryBuilder.build(originalFront),
+    );
+    final rear = _TriangleIndex.build(
+      <EggShellPoint3>[
+        ...rearMesh.exterior, ...rearMesh.interior,
+      ],
+      <EggShellTriangle>[
+        ...rearMesh.outerFaces,
+        ...rearMesh.innerFaces,
+        ...rearMesh.rearCrownWalls,
+      ],
+    );
+    // Use the EXACT V11.32 panel motion, not a new animation approximation.
+    final parentMotions = <EggPanelReleaseMotion>[
+      for (var i = 0; i < staged.parents.length; i++)
+        EggExitMotionConfig.build(
+          panel: staged.parents[i],
+          model: regions.network.model,
+          hinge: EggPanelHingePose.fromGraph(
+            panel: staged.parents[i],
+            region: regions.regions[i],
+            neighbor: regions.regions[1 - i],
+            network: regions.network,
+            openingDegrees: EggExitTimeline.finalHingeDegrees,
+          ),
+        ),
+    ];
+    return EggOrganicEnvironmentPreflight._(
+      organic,
+      rear,
+      List<EggPanelReleaseMotion>.unmodifiable(parentMotions),
+      staged.parents,
+    );
+  }
+
+  /// Only valid AFTER the big panels release at 55% of diagnostic progress.
+  /// At 100% they keep their actual final V11.32 pose while organic pieces
+  /// may continue to settle for up to 3 seconds after their own release.
+  EggOrganicEnvironmentExactFrame inspectExact(
+    double progress, {
+    double afterZeroSeconds = 0,
+    int maxPairsPerPair = 20000,
+  }) {
+    if (!progress.isFinite || progress < .55 || progress > 1 ||
+        maxPairsPerPair <= 0) {
+      throw ArgumentError('Environment collision sample must be after '
+          'the mother panels release, with positive triangle budget');
+    }
+    final base = organic.inspectExact(
+      progress,
+      afterZeroSeconds: afterZeroSeconds,
+      maxPairsPerPair: maxPairsPerPair,
+    );
+    final releaseClock = math.min(
+      2.0, (progress - .55) * (2 / .45),
+    );
+    final movingChildren = <_TriangleIndex>[
+      for (var i = 0; i < organic.scene.staged.meshes.children.length; i++)
+        EggOrganicAabbPreflight._moving(
+          organic.scene.poseAt(
+            i, progress, afterZeroSeconds: afterZeroSeconds,
+          ),
+        ),
+    ];
+    final movingParents = <_TriangleIndex>[
+      for (var i = 0; i < parentMeshes.length; i++)
+        _TriangleIndex.build(
+          <EggShellPoint3>[
+            ...parents[i].transformAll(
+              parentMeshes[i].outer, releaseClock,
+            ),
+            ...parents[i].transformAll(
+              parentMeshes[i].inner, releaseClock,
+            ),
+          ],
+          <EggShellTriangle>[
+            ...parentMeshes[i].outerTriangles,
+            ...parentMeshes[i].innerTriangles,
+            ...parentMeshes[i].sideTriangles,
+          ],
+        ),
+    ];
+    final rearTouch = <int>[], rearCross = <int>[];
+    final parentTouch = <String, int>{};
+    final parentCross = <String, int>{};
+    var complete = base.complete;
+    var inspected = base.testedPairs;
+    for (var i = 0; i < movingChildren.length; i++) {
+      final (pairs, touching, crossing, all) =
+          rear.inspectExact(
+            movingChildren[i], maxPairs: maxPairsPerPair,
+          );
+      inspected += pairs;
+      complete = complete && all;
+      rearTouch.add(touching);
+      rearCross.add(crossing);
+      for (var j = 0; j < movingParents.length; j++) {
+        final (count, touchingParent, crossingParent, checked) =
+            movingParents[j].inspectExact(
+              movingChildren[i], maxPairs: maxPairsPerPair,
+            );
+        inspected += count;
+        complete = complete && checked;
+        parentTouch['$i:$j'] = touchingParent;
+        parentCross['$i:$j'] = crossingParent;
+      }
+    }
+    return EggOrganicEnvironmentExactFrame(
+      frontAndSiblings: base,
+      rearTouching: List<int>.unmodifiable(rearTouch),
+      rearIntersections: List<int>.unmodifiable(rearCross),
+      parentTouching: Map<String, int>.unmodifiable(parentTouch),
+      parentIntersections: Map<String, int>.unmodifiable(parentCross),
+      testedPairs: inspected,
+      complete: complete,
+    );
+  }
 }
