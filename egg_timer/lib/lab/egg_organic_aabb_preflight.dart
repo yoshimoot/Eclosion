@@ -54,10 +54,14 @@ class _Box3 {
     return _Box3(x0, x1, y0, y1, z0, z1);
   }
 
-  bool overlaps(_Box3 b) =>
-      x0 <= b.x1 + 1e-7 && x1 >= b.x0 - 1e-7 &&
-      y0 <= b.y1 + 1e-7 && y1 >= b.y0 - 1e-7 &&
-      z0 <= b.z1 + 1e-7 && z1 >= b.z0 - 1e-7;
+  bool overlaps(_Box3 b) => overlapsWithMargin(b, 1e-7);
+
+  /// Inflate the *relative* movement of both rigid materials; this
+  /// produces a conservative Minkowski envelope in world XYZ.
+  bool overlapsWithMargin(_Box3 b, double margin) =>
+      x0 <= b.x1 + margin && x1 >= b.x0 - margin &&
+      y0 <= b.y1 + margin && y1 >= b.y0 - margin &&
+      z0 <= b.z1 + margin && z1 >= b.z0 - margin;
 }
 
 class _TriangleIndex {
@@ -91,6 +95,41 @@ class _TriangleIndex {
       }
     }
     return _TriangleIndex._(vertices, triangles, bounds, cells);
+  }
+
+  /// Conservative interval broad phase. A returning (false, true)
+  /// means EVERY pair of triangle world AABBs is separated throughout
+  /// the interval if [maximumRelativeDisplacement] bounds both objects'
+  /// material vertex movements from the sampled midpoint.
+  ///
+  /// A budget stop returns (true, false), NEVER a false clearance.
+  (bool, bool) possibleDuringInterval(
+    _TriangleIndex moving, {
+    required double maximumRelativeDisplacement,
+    int maxBoxChecks = 200000,
+  }) {
+    if (!maximumRelativeDisplacement.isFinite ||
+        maximumRelativeDisplacement < 0 || maxBoxChecks <= 0) {
+      throw ArgumentError('Invalid conservative collision envelope');
+    }
+    final margin = maximumRelativeDisplacement + 1e-7;
+    var inspected = 0;
+    for (final box in moving.boxes) {
+      final seen = <int>{};
+      final lo = ((box.x0 - margin) / cellWidth).floor();
+      final hi = ((box.x1 + margin) / cellWidth).floor();
+      for (var cell = lo; cell <= hi; cell++) {
+        for (final id in buckets[cell] ?? const <int>[]) {
+          if (!seen.add(id)) continue;
+          inspected++;
+          if (inspected > maxBoxChecks) return (true, false);
+          if (box.overlapsWithMargin(boxes[id], margin)) {
+            return (true, true);
+          }
+        }
+      }
+    }
+    return (false, true);
   }
 
   /// Classify each potential triangle pair using the existing single
