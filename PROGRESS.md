@@ -1,3 +1,17 @@
+## Premier jalon hybride — étude géométrique 3D à 00:00 (10 octobre 2026 ; NOT rendered)
+
+**Priorité validée en conversation :** démontrer d'abord la qualité du rendu cible à 00:00 (berceau irrégulier, lèvres latérales relevées, poussin validé, matière), puis seulement reprendre la cinématique 00:03 → 00:00. Ne pas prolonger indéfiniment le laboratoire de fragmentation.
+
+**Livrable technique isolé :** `visual_prototype/scene_00.py` est une scène 3D procédurale Blender, indépendante de `egg_timer/`. Le profil en coupe reprend les nœuds et la fonction Hermite de `EggShellModel` (dimensions 220/150, profondeur .92). L'ouverture du bol est asymétrique : centre frontal abaissé, lèvres latérales relevées, contour anguleux irrégulier ; extérieur/intérieur/tranche d'épaisseur 2.5, caméra fixe, matériau et éclairage de diagnostic. Lancement Blender : `blender -b --python visual_prototype/scene_00.py`. Export OBJ pur Python (sans Blender) : `python visual_prototype/scene_00.py --obj shell_00.obj`.
+
+**Vérifications effectivement exécutées hors Blender :** export OBJ, construction du maillage, contrôle d'arêtes (chaque arête a deux faces), cohérence des orientations et étanchéité avec trimesh : **15 362 sommets, 30 720 faces, volume signé positif, maillage fermé**. Ceci ne valide ni la qualité artistique, ni le rendu Blender, ni la concordance exacte au pixel avec la planche, ni la topologie animable. Blender/Dart/Flutter non installés dans l'environnement assistant.
+
+**Gel strict :** `AGENTS.md`, image de référence, `egg_timer/`, cinématiques V11.32 et poussin validé inchangés. Le poussin approuvé n'existe actuellement pas comme asset 3D séparé dans le dépôt : **aucun poussin 3D inventé ni proxy présenté comme définitif**. Le décor/straw est également provisoire (sol neutre), et le berceau de l'étude n'est pas encore relié au graphe des fragments. Ne pas confondre ce jalon de silhouette avec une scène finale complète.
+
+**Prochaine porte de validation :** obtenir un rendu Blender réel du berceau et confronter strictement sa silhouette à la vue de référence 0 %, puis identifier ou créer un véritable asset 3D du poussin conforme au poussin validé. Pour la production, réconcilier la nouvelle frontière du berceau avec les arêtes partagées du réseau de fissures avant toute animation. Aucun contrôle Chrome demandé tant que le prototype statique ne produit pas un nouveau rendu utile.
+
+---
+
 ## V11.54 — Audit de faisabilité visuelle des états 00:03 et 00:00 (10 octobre 2026 ; diagnostic, pas une animation)
 
 **Source de comparaison :** la planche immuable `reference/Planche Eclosion.png`, notamment les vues « 00:03 » et « 0 % », et la capture agrandie transmise par l'utilisateur. Revue de `egg_geometry_preview.dart`, `egg_organic_full_shell_draft.dart`, `egg_organic_lower_cradle_material.dart`, `egg_organic_upper_front_band.dart` et `egg_organic_upper_rear_band.dart`. **Aucun test Flutter ni rendu Chrome exécuté pour cet audit.** Le dernier correctif V11.53 (32 segments de silhouette) est committé mais son test Flutter reste non confirmé.
