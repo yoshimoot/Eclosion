@@ -1,3 +1,17 @@
+## V11.58 — Nouvelle coque supérieure derrière le poussin, candidate indépendante (10 octobre 2026 ; validation artistique demandée)
+
+**Diagnostic à la planche 00:00 :** la V11.57 ressemble encore à une paroi verticale de coquille, avec une découpe surtout sur le bord supérieur. Dans la référence, le grand fragment à gauche de la tête ressemble davantage à une **coque supérieure courbe**, avec contour externe arrondi et arête cassée sur la partie inférieure orientée vers le poussin. Le problème concerne la catégorie géométrique du fragment, et non simplement ses couleurs ou ses microcassures.
+
+**V11.58 — variante NON destructive** : `visual_prototype/rear_cap_00.py` construit un candidat de capuchon latéral/supérieur, découpe angulaire [-2.08, -0.08], sommet arrondi suivant des stations fixes, cassure inférieure irrégulière, géométrie issue de la même fonction `scene_00.surface` que l'œuf, faces externe/interne et parois réelles (épaisseur normale 2.5). **Ce candidat ne remplace pas** la pièce arrière V11.57 ni aucun fichier Flutter ; il est explicitement isolé pour comparaison visuelle avant le choix de la future topologie. Un arc ouvert sépare le candidat de la coupe du berceau : pas de masque graphique ni matière dupliquée sur le même secteur à la même hauteur.
+
+**Contrôles effectivement exécutés dans l'environnement assistant** : 18 tests Python réussis avec `python -m unittest discover -s visual_prototype -p 'test_*.py'`, dont 7 ciblés sur V11.58 (faces, aire de triangles non nulle sur les longueurs d'arêtes, orientation, continuité de la matière, épaisseur, source 3D, reproductibilité, distance géométrique à la coupe inférieure). Contrôle indépendant `trimesh` : 2 482 sommets, 4 960 triangles, maillage fermé, `is_winding_consistent=true`, volume signé positif. Rendu VTK hors écran et comparaison V11.57 / V11.58 / référence dans la conversation. Aucun rendu Blender, Flutter ou Chrome exécuté pour cette variante.
+
+**Limites impératives** : pas encore de géométrie mère complètement partitionnée en arêtes communes ; les contours haut/bas du candidat ne sont PAS encore intégrés au réseau de fractures partagé, donc la construction n'est pas animable sans nouvelle affectation de matière. Aucun test de collision avec le futur poussin 3D car **l'asset 3D du poussin validé n'existe pas dans ce dépôt**. Les deux petites pièces avant restent provisoires, et l'éclairage/les matières de la prévisualisation sont des diagnostics. La version V11.58 ne démontre pas que l'état `100 %` reconstitue un œuf intégral ; ne pas la présenter comme un moteur d'éclosion terminé.
+
+**Porte artistique utilisateur maintenant utile :** choisir à partir de la comparaison trois colonnes si la **direction de forme** V11.58 (capuchon incurvé avec bord inférieur cassé) correspond mieux à la planche que la paroi dressée V11.57. Après cette seule décision, poursuivre vers la topologie complète des vraies arêtes de cassure du haut de l'œuf et la continuité 00:03 → 00:00, sans multiplier les essais de paroi héritée. Tout le reste reste gelé.
+
+---
+
 ## V11.57 — Pièce arrière gauche : contour incliné, non rectangulaire (10 octobre 2026 ; rendu de diagnostic)
 
 **Problème unique :** le grand panneau arrière de V11.56 gardait une silhouette de rectangle dressé, étrangère au morceau de coquille incurvé visible derrière le poussin à 00:00 sur la planche. Le V11.57 ne touche ni au berceau ni aux deux petits morceaux avant.
