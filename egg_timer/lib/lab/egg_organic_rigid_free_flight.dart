@@ -114,6 +114,25 @@ class EggOrganicRigidFreeFlight {
     );
   }
 
+  /// Conservative speed envelopes for a future continuous-time collision
+  /// inspector. After impact use the speed immediately BEFORE contact:
+  /// the upper bound must remain valid for intervals that CROSS impact,
+  /// even though the actual horizontal slide subsequently decelerates.
+  double linearSpeedUpperBoundAt(double seconds) {
+    _checkSeconds(seconds);
+    return launchSpeed + gravityAcceleration *
+        math.min(seconds, impactSeconds ?? seconds);
+  }
+
+  double angularSpeedUpperBoundAt(double seconds) {
+    _checkSeconds(seconds);
+    return angularSpeed.abs();
+  }
+
+  double materialVertexSpeedUpperBoundAt(double seconds) =>
+      linearSpeedUpperBoundAt(seconds) +
+      angularSpeedUpperBoundAt(seconds) * seed.materialRadius;
+
   double spinRadiansAt(double seconds) {
     _checkSeconds(seconds);
     final impact = impactSeconds;
