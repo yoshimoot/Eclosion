@@ -94,6 +94,61 @@ class EggFractureNetwork {
     );
   }
 
+  /// V11.50: ISOLATED 360-degree future lower-cradle break.
+  ///
+  /// The previously accepted crown, parents, three daughters and their
+  /// motion all continue to use organicStaticDraft/fixed unchanged.
+  /// These additional 24 links are real shell-surface samples, not a
+  /// visually clipped 'shorter bowl'. Neither their upper-side ownership
+  /// nor a release trajectory is authorized yet.
+  factory EggFractureNetwork.lowerCradleStaticDraft({
+    EggShellModel model = EggShellModel.reference,
+  }) {
+    final source = EggFractureNetwork.organicStaticDraft(model: model);
+    final graph = _CrackGraphBuilder(model)
+      ..nodes.addAll(source.nodes)
+      ..edges.addAll(source.edges);
+    const segments = 24;
+    const samplesPerEdge = 16;
+    const start = -math.pi;
+    const angularStep = 2 * math.pi / segments;
+
+    double fractureY(double angle) =>
+        106 + 8 * math.sin(3 * angle + .25) +
+        5 * math.sin(7 * angle + .7);
+
+    final first = graph.nodes.length;
+    for (var i = 0; i < segments; i++) {
+      final angle = start + i * angularStep;
+      graph.node(fractureY(angle), angle);
+    }
+    for (var i = 0; i < segments; i++) {
+      final a = first + i, b = first + (i + 1) % segments;
+      final theta = start + i * angularStep;
+      final points = <EggShellPoint3>[
+        graph.nodes[a].onShell(model),
+        for (var j = 1; j < samplesPerEdge; j++)
+          model.pointAt(
+            fractureY(theta + j * angularStep / samplesPerEdge),
+            theta + j * angularStep / samplesPerEdge,
+          ),
+        graph.nodes[b].onShell(model),
+      ];
+      graph.edges.add(EggCrackEdge(
+        id: graph.edges.length,
+        startNode: a,
+        endNode: b,
+        kind: EggCrackKind.connection,
+        samples: List<EggShellPoint3>.unmodifiable(points),
+      ));
+    }
+    return EggFractureNetwork._(
+      model, source.seed,
+      List<EggCrackNode>.unmodifiable(graph.nodes),
+      List<EggCrackEdge>.unmodifiable(graph.edges),
+    );
+  }
+
   factory EggFractureNetwork.fixed({
     EggShellModel model = EggShellModel.reference,
   }) {
