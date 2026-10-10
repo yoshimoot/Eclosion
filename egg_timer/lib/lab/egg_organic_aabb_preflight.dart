@@ -245,7 +245,14 @@ class EggOrganicAabbPreflight {
   final EggOrganicContinuousPoseCoordinator scene;
   final _TriangleIndex _bowl;
 
-  factory EggOrganicAabbPreflight.build() {
+  // Diagnostic sources are immutable for the fixed-seed reference.
+  // One cached stationary triangle index avoids rebuilding tens of
+  // thousands of 3D triangle boxes for every deterministic assertion.
+  static final EggOrganicAabbPreflight _reference = _buildReference();
+
+  factory EggOrganicAabbPreflight.build() => _reference;
+
+  static EggOrganicAabbPreflight _buildReference() {
     final scene = EggOrganicContinuousPoseCoordinator.fixed();
     // The cut organic front bowl has REAL internal material and thickness
     // along each re-routed 3D crack. Counting exterior alone could produce
@@ -438,7 +445,12 @@ class EggOrganicEnvironmentPreflight {
   final List<EggPanelReleaseMotion> parents;
   final List<EggShellPanelMesh> parentMeshes;
 
-  factory EggOrganicEnvironmentPreflight.build() {
+  static final EggOrganicEnvironmentPreflight _reference =
+      _buildReference();
+
+  factory EggOrganicEnvironmentPreflight.build() => _reference;
+
+  static EggOrganicEnvironmentPreflight _buildReference() {
     final organic = EggOrganicAabbPreflight.build();
     final scene = organic.scene;
     final staged = scene.staged.meshes;
