@@ -27,7 +27,7 @@ void main() {
     expect(find.byKey(const Key('exit-sequence-progress')), findsOneWidget);
     expect(find.text('Lire'), findsOneWidget);
     expect(find.text('Rejouer'), findsOneWidget);
-    expect(find.text('Contours des fragments'), findsOneWidget);
+    expect(find.text('Contours des fragments'), findsNothing);
 
     // These old laboratory controls must not clutter or overflow Chrome.
     for (final name in [
