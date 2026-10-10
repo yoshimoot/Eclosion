@@ -9,9 +9,20 @@ void main() {
     expect(extended.seed, original.seed);
     expect(extended.nodes.length, original.nodes.length + 24);
     expect(extended.edges.length, original.edges.length + 24);
+    // Both graph factories are deterministic but each creates its own
+    // immutable value objects. Compare the ACTUAL material coordinates,
+    // not object identity across two separate factory invocations.
     for (var i = 0; i < original.edges.length; i++) {
-      expect(extended.edges[i], same(original.edges[i]),
-          reason: 'The V10.4/F1 and V11.33 graphs must remain unchanged');
+      final before = original.edges[i], after = extended.edges[i];
+      expect(after.kind, before.kind);
+      expect(after.startNode, before.startNode);
+      expect(after.endNode, before.endNode);
+      expect(after.samples.length, before.samples.length);
+      for (var j = 0; j < before.samples.length; j++) {
+        expect((before.samples[j] - after.samples[j]).length,
+            lessThan(1e-10),
+            reason: 'F1/V10.4 material moved on edge $i sample $j');
+      }
     }
     var maximumOldY = double.negativeInfinity;
     for (final edge in original.edges) {
