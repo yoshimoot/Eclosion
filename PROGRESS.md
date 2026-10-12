@@ -1,3 +1,15 @@
+## Décision de conception — sommet supérieur d'une seule pièce (12 octobre 2026 ; retour utilisateur)
+
+**Décision utilisateur :** après inspection de V11.68 dans Blender, les deux fragments `upper_fragment_00_A` et `upper_fragment_00_B` paraissent artificiellement raccordés près du pôle. L'utilisateur propose de **les réunir en un seul fragment**. C'est la direction retenue : **un fragment principal unique doit englober tout le pôle supérieur**. Aucun tracé de séparation neuf ne doit traverser ou contourner le pôle ; concentrer les subdivisions futures dans les parties périphériques, avec un réseau organique et sans grands panneaux parallèles. La correction annoncée consistant à déplacer plus bas la fissure de V11.68 est **abandonnée**.
+
+**Réutilisation non destructive de la géométrie source :** V11.67 possède déjà `upper_fragment_00` comme une seule pièce avec le pôle `Z = 220`. Le script V11.68 reste dans GitHub comme archive expérimentale mais **ne doit plus être pris comme géométrie active du sommet**. La prochaine production dérive du haut V11.67 (9 fragments supérieurs) et du berceau V11.66 inchangé (1 volume inférieur), sauf modification visuelle ciblée explicitement demandée.
+
+**Vérification réellement exécutée sur les OBJ locaux V11.67 et V11.68 :** V11.67 contient 10 volumes (9 supérieurs + berceau), contre 11 en V11.68 après division. Dans l'OBJ V11.67, une seule pièce possède le pôle supérieur. Les **huit autres fragments supérieurs et le berceau sont identiques** entre V11.67 et V11.68. Le fichier complet et la partie haute sans division ont été exportés vers `/mnt/data/eclosion_v1169_sommet_unique/` dans la conversation ; aucune modification Blender, Flutter, Android ni aucun test d'animation ne sont revendiqués. Il s'agit d'une **décision artistique et de retour à la géométrie validable**, pas d'une nouvelle amélioration visuelle démontrée par rendu.
+
+**Prochaine priorité :** rendre plus naturelles les fractures périphériques du fragment principal tout en conservant un sommet unique et le berceau validé ; confronter le rendu à la planche de référence en perspective avant validation.
+
+---
+
 ## V11.68 — Un seul grand fragment supérieur subdivisé, berceau V11.66 intégralement gelé (12 octobre 2026 ; GEOMETRIE, PAS VALIDATION ARTISTIQUE)
 
 **Contexte visuel :** l'utilisateur a inspecté dans Blender les OBJ séparés du haut et du bas V11.67. Le bol (direction V11.66) reste la référence géométrique validée comme base ; le grand fragment occupant encore une forte proportion du dôme supérieur est le défaut principal de cette itération.
