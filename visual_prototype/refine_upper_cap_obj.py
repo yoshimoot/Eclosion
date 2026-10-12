@@ -126,8 +126,7 @@ def _shortest_path(vertices,neighbors,start,end,forbidden):
             length=math.dist(vertices[node],vertices[nxt])
             value=cost+length
             if value+1e-9<dist.get(nxt,math.inf):
-                dist[nxt]=value;parent[nxt]
-                parent[nxt]=node
+                dist[nxt]=value;parent[nxt]=node
                 heapq.heappush(heap,(value,nxt))
     raise ValueError('No unobstructed fracture route through the parent shell')
 
